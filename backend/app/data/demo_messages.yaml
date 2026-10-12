@@ -19,7 +19,7 @@ messages:
   - source: sms
     sender: "BD Bank Alert"
     minutes_ago: 4320
-    text: "Your Card ending 4821 was used for purchase of CNY 3,200.00 at CAMPUS ELECTRONICS on 09-Oct-26 (BDT 58,912.00). Avl Bal BDT 1,26,698.00"
+    text: "Your Card ending 4821 was used for purchase of CNY 3,200.00 at CAMPUS ELECTRONICS on 09-Oct-26 (BDT 61,050.00). Avl Bal BDT 1,24,560.00"
   - source: sms
     sender: "95588"
     minutes_ago: 2880

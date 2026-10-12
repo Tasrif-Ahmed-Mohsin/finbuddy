@@ -50,6 +50,7 @@ class ComplianceContext:
     endorsement_expiry: date | None = None
     student_file_expiry: date | None = None
     origin_flags: list[Flag] | None = None
+    card_status: str | None = None  # status of the Bangladeshi card used for ATM plans
 
 
 def run_draft_checks(draft: Draft, ctx: ComplianceContext) -> list[Check]:
@@ -97,6 +98,13 @@ def run_draft_checks(draft: Draft, ctx: ComplianceContext) -> list[Check]:
         checks.append(Check("living_cap", ok, "block" if not ok else "info",
                             f"Living remittance this month would be {q2(after)} USD (cap {cap} USD)",
                             c.params["bd_living_remit_cap_usd_per_month"].source))
+
+    # 5b. A frozen or lost card cannot be used for ATM withdrawals.
+    if draft.kind == "atm_plan" and ctx.card_status is not None:
+        ok = ctx.card_status == "active"
+        checks.append(Check("card_active", ok, "info" if ok else "block",
+                            "Card is active" if ok else f"Card is {ctx.card_status}; unfreeze it (or use the replacement card) first",
+                            "Card controls"))
 
     # 6. Endorsement / Student File must be valid; warn ahead of expiry (N-05).
     warn_days = c.i("bd_endorsement_warn_days")

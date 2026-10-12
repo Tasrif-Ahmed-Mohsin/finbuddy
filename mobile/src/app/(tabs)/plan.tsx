@@ -1,10 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 
+import { DataBanner } from '@/components/data-banner';
+import { FxChart } from '@/components/fx-chart';
 import { ThemedText } from '@/components/themed-text';
-import { Badge, Banner, Button, Card, ErrorBox, H1, H2, Meter, Muted, Row, Screen, Segmented, Field, styles } from '@/components/ui';
-import { post, type Draft, type LivingPlan, type Timeline, type TuitionPlan } from '@/lib/api';
-import { bdt, cny, num, shortDate } from '@/lib/format';
+import { Badge, Button, Card, ErrorBox, H1, H2, Meter, Muted, Row, Screen, Segmented, Field, styles } from '@/components/ui';
+import { post, type Draft, type FxOverview, type FxPoint, type LivingPlan, type Timeline, type TuitionPlan } from '@/lib/api';
+import { bdt, cny, localDigits, num, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
 type Mode = 'tuition' | 'living';
@@ -37,6 +39,68 @@ function PlanBody({ initial }: { initial: Mode }) {
 }
 
 const STATUS_TONE = { on_track: 'ok', urgent: 'warn', urgent_no_buffer: 'warn', at_risk_late: 'block' } as const;
+
+/** Real BDT/CNY history, today's rate, and how often our past ranges were right (honesty first). */
+function FxCard() {
+  const { t, lang, call } = useSession();
+  const [fx, setFx] = useState<{ overview: FxOverview; history: FxPoint[] } | null>(null);
+  useEffect(() => {
+    Promise.all([call<FxOverview>('/fx'), call<FxPoint[]>('/fx/history?days=365')])
+      .then(([overview, history]) => setFx({ overview, history }))
+      .catch(() => {});
+  }, [call]);
+  if (!fx) return null;
+  const bt = fx.overview.horizons['7']?.backtest;
+  const pct = (v: number | null) => (v === null ? '–' : localDigits(`${v > 0 ? '+' : ''}${v}%`, lang));
+  return (
+    <Card>
+      <Row style={styles.between}>
+        <Muted>{t('rateNow')}</Muted>
+        <ThemedText type="smallBold">{localDigits(`৳${Number(fx.overview.mid.bdt_per_cny).toFixed(2)}`, lang)}</ThemedText>
+      </Row>
+      <FxChart points={fx.history} lang={lang} />
+      <Muted>
+        {t('rateChange')}: 90d {pct(fx.overview.change_pct['90d'])} · 1y {pct(fx.overview.change_pct['365d'])}
+      </Muted>
+      {bt && (
+        <Muted>
+          {t('rangesRight')} {localDigits(`${Math.round(bt.empirical_coverage * 100)}%`, lang)} {t('ofTests')} ({num(bt.tests, lang)})
+        </Muted>
+      )}
+    </Card>
+  );
+}
+
+/** Enter a real quote from a Bangladeshi bank (e.g. the friend's BRAC Bank TT rate) to replace estimates. */
+function QuoteForm({ onAdded }: { onAdded: () => void }) {
+  const { t, call } = useSession();
+  const [bank, setBank] = useState('');
+  const [rate, setRate] = useState('');
+  const [fee, setFee] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  async function save() {
+    setError(null);
+    try {
+      await call('/market/quotes', post({ bank, bdt_per_cny: rate, fixed_fee_bdt: fee || '0' }));
+      setBank('');
+      setRate('');
+      setFee('');
+      onAdded();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+  return (
+    <Card>
+      <H2>{t('addQuote')}</H2>
+      <Field label={t('quoteBank')} value={bank} onChangeText={setBank} />
+      <Field label={t('quoteRate')} value={rate} onChangeText={setRate} keyboardType="decimal-pad" />
+      <Field label={t('quoteFee')} value={fee} onChangeText={setFee} keyboardType="numeric" />
+      <Button title={t('saveQuote')} variant="secondary" onPress={save} disabled={!bank || !rate} />
+      <ErrorBox error={error} />
+    </Card>
+  );
+}
 
 function TuitionPlanner() {
   const { t, lang, call } = useSession();
@@ -94,9 +158,10 @@ function TuitionPlanner() {
         <Button title={t('compareBanks')} onPress={compare} loading={busy} />
       </Card>
       <ErrorBox error={error} />
+      <FxCard />
       {plan && (
         <>
-          {plan.data_is_sample && <Banner tone="warn">{t('sampleBanner')}</Banner>}
+          <DataBanner dq={plan.data_quality} />
           <Card tone={STATUS_TONE[plan.status]}>
             <Row style={styles.between}>
               <H2>
@@ -143,6 +208,23 @@ function TuitionPlanner() {
                 </Muted>
               </Card>
             ))}
+          {plan.wait_risk && (
+            <Card tone="info">
+              <H2>{t('ifWait')}</H2>
+              <Row style={styles.between}>
+                <Muted>{t('payNowCost')}</Muted>
+                <ThemedText type="smallBold">{bdt(plan.wait_risk.pay_now_bdt, lang)}</ThemedText>
+              </Row>
+              <Row style={styles.between}>
+                <Muted>{localDigits(`${Math.round(plan.wait_risk.level * 100)}%`, lang)}</Muted>
+                <ThemedText type="smallBold">
+                  {bdt(plan.wait_risk.if_wait_low_bdt, lang)} – {bdt(plan.wait_risk.if_wait_high_bdt, lang)}
+                </ThemedText>
+              </Row>
+              <Muted>{plan.wait_risk.honest_note}</Muted>
+            </Card>
+          )}
+          <QuoteForm onAdded={compare} />
         </>
       )}
     </>
@@ -203,7 +285,7 @@ function LivingPlanner() {
         <Button title={t('makePlan')} onPress={makePlan} loading={busy} />
       </Card>
       <ErrorBox error={error} />
-      {plan && plan.data_is_sample && <Banner tone="warn">{t('sampleBanner')}</Banner>}
+      {plan && <DataBanner dq={plan.data_quality} />}
       {plan && !b && (
         <Card tone="block">
           <H2>{t('noPlan')}</H2>

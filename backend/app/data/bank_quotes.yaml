@@ -1,0 +1,22 @@
+# Bangladeshi bank CNY transfer pricing.
+#
+# The MID-MARKET rate is REAL (live, see app/fx.py). Bank prices below are ESTIMATES:
+# a markup over the live mid-market rate plus a fixed fee, until real quotes are entered
+# (POST /market/quotes, e.g. the friend's actual BRAC Bank TT rate with its date).
+# Bank names are generic on purpose so nobody mistakes an estimate for a real bank's price.
+
+source: "Estimated: markup over the live mid-market rate (not a real bank quote)"
+
+estimated_quotes:
+  - quote_id: "est-a"
+    bank: "Bank A (estimate)"
+    markup_pct: "1.9"      # TT selling rate vs mid-market
+    fixed_fee_bdt: "1150"  # per transfer, VAT included
+  - quote_id: "est-b"
+    bank: "Bank B (estimate)"
+    markup_pct: "3.0"
+    fixed_fee_bdt: "800"
+  - quote_id: "est-c"
+    bank: "Bank C (estimate)"
+    markup_pct: "1.5"
+    fixed_fee_bdt: "1725"

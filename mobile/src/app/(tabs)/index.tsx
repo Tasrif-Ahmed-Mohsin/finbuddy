@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
 import { useCallback } from 'react';
 
+import { CardControls } from '@/components/card-controls';
+import { DataBanner } from '@/components/data-banner';
 import { InsightCard } from '@/components/sathi-updates';
 import { ThemedText } from '@/components/themed-text';
-import { Badge, Banner, Button, Card, ErrorBox, H1, H2, Meter, Muted, Row, Screen, Segmented, styles } from '@/components/ui';
+import { Badge, Button, Card, ErrorBox, H1, H2, Meter, Muted, Row, Screen, Segmented, styles } from '@/components/ui';
 import type { Accounts, Insight, Role, Timeline, TimelineItem } from '@/lib/api';
 import { bdt, cny, num, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -40,7 +42,7 @@ export default function HomeScreen() {
       </Card>
 
       <ErrorBox error={error} />
-      {data?.timeline.data_is_sample && <Banner tone="warn">{t('sampleBanner')}</Banner>}
+      <DataBanner dq={data?.timeline.data_quality} />
 
       {data && (
         <>
@@ -48,7 +50,7 @@ export default function HomeScreen() {
             <>
               <H2>{t('updates')}</H2>
               {data.insights.slice(0, 2).map((i) => (
-                <InsightCard key={i.id} insight={i} />
+                <InsightCard key={i.id} insight={i} onChanged={reload} />
               ))}
               {data.insights.length > 2 && (
                 <Button title={`${t('updates')} (${num(data.insights.length, lang)})`} variant="secondary" onPress={() => router.push('/assistant')} />
@@ -75,6 +77,8 @@ export default function HomeScreen() {
               display={`${bdt(data.timeline.card_usage.bdt_used, lang)} / ${bdt(data.timeline.card_usage.bdt_cap, lang)}`}
             />
           </Card>
+
+          <CardControls card={data.timeline.card} onChange={reload} />
 
           {data.accounts.pending.length > 0 && (
             <Card tone="info">

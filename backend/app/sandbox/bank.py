@@ -41,6 +41,21 @@ class PendingTransfer:
 
 
 @dataclass
+class Card:
+    """A payment card in the sandbox. Card controls mirror real banking apps (freeze / unfreeze / report lost)."""
+    last4: str
+    owner: str
+    label: str
+    status: str = "active"  # active | frozen | lost
+    reason: str | None = None
+    changed_at: str | None = None
+    replacement_last4: str | None = None
+
+    def to_dict(self) -> dict:
+        return dict(self.__dict__)
+
+
+@dataclass
 class CardUsage:
     """Bangladeshi student card usage this month (the 5 lakh BDT / 30 transactions limits)."""
     month: str
@@ -58,6 +73,7 @@ class SandboxBank:
     pending: list[PendingTransfer] = field(default_factory=list)
     card: CardUsage | None = None
     living_remitted_usd: dict[str, Decimal] = field(default_factory=dict)  # month -> USD
+    cards: dict[str, Card] = field(default_factory=dict)
     _seq: int = 0
     _cny_per_usd: Decimal = Decimal("6.95")  # set from market data at seed time
 
@@ -109,6 +125,9 @@ class SandboxBank:
     def execute_atm_withdrawals(self, draft_id: str, card_account_id: str, cash_account_id: str,
                                 withdrawals_cny: list[Decimal], total_bdt: Decimal, actor: str, level: str) -> dict:
         card_acct = self.accounts[card_account_id]
+        card = next((c for c in self.cards.values() if c.owner == card_acct.owner), None)
+        if card and card.status != "active":
+            raise ValueError(f"card ending {card.last4} is {card.status}; unfreeze it first")
         usage = self.card_usage()
         tx_cap = self.corridor.i("bd_student_card_tx_cap_per_month")
         bdt_cap = self.corridor.v("bd_student_card_cap_bdt_per_month")
@@ -127,6 +146,18 @@ class SandboxBank:
             "charged_bdt": str(q2(total_bdt)), "card_tx_used": usage.tx_count, "card_tx_cap": tx_cap,
             "card_bdt_used": str(q2(usage.bdt_charged)), "card_bdt_cap": str(bdt_cap),
         })
+
+    # ---- card controls -------------------------------------------------------
+    def set_card_status(self, last4: str, status: str, actor: str, level: str, reason: str | None = None) -> dict:
+        card = self.cards[last4]
+        if card.status == "lost":
+            raise ValueError("this card was reported lost and cannot be reactivated; use the replacement card")
+        previous, card.status, card.reason, card.changed_at = card.status, status, reason, self.clock.isoformat()
+        if status == "lost":
+            card.replacement_last4 = "9034"  # sandbox: a replacement card is ordered
+        self.log(f"card_{status}", actor, level, {"card": last4, "from": previous, "to": status, "reason": reason,
+                                                  "replacement": card.replacement_last4})
+        return card.to_dict()
 
     def advance(self, days: int, actor: str = "system") -> list[dict]:
         if days < 0 or days > 365:
@@ -166,6 +197,7 @@ def seed_demo_bank(corridor: Corridor, audit: AuditLog, start: datetime, cny_per
         "agent_x": Payee("agent_x", "'Fast Tuition Agency' (unverified)", "Unknown", "****9999", "CNY",
                          False, "Sent by a stranger on WeChat", "university"),
     }
+    bank.cards["4821"] = Card("4821", "student", "Student File debit card (Bangladesh) [sandbox]")
     bank.log("sandbox_seeded", "system", "SYSTEM", {
         "accounts": [a.to_dict() for a in bank.accounts.values()],
         "note": "Fictional demo persona; no real money or real bank.",

@@ -6,7 +6,9 @@
 - ✅ Backend: rule pack, cost engine, living optimiser, tuition planner, FX range + coverage backtest, permissions (L0–L3, two-person, mandates, tamper/replay protection), compliance checks, scam/injection detection, sandbox bank, hash-chained audit log, REST API. **78 tests pass.**
 - ✅ Mobile (Expo SDK 57): Home timeline + limit meters, Plan (tuition comparison, living optimiser), approval screen with biometrics/PIN, Activity (drafts + audit log), message scam check, Settings (role, language bn/en/zh, server, sandbox clock, rule pack with sources). Typecheck and lint clean. T1 verified end to end in the web build.
 - ✅ (12 Oct, later) **AI agent + inbox:** DeepSeek tool-calling chat (read + draft only) with offline fallback; SMS/email ingestion (share/paste, webhook, IMAP), privacy redaction, rule + AI extraction with number grounding, insight engine (fees, limits, fraud, scams, phishing, OTP, renewals, FX markup), translated updates. **104 tests pass.** Design: [03_agent_and_inbox.md](03_agent_and_inbox.md).
-- ⏭ Next: real FX history + real Bangladeshi bank quotes; real anonymised SMS samples from the friend; T3 endorsement renewal flow; alert notifications; try on a real phone with Expo Go.
+- ✅ (12 Oct, later) **Real exchange rates:** live mid-market rate + 953 days of daily BDT/CNY history (fawazahmed0/exchange-api, CC0), offline fallback, honest ranges (80% ranges were right 82% of 689 past 7-day tests), "if you wait" cost range on tuition plans, real bank quotes can be entered (bank prices are labelled estimates until then).
+- ✅ **Card controls** (like a banking app): freeze / unfreeze / report lost. Asymmetric permissions: the agent may freeze (protective, reversible) but never unfreeze; unfreeze and report-lost need fingerprint/PIN. "Was this you?" alerts offer one-tap freeze; charges on a frozen card raise a top alert. **120 tests pass.**
+- ⏭ Next: T3 endorsement renewal assistant; photo document reader; credit-building payment passport; real anonymised SMS samples + friend's real BRAC quote; try on a real phone with Expo Go.
 
 ---
 

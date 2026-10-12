@@ -42,13 +42,19 @@ ACTION_LEVELS: dict[str, Level] = {
     "check_message": Level.READ,
     "create_draft": Level.DRAFT,
     "set_reminder": Level.DRAFT,
+    # Protective and reversible, moves no money: low friction, the agent may do it in an emergency.
+    "freeze_card": Level.DRAFT,
+    # Re-enables spending or is irreversible: the user only, with fingerprint/PIN on the phone.
+    "unfreeze_card": Level.EXECUTE,
+    "report_card_lost": Level.EXECUTE,
     "execute_draft": Level.EXECUTE,
     "execute_under_mandate": Level.MANDATE,
 }
 
 # The agent's ceiling. It can never EXECUTE on its own; only MANDATE within user-set caps.
+# Asymmetric by design: making things SAFER is easy, making them riskier needs a human.
 AGENT_ALLOWED = {"get_rates", "compare_tuition", "plan_living", "explain", "check_message", "create_draft",
-                 "set_reminder", "execute_under_mandate"}
+                 "set_reminder", "freeze_card", "execute_under_mandate"}
 
 
 @dataclass

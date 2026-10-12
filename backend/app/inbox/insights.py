@@ -48,6 +48,7 @@ class InsightContext:
     card_tx_used: int
     card_bdt_used: Decimal
     executed_amounts_cny: list[Decimal]
+    card_status: str = "active"
 
 
 def fmt_bdt(x: Decimal) -> str:
@@ -64,6 +65,21 @@ def generate(ctx: InsightContext) -> list[Insight]:
     month = ctx.now.strftime("%Y-%m")
     card_last4 = ctx.profile.get("student_card_last4")
     mine = [t for t in ctx.txns if t.received_at.strftime("%Y-%m") == month]
+
+    def freeze_action(t) -> dict | None:
+        if t.owner == "student_card" and ctx.card_status == "active":
+            return {"screen": "card", "op": "freeze", "last4": card_last4}
+        return None
+
+    # 0. A charge on a card that is frozen or reported lost: the card may be compromised.
+    for t in mine:
+        if t.owner == "student_card" and t.direction == "debit" and t.card_status in ("frozen", "lost"):
+            out.append(Insight(f"used_while_{t.card_status}:{t.id}", "card_used_while_blocked", "alert",
+                               f"Card used while {t.card_status}!",
+                               f"A charge of {fmt_cny(t.amount) if t.currency == 'CNY' else fmt_bdt(t.amount)} arrived for card "
+                               f"ending {card_last4} while it was {t.card_status}. Call your bank's 24-hour hotline now and "
+                               "report the card lost so it is cancelled.",
+                               action={"screen": "card", "op": "report_lost", "last4": card_last4}, txn_ids=[t.id]))
 
     # 1. ATM fee leakage (N-01/N-02): many withdrawals with a fixed fee each.
     atms = [t for t in mine if t.kind == "atm" and t.direction == "debit" and t.account_last4 == card_last4]
@@ -100,7 +116,8 @@ def generate(ctx: InsightContext) -> list[Insight]:
                 out.append(Insight(f"large_debit:{t.id}", "large_debit", "alert", "Large payment: was this you?",
                                    f"{fmt_cny(t.amount) if t.currency == 'CNY' else fmt_bdt(t.amount)} was debited"
                                    f"{' at ' + t.counterparty if t.counterparty else ''} (about {fmt_bdt(t.bdt_value)}). "
-                                   "If you did not make it, call your bank's hotline and block the card now.", txn_ids=[t.id]))
+                                   "If you did not make it, freeze the card now and call your bank's hotline.",
+                                   action=freeze_action(t), txn_ids=[t.id]))
 
     # 4. Duplicate charge: same amount + merchant within 10 minutes.
     debits = sorted((t for t in mine if t.direction == "debit"), key=lambda t: t.received_at)
@@ -110,7 +127,7 @@ def generate(ctx: InsightContext) -> list[Insight]:
             out.append(Insight(f"duplicate:{b.id}", "duplicate_charge", "alert", "Possible double charge",
                                f"{fmt_cny(b.amount) if b.currency == 'CNY' else fmt_bdt(b.amount)} was charged twice"
                                f"{' at ' + b.counterparty if b.counterparty else ''} within minutes. Check with the merchant or your bank.",
-                               txn_ids=[a.id, b.id]))
+                               action=freeze_action(b), txn_ids=[a.id, b.id]))
 
     # 5–7. Message-level security signals.
     otp_seen = False

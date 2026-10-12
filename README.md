@@ -6,8 +6,9 @@ Sathi (সাথী, "companion") helps international students and their familie
 the **lowest true cost**, **inside every limit**, and **safely**, in Bengali, English and Chinese.
 Hero corridor: **Bangladesh → China**.
 
-> ⚠️ Sandbox only. No real money moves. Rates in `backend/app/data/market_sample.yaml` are **sample data**
-> until real quotes are loaded (the app shows a warning banner).
+> ⚠️ Sandbox only. No real money moves. The **mid-market exchange rate is real** (live, with 953 days of saved
+> history from [fawazahmed0/exchange-api](https://github.com/fawazahmed0/exchange-api), CC0). **Bank prices are
+> estimates** (`backend/app/data/bank_quotes.yaml`) until real quotes are entered; the app always says which.
 
 ## What works today
 
@@ -17,6 +18,8 @@ Hero corridor: **Bangladesh → China**.
 | **T2 Living money** | Constrained optimiser: transfer-to-own-account vs ATM withdrawals (~৳345 each) → cheapest plan that **never breaks** the 5 lakh BDT / 30 transactions / ATM / living-remittance caps |
 | **T4 Scams** | Hundi, "discount tuition agents", fake police, card rental, crypto and prompt injection detected (EN/BN/ZH) → drafts **blocked** with an explanation |
 | **AI agent + inbox** | Share/forward bank SMS and emails → privacy redaction (OTP removed, numbers masked) → transactions tracked → alerts and savings insights. DeepSeek chat agent explains, plans and drafts (it can never approve or send). See [docs/03_agent_and_inbox.md](docs/03_agent_and_inbox.md) |
+| **Real rates** | Live BDT/CNY rate, 1-year chart, honest 80% ranges with a backtest (right 82% of 689 tests), "if you wait" cost range; refresh history with `python scripts/fetch_fx_history.py` |
+| **Card controls** | Freeze / unfreeze / report lost. The agent may freeze (protective) but never unfreeze; unfreeze needs fingerprint/PIN |
 | Security | Permission levels L0–L3, approval tokens bound to the exact draft (tamper and replay blocked), mandates with caps, hash-chained audit log |
 
 ## Run it
@@ -43,7 +46,7 @@ On a phone, the app looks for the backend on the same computer at port 8000 (the
 
 ## Test it
 ```bash
-cd backend && .venv/Scripts/python -m pytest -q        # 78 tests: engines, security, end-to-end scenarios
+cd backend && .venv/Scripts/python -m pytest -q        # 120 tests: engines, security, agent, inbox, FX, cards
 cd mobile && npx tsc --noEmit && npx expo lint
 ```
 

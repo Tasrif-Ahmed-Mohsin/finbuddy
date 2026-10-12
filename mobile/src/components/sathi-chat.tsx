@@ -60,9 +60,15 @@ export function SathiChat() {
               <Badge tone={turn.reply?.mode === 'llm' ? 'info' : 'neutral'}>{turn.reply?.mode === 'llm' ? 'AI · DeepSeek' : 'offline rules'}</Badge>
               {turn.reply?.tools_used.length ? <Muted>{turn.reply.tools_used.join(', ')}</Muted> : null}
             </Row>
-            {turn.reply?.actions.map((a) => (
-              <Button key={a.draft_id} title={t('openDraft')} onPress={() => router.push({ pathname: '/draft/[id]', params: { id: a.draft_id } })} />
-            ))}
+            {turn.reply?.actions.map((a) =>
+              a.type === 'draft' ? (
+                <Button key={a.draft_id} title={t('openDraft')} onPress={() => router.push({ pathname: '/draft/[id]', params: { id: a.draft_id } })} />
+              ) : (
+                <Badge key={`card-${a.last4}`} tone="warn">
+                  🔒 {t('card')} ••••{a.last4}: {a.status}
+                </Badge>
+              ),
+            )}
           </ThemedView>
         ),
       )}

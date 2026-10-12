@@ -77,8 +77,17 @@ export type TuitionPlan = {
   options: (CostBreakdown & { bank: string; quote_id: string; sample: boolean })[];
   best_quote_id: string;
   savings_best_vs_worst_bdt: string;
-  wait_risk: null | Record<string, string | number>;
+  wait_risk: null | {
+    pay_now_bdt: string;
+    if_wait_low_bdt: string;
+    if_wait_high_bdt: string;
+    level: number;
+    horizon_days: number;
+    honest_note: string;
+    backtest?: { empirical_coverage: number; tests: number } | null;
+  };
   data_is_sample: boolean;
+  data_quality: DataQuality;
 };
 
 export type LivingOption = {
@@ -109,6 +118,7 @@ export type LivingPlan = {
   steps: string[];
   limits: Record<string, string | number>;
   data_is_sample: boolean;
+  data_quality: DataQuality;
 };
 
 export type TimelineItem = {
@@ -127,6 +137,38 @@ export type Timeline = {
   items: TimelineItem[];
   card_usage: { month: string; tx_used: number; tx_cap: number; bdt_used: string; bdt_cap: string };
   data_is_sample: boolean;
+  data_quality: DataQuality;
+  card: Card;
+};
+
+export type DataQuality = {
+  mid: 'live' | 'saved' | 'fixture';
+  mid_as_of: string;
+  mid_source: string;
+  bdt_per_cny: string;
+  bank_quotes: 'estimated' | 'mixed' | 'real';
+};
+
+export type Card = {
+  last4: string;
+  owner: string;
+  label: string;
+  status: 'active' | 'frozen' | 'lost';
+  reason: string | null;
+  changed_at: string | null;
+  replacement_last4: string | null;
+};
+
+export type FxPoint = { date: string; bdt_per_cny: number };
+
+export type FxOverview = {
+  mid: { bdt_per_cny: string; as_of: string; source: string };
+  status: string;
+  history_days: number;
+  change_pct: { '90d': number | null; '365d': number | null };
+  horizons: Record<string, { range: { low: number; high: number; spot: number } | null; backtest: { empirical_coverage: number; tests: number } | null }>;
+  method: string;
+  caveat: string;
 };
 
 export type Account = { id: string; owner: string; label: string; currency: string; balance: string };
@@ -159,7 +201,7 @@ export type Insight = {
   title: string;
   body: string;
   savings_bdt: string | null;
-  action: { screen: string; mode?: string; need_cny?: string } | null;
+  action: { screen: string; mode?: string; need_cny?: string; op?: 'freeze' | 'report_lost'; last4?: string } | null;
   txn_ids: string[];
   translated?: boolean;
 };
@@ -187,6 +229,6 @@ export type StoredMessage = { id: string; source: string; sender: string; receiv
 
 export type IngestResult = { kept: boolean; reason?: string; message?: StoredMessage; transaction?: InboxTxn | null; flags?: Flag[] };
 
-export type ChatReply = { reply: string; mode: 'llm' | 'fallback'; actions: { type: 'draft'; draft_id: string; status: string }[]; tools_used: string[] };
+export type ChatReply = { reply: string; mode: 'llm' | 'fallback'; actions: ({ type: 'draft'; draft_id: string; status: string } | { type: 'card'; last4: string; status: string })[]; tools_used: string[] };
 
 export type Sources = Record<string, { available: boolean; note: string; path?: string; header?: string }> & { privacy: string[] };

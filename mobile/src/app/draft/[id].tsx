@@ -1,38 +1,16 @@
-import * as LocalAuthentication from 'expo-local-authentication';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Platform } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Badge, Banner, Button, Card, ErrorBox, H1, H2, Muted, Row, Screen, styles } from '@/components/ui';
 import type { Draft } from '@/lib/api';
 import { bdt, cny, num } from '@/lib/format';
 import { STATUS_TONE } from '@/lib/labels';
+import { confirmPresence } from '@/lib/presence';
 import { useSession } from '@/lib/session';
 import { useLoad } from '@/lib/use-load';
 
 const CHECK_ICON = { pass: '✓', warn: '!', block: '✕' } as const;
-
-/**
- * Prove the user is present: biometrics or device PIN on the phone.
- * Web preview (development only) has no biometrics: the tap on "Approve" is the confirmation.
- * Devices without enrolled biometrics get an explicit confirmation dialog.
- */
-async function confirmPresence(message: string): Promise<boolean> {
-  if (Platform.OS === 'web') return true;
-  const hasHardware = await LocalAuthentication.hasHardwareAsync();
-  const enrolled = hasHardware && (await LocalAuthentication.isEnrolledAsync());
-  if (!enrolled) {
-    return new Promise((resolve) =>
-      Alert.alert('Approve payment', `${message}\n\nNo fingerprint/face set up on this device; confirming without it.`, [
-        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Approve', onPress: () => resolve(true) },
-      ]),
-    );
-  }
-  const result = await LocalAuthentication.authenticateAsync({ promptMessage: message, cancelLabel: 'Cancel' });
-  return result.success;
-}
 
 export default function DraftScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

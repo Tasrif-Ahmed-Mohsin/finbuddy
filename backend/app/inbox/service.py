@@ -72,6 +72,7 @@ class Txn:
     parser: str
     confidence: float
     counted_on_card: bool = False
+    card_status: str | None = None  # status of the student's card when this alert arrived
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -145,6 +146,8 @@ class Inbox:
         txn = Txn(self._id("txn"), msg.id, msg.received_at, msg.sender, p.amount, p.currency, p.direction, p.kind,
                   p.account_last4, owner, p.balance_after, p.fee, p.home_bdt, q2(value), estimate, p.counterparty,
                   p.parser, p.confidence, notes=list(p.notes))
+        if owner == "student_card":
+            txn.card_status = self.app.student_card.status
         # Track the Bangladeshi card's monthly limits from real alerts (N-06).
         if owner == "student_card" and p.direction == "debit" and p.kind in ("atm", "pos"):
             usage = self.app.bank.card_usage()
@@ -167,7 +170,7 @@ class Inbox:
         usage = self.app.bank.card_usage()
         executed = [d.amount_cny for d in self.app.drafts.values() if d.status == "executed"]
         ctx = InsightContext(self.app.corridor, self.app.market, self.app.now, self.app.profile, self.txns,
-                             self.messages, usage.tx_count, usage.bdt_charged, executed)
+                             self.messages, usage.tx_count, usage.bdt_charged, executed, self.app.student_card.status)
         return [i.to_dict() for i in generate(ctx)]
 
     def summary(self) -> dict:

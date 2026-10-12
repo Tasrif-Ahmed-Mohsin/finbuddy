@@ -1,7 +1,10 @@
-"""Market data: mid-market rates and bank quotes, always with date, source and a sample flag."""
+"""Market data: the mid-market rate (real, from app/fx.py) and bank quotes (estimated or real).
+
+Every quote says whether it is an estimate (`sample=True`) or a real quote someone entered.
+"""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
 
@@ -10,6 +13,7 @@ import yaml
 from app.money import D
 
 DATA_DIR = Path(__file__).parent / "data"
+FOUR_PLACES = Decimal("0.0001")
 
 
 @dataclass(frozen=True)
@@ -20,7 +24,8 @@ class BankQuote:
     fixed_fee_bdt: Decimal  # per transfer, VAT included
     as_of: str
     source: str
-    sample: bool
+    sample: bool  # True = estimate, False = real quote
+    markup_pct: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -41,6 +46,7 @@ class MidRates:
 class Market:
     mid: MidRates
     quotes: list[BankQuote]
+    notes: list[str] = field(default_factory=list)
 
     def quote(self, quote_id: str) -> BankQuote:
         for q in self.quotes:
@@ -48,27 +54,29 @@ class Market:
                 return q
         raise KeyError(quote_id)
 
+    @property
+    def quotes_estimated(self) -> bool:
+        return any(q.sample for q in self.quotes)
 
-def load_market(name: str = "market_sample") -> Market:
-    raw = yaml.safe_load((DATA_DIR / f"{name}.yaml").read_text(encoding="utf-8"))
-    sample = bool(raw.get("sample", False))
-    mid = MidRates(
-        bdt_per_usd=D(raw["mid"]["bdt_per_usd"]),
-        cny_per_usd=D(raw["mid"]["cny_per_usd"]),
-        as_of=raw["as_of"],
-        source=raw["source"],
-        sample=sample,
-    )
-    quotes = [
-        BankQuote(
-            quote_id=q["quote_id"],
-            bank=q["bank"],
-            bdt_per_cny=D(q["bdt_per_cny"]),
-            fixed_fee_bdt=D(q["fixed_fee_bdt"]),
-            as_of=q.get("as_of", raw["as_of"]),
-            source=q.get("source", raw["source"]),
-            sample=bool(q.get("sample", sample)),
-        )
-        for q in raw["bank_quotes"]
-    ]
-    return Market(mid=mid, quotes=quotes)
+
+def load_quote_config(path: Path = DATA_DIR / "bank_quotes.yaml") -> dict:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def build_market(mid: MidRates, cfg: dict, real_quotes: list[BankQuote] | None = None) -> Market:
+    quotes = []
+    for q in cfg["estimated_quotes"]:
+        markup = D(q["markup_pct"])
+        rate = (mid.bdt_per_cny * (1 + markup / 100)).quantize(FOUR_PLACES)
+        quotes.append(BankQuote(q["quote_id"], q["bank"], rate, D(q["fixed_fee_bdt"]), mid.as_of, cfg["source"], True, markup))
+    for rq in real_quotes or []:
+        markup = ((rq.bdt_per_cny / mid.bdt_per_cny - 1) * 100).quantize(Decimal("0.01"))
+        quotes.append(BankQuote(rq.quote_id, rq.bank, rq.bdt_per_cny, rq.fixed_fee_bdt, rq.as_of, rq.source, False, markup))
+    return Market(mid, quotes)
+
+
+def load_market() -> Market:
+    """Market with the current mid-market rate (mode from SATHI_FX_MODE) and estimated quotes."""
+    from app.fx import FxProvider  # local import: app.fx depends on this module
+
+    return build_market(FxProvider().latest(), load_quote_config())

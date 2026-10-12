@@ -21,7 +21,8 @@ from app.engines.cost import atm_cost, tt_cost
 from app.engines.living_planner import LivingRequest, plan_living
 from app.engines.tuition_planner import TuitionRequest, plan_tuition
 from app.inbox.service import Inbox
-from app.market import load_market
+from app.fx import FxProvider
+from app.market import BankQuote, Market, build_market, load_quote_config
 from app.money import D, q2
 from app.sandbox.bank import seed_demo_bank
 from app.security.compliance import ComplianceContext, Payee, is_blocked, run_draft_checks
@@ -55,7 +56,9 @@ class AppState:
         self.settings = settings or load_settings()
         self.llm = llm
         self.corridor = load_corridor("bd_cn")
-        self.market = load_market("market_sample")
+        self.fx = FxProvider()  # real mid-market rate (live → saved history → fixture in tests)
+        self.quote_cfg = load_quote_config()
+        self.real_quotes: list[BankQuote] = []
         self.audit = AuditLog(audit_path)
         self.bank = seed_demo_bank(self.corridor, self.audit, start, self.market.mid.cny_per_usd)
         self.bank.payees["student_cash_self"] = Payee(
@@ -92,6 +95,28 @@ class AppState:
     def now(self) -> datetime:
         return self.bank.clock
 
+    @property
+    def market(self) -> Market:
+        return build_market(self.fx.latest(), self.quote_cfg, self.real_quotes)
+
+    @property
+    def estimates(self) -> bool:
+        """True while any figure relies on estimated bank quotes or fixture rates."""
+        m = self.market
+        return m.mid.sample or m.quotes_estimated
+
+    @property
+    def data_quality(self) -> dict:
+        m = self.market
+        real = [q for q in m.quotes if not q.sample]
+        return {"mid": self.fx.status, "mid_as_of": m.mid.as_of, "mid_source": m.mid.source,
+                "bdt_per_cny": str(round(m.mid.bdt_per_cny, 4)),
+                "bank_quotes": "real" if real and len(real) == len(m.quotes) else "mixed" if real else "estimated"}
+
+    @property
+    def student_card(self):
+        return self.bank.cards[self.profile["student_card_last4"]]
+
     def _id(self, prefix: str) -> str:
         self._n += 1
         return f"{prefix}-{self._n:04d}"
@@ -118,13 +143,21 @@ class AppState:
             endorsement_expiry=self.profile["endorsement_expiry"],
             student_file_expiry=self.profile["student_file_expiry"],
             origin_flags=scan_text(origin_message) if origin_message else None,
+            card_status=self.student_card.status,
         )
 
     # ---- read-only (L0) ---------------------------------------------------
     def plan_tuition(self, actor: Actor, amount_cny: Decimal, deadline: date, current_quote_id: str | None = None) -> dict:
         self._require(actor, "compare_tuition")
-        plan = plan_tuition(TuitionRequest(D(amount_cny), deadline, self.now.date(), current_quote_id), self.corridor, self.market)
-        plan["data_is_sample"] = self.market.mid.sample
+        send_by = deadline - timedelta(days=self.corridor.i("bd_tt_transfer_days") + self.corridor.i("tuition_buffer_days"))
+        horizon = (send_by - self.now.date()).days
+        fx = self.fx.range(horizon) if horizon >= 1 else None  # "how far could the rate move if we wait?"
+        plan = plan_tuition(TuitionRequest(D(amount_cny), deadline, self.now.date(), current_quote_id), self.corridor,
+                            self.market, fx)
+        if fx is not None and plan["wait_risk"] is not None:
+            plan["wait_risk"]["backtest"] = self.fx.backtest(min(horizon, 30))
+        plan["data_is_sample"] = self.estimates
+        plan["data_quality"] = self.data_quality
         self._log("plan_tuition", actor, "compare_tuition", {"amount_cny": str(amount_cny), "deadline": deadline.isoformat(),
                                                               "best": plan["best_quote_id"], "status": plan["status"]})
         return plan
@@ -140,7 +173,8 @@ class AppState:
             days_available=days_available,
         )
         plan = plan_living(req, self.corridor, self.market).to_dict()
-        plan["data_is_sample"] = self.market.mid.sample
+        plan["data_is_sample"] = self.estimates
+        plan["data_quality"] = self.data_quality
         self._log("plan_living", actor, "plan_living", {"need_cny": str(need_cny), "feasible": plan["feasible"],
                                                         "savings_vs_all_atm_bdt": plan["savings_vs_all_atm_bdt"]})
         return plan
@@ -315,5 +349,60 @@ class AppState:
                            "tx_cap": self.corridor.i("bd_student_card_tx_cap_per_month"),
                            "bdt_used": str(q2(usage.bdt_charged)),
                            "bdt_cap": str(self.corridor.v("bd_student_card_cap_bdt_per_month"))},
-            "data_is_sample": self.market.mid.sample,
+            "data_is_sample": self.estimates,
+            "data_quality": self.data_quality,
+            "card": self.student_card.to_dict(),
         }
+
+    # ---- market data -----------------------------------------------------------
+    def add_real_quote(self, actor: Actor, bank: str, bdt_per_cny: Decimal, fixed_fee_bdt: Decimal) -> dict:
+        if actor == Actor.AGENT:
+            raise PermissionError("only a user can enter a real bank quote")
+        rate, fee = D(bdt_per_cny), D(fixed_fee_bdt)
+        mid = self.market.mid.bdt_per_cny
+        if not (mid * Decimal("0.9") <= rate <= mid * Decimal("1.2")) or fee < 0:
+            raise ValueError(f"that rate looks wrong: the market rate is about {round(mid, 2)} BDT per CNY")
+        q = BankQuote(f"real-{len(self.real_quotes) + 1}", bank[:40], rate, fee, self.now.date().isoformat(),
+                      f"Real quote entered by {actor.value}", False)
+        self.real_quotes.append(q)
+        self._log("real_quote_added", actor, None, {"quote_id": q.quote_id, "bank": q.bank, "bdt_per_cny": str(rate),
+                                                    "fixed_fee_bdt": str(fee)})
+        return {"quote_id": q.quote_id, "bank": q.bank, "bdt_per_cny": str(rate), "fixed_fee_bdt": str(fee)}
+
+    def fx_overview(self) -> dict:
+        m = self.market
+        horizons = {}
+        for h in (7, 14, 30):
+            rr = self.fx.range(h)
+            horizons[str(h)] = {"range": rr.to_dict() if rr else None, "backtest": self.fx.backtest(h)}
+        return {"mid": {"bdt_per_usd": str(m.mid.bdt_per_usd), "cny_per_usd": str(m.mid.cny_per_usd),
+                        "bdt_per_cny": str(round(m.mid.bdt_per_cny, 4)), "as_of": m.mid.as_of, "source": m.mid.source},
+                "status": self.fx.status, "history_days": len(self.fx.history),
+                "change_pct": {"90d": self.fx.change_pct(90), "365d": self.fx.change_pct(365)},
+                "horizons": horizons,
+                "method": "Empirical ranges of past h-day moves (window 250 days), centred on today's rate. "
+                          "No direction is predicted; the backtest shows how often past ranges were right.",
+                "caveat": "Daily data can lag official Bangladesh Bank changes by 1–2 days."}
+
+    def fx_history(self, days: int = 180) -> list[dict]:
+        pts = self.fx.history[-max(2, min(days, 1000)):]
+        step = max(1, -(-len(pts) // 180))  # ceil: at most ~180 points for a phone chart
+        out = [{"date": p.date, "bdt_per_cny": round(p.bdt_per_cny, 4)} for p in pts[::step]]
+        if pts and out[-1]["date"] != pts[-1].date:
+            out.append({"date": pts[-1].date, "bdt_per_cny": round(pts[-1].bdt_per_cny, 4)})
+        return out
+
+    # ---- card controls -----------------------------------------------------------
+    def freeze_card(self, actor: Actor, last4: str, reason: str = "") -> dict:
+        self._require(actor, "freeze_card")
+        return self.bank.set_card_status(last4, "frozen", actor.value, "DRAFT", reason[:120] or None)
+
+    def unfreeze_card(self, actor: Actor, last4: str) -> dict:
+        self._require(actor, "unfreeze_card")
+        if self.bank.cards[last4].status == "active":
+            raise ValueError("card is already active")
+        return self.bank.set_card_status(last4, "active", actor.value, "EXECUTE", "unfrozen by the cardholder's family")
+
+    def report_card_lost(self, actor: Actor, last4: str) -> dict:
+        self._require(actor, "report_card_lost")
+        return self.bank.set_card_status(last4, "lost", actor.value, "EXECUTE", "reported lost or stolen")

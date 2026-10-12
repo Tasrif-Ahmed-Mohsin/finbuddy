@@ -83,6 +83,16 @@ class WebhookIn(BaseModel):
     text: str = Field(min_length=1, max_length=5000)
 
 
+class QuoteIn(BaseModel):
+    bank: str = Field(min_length=2, max_length=40)
+    bdt_per_cny: Decimal = Field(gt=0)
+    fixed_fee_bdt: Decimal = Field(ge=0)
+
+
+class FreezeIn(BaseModel):
+    reason: str = Field(default="", max_length=120)
+
+
 class ChatTurn(BaseModel):
     role: str
     content: str = Field(max_length=4000)
@@ -140,7 +150,38 @@ def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO) -> FastAPI:
                         "bdt_per_cny": str(round(m.mid.bdt_per_cny, 4)), "as_of": m.mid.as_of, "source": m.mid.source,
                         "sample": m.mid.sample},
                 "quotes": [{"quote_id": q.quote_id, "bank": q.bank, "bdt_per_cny": str(q.bdt_per_cny),
-                            "fixed_fee_bdt": str(q.fixed_fee_bdt), "as_of": q.as_of, "sample": q.sample} for q in m.quotes]}
+                            "fixed_fee_bdt": str(q.fixed_fee_bdt), "markup_pct": str(q.markup_pct),
+                            "as_of": q.as_of, "estimate": q.sample, "source": q.source} for q in m.quotes],
+                "data_quality": s.data_quality}
+
+    @app.post("/market/quotes")
+    def add_quote(body: QuoteIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.add_real_quote, who, body.bank, body.bdt_per_cny, body.fixed_fee_bdt)
+
+    @app.get("/fx")
+    def fx(s: AppState = Depends(svc)):
+        return s.fx_overview()
+
+    @app.get("/fx/history")
+    def fx_history(days: int = 180, s: AppState = Depends(svc)):
+        return s.fx_history(days)
+
+    # ---- card controls --------------------------------------------------------
+    @app.get("/cards")
+    def cards(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return [c.to_dict() for c in s.bank.cards.values()]
+
+    @app.post("/cards/{last4}/freeze")
+    def freeze(last4: str, body: FreezeIn | None = None, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.freeze_card, who, last4, body.reason if body else "")
+
+    @app.post("/cards/{last4}/unfreeze")
+    def unfreeze(last4: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.unfreeze_card, who, last4)
+
+    @app.post("/cards/{last4}/report-lost")
+    def report_lost(last4: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.report_card_lost, who, last4)
 
     @app.get("/profile")
     def profile(s: AppState = Depends(svc), who: Actor = Depends(actor)):

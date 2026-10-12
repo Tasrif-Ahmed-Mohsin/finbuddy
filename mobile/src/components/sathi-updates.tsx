@@ -1,18 +1,36 @@
 import { router } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 import { ThemedText } from '@/components/themed-text';
 import { Badge, Button, Card, ErrorBox, H2, Muted, Row, styles } from '@/components/ui';
-import type { InboxSummary, InboxTxn, Insight } from '@/lib/api';
+import { post, type InboxSummary, type InboxTxn, type Insight } from '@/lib/api';
 import { bdt, cny, shortDate } from '@/lib/format';
+import { confirmPresence } from '@/lib/presence';
 import { useSession } from '@/lib/session';
 import { useLoad } from '@/lib/use-load';
 
 const TONE = { alert: 'block', warn: 'warn', info: 'info' } as const;
 
-export function InsightCard({ insight }: { insight: Insight }) {
-  const { t, lang } = useSession();
+export function InsightCard({ insight, onChanged }: { insight: Insight; onChanged?: () => void }) {
+  const { t, lang, call } = useSession();
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
   const a = insight.action;
+
+  async function cardOp(op: 'freeze' | 'report-lost') {
+    if (!a?.last4) return;
+    if (op === 'report-lost' && !(await confirmPresence(t('reportLost')))) return;
+    setBusy(true);
+    try {
+      await call(`/cards/${a.last4}/${op}`, post(op === 'freeze' ? { reason: insight.title } : {}));
+      setDone(op === 'freeze' ? t('cardFrozen') : t('cardLost'));
+      onChanged?.();
+    } catch (e) {
+      setDone(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <Card tone={TONE[insight.severity]}>
       <Row style={styles.between}>
@@ -27,6 +45,9 @@ export function InsightCard({ insight }: { insight: Insight }) {
           {t('couldSave')} {bdt(insight.savings_bdt, lang)}
         </Badge>
       )}
+      {a?.op === 'freeze' && !done && <Button title={`🔒 ${t('freezeCard')}`} variant="danger" onPress={() => cardOp('freeze')} loading={busy} />}
+      {a?.op === 'report_lost' && !done && <Button title={t('reportLost')} variant="danger" onPress={() => cardOp('report-lost')} loading={busy} />}
+      {done && <Badge tone="warn">{done}</Badge>}
       {a?.screen === 'plan' && (
         <Button title={t('planIt')} variant="secondary" onPress={() => router.push({ pathname: '/plan', params: { mode: a.mode ?? 'living' } })} />
       )}
@@ -36,7 +57,7 @@ export function InsightCard({ insight }: { insight: Insight }) {
 
 export function SathiUpdates() {
   const { t, lang, call } = useSession();
-  const { data, error } = useLoad(
+  const { data, error, reload } = useLoad(
     useCallback(async () => {
       const [ins, txns] = await Promise.all([
         call<{ insights: Insight[]; summary: InboxSummary }>(`/insights?lang=${lang}`),
@@ -63,7 +84,7 @@ export function SathiUpdates() {
           </Card>
           {data.insights.length === 0 && <Muted>{t('noUpdates')}</Muted>}
           {data.insights.map((i) => (
-            <InsightCard key={i.id} insight={i} />
+            <InsightCard key={i.id} insight={i} onChanged={reload} />
           ))}
           {data.txns.length > 0 && <H2>{t('recentTxns')}</H2>}
           {data.txns.map((x) => (
