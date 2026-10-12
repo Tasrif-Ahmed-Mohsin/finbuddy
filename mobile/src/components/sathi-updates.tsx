@@ -48,6 +48,9 @@ export function InsightCard({ insight, onChanged }: { insight: Insight; onChange
       {a?.op === 'freeze' && !done && <Button title={`🔒 ${t('freezeCard')}`} variant="danger" onPress={() => cardOp('freeze')} loading={busy} />}
       {a?.op === 'report_lost' && !done && <Button title={t('reportLost')} variant="danger" onPress={() => cardOp('report-lost')} loading={busy} />}
       {done && <Badge tone="warn">{done}</Badge>}
+      {a?.screen === 'renewal' && a.item && (
+        <Button title={t('openRenewal')} onPress={() => router.push({ pathname: '/renewal/[item]', params: { item: a.item! } })} />
+      )}
       {a?.screen === 'plan' && (
         <Button title={t('planIt')} variant="secondary" onPress={() => router.push({ pathname: '/plan', params: { mode: a.mode ?? 'living' } })} />
       )}

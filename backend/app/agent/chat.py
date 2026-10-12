@@ -71,6 +71,13 @@ TOOLS = [
         "description": "Check a message, offer or instruction for scams (hundi, fake agents, fake police, phishing, card rental).",
         "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}},
     {"type": "function", "function": {
+        "name": "start_renewal",
+        "description": ("Make a step-by-step renewal plan for the card endorsement or the Student File, with deadlines worked "
+                        "back from the expiry date, an email to the university (English + Chinese) and a Bengali task list "
+                        "for the parent. Nothing is sent; the user shares the messages from the app."),
+        "parameters": {"type": "object", "properties": {
+            "item": {"type": "string", "enum": ["endorsement_expiry", "student_file_expiry"]}}, "required": ["item"]}}},
+    {"type": "function", "function": {
         "name": "freeze_card",
         "description": ("Immediately FREEZE the student's Bangladeshi card (protective and reversible; no money moves). "
                         "Use only when the USER says the card is lost or stolen or a charge is not theirs. "
@@ -132,6 +139,12 @@ class ChatAgent:
                     "data_is_sample": p["data_is_sample"]}
         if name == "check_message":
             return a.check_message(A, str(args.get("text", ""))[:5000])
+        if name == "start_renewal":
+            c = a.start_renewal(A, str(args.get("item", "endorsement_expiry")))
+            actions.append({"type": "renewal", "item": c["item"], "case_id": c["id"]})
+            return {"expiry": c["expiry"], "days_to_expiry": c["days_to_expiry"], "late": c["late"],
+                    "steps": [{"owner": s["owner"], "due": s["due"], "title": s["title"]} for s in c["steps"]],
+                    "next_step": "The user opens the renewal plan in the app to copy/share the prepared messages."}
         if name == "freeze_card":
             card = a.freeze_card(A, a.profile["student_card_last4"], str(args.get("reason", ""))[:120])
             actions.append({"type": "card", "last4": card["last4"], "status": card["status"]})
@@ -209,6 +222,14 @@ class ChatAgent:
                 return T["frozen"]
             except ValueError:
                 return T["frozen"]  # already frozen or reported lost
+        if any(k in m for k in ("endorse", "renew", "student file", "এনডোর্স", "নবায়ন", "签注", "续期", "续办")):
+            item = "student_file_expiry" if any(k in m for k in ("student file", "স্টুডেন্ট ফাইল", "档案")) else "endorsement_expiry"
+            tools_used.append("start_renewal")
+            self.run_tool("start_renewal", {"item": item}, actions)
+            c = self.app.renewal_for(item)
+            first = c["steps"][0]
+            return T["renewal"].format(expiry=c["expiry"], days=c["days_to_expiry"], first=first["due"],
+                                       visit=next(s["due"] for s in c["steps"] if s["id"] == "bank_visit"))
         if any(k in m for k in ("tuition", "semester fee", "টিউশন", "সেমিস্টার", "学费")):
             tools_used.append("compare_tuition")
             p = self.run_tool("compare_tuition", {"amount_cny": str(self.app.profile["tuition_invoice_cny"]),
@@ -244,6 +265,7 @@ FALLBACK = {
         "living_none": "No plan fits all your card limits this month. Open Plan → Living money to see which limit blocks it.",
         "nothing": "All clear: no alerts right now. Share your bank SMS or emails with me and I will keep track.",
         "updates": "You have {n} updates. The most important:\n{top}",
+        "renewal": "📋 Renewal plan ready. It expires on {expiry} ({days} days). Ask the university for the documents by {first}; your parent visits the bank by {visit}. Open the plan to copy the email (English + Chinese) and the Bengali message for your parent.",
         "frozen": "🔒 I froze your card ending 4821 right away: no new charges can go through. Now call your bank's 24-hour hotline. If the card is really lost, tap 'Report lost' in the app. Only you can unfreeze it, with your fingerprint/PIN.",
     },
     "bn": {
@@ -253,6 +275,7 @@ FALLBACK = {
         "living_none": "এই মাসে কোনো পরিকল্পনা আপনার সব কার্ড সীমার মধ্যে পড়ছে না। কোন সীমা আটকাচ্ছে দেখতে পরিকল্পনা → মাসিক খরচ খুলুন।",
         "nothing": "সব ঠিক আছে: এখন কোনো সতর্কতা নেই। আপনার ব্যাংকের এসএমএস বা ইমেইল শেয়ার করুন, আমি হিসাব রাখব।",
         "updates": "আপনার {n}টি আপডেট আছে। সবচেয়ে গুরুত্বপূর্ণ:\n{top}",
+        "renewal": "📋 নবায়নের পরিকল্পনা তৈরি। মেয়াদ শেষ {expiry} ({days} দিন বাকি)। {first} এর মধ্যে বিশ্ববিদ্যালয়ের কাছে কাগজ চান; অভিভাবক {visit} এর মধ্যে ব্যাংকে যাবেন। ইমেইল (ইংরেজি + চীনা) ও অভিভাবকের জন্য বাংলা মেসেজ কপি করতে পরিকল্পনাটি খুলুন।",
         "frozen": "🔒 আপনার ৪৮২১ নম্বরে শেষ হওয়া কার্ডটি এখনই ফ্রিজ করেছি: নতুন কোনো লেনদেন হবে না। এখন ব্যাংকের ২৪ ঘণ্টার হটলাইনে ফোন করুন। কার্ড সত্যিই হারালে অ্যাপে 'হারানো রিপোর্ট' চাপুন। শুধু আপনি আঙুলের ছাপ/পিন দিয়ে আবার চালু করতে পারবেন।",
     },
     "zh": {
@@ -262,6 +285,7 @@ FALLBACK = {
         "living_none": "本月没有方案能满足所有银行卡额度限制。打开 规划 → 生活费 查看是哪项限制。",
         "nothing": "一切正常：目前没有提醒。把银行短信或邮件分享给我，我来帮你记录。",
         "updates": "你有 {n} 条更新。最重要的：\n{top}",
+        "renewal": "📋 续办计划已准备好。将于 {expiry} 到期（还有 {days} 天）。请在 {first} 前向学校申请材料；家长在 {visit} 前去银行办理。打开计划即可复制邮件（中英文）和给家长的孟加拉语消息。",
         "frozen": "🔒 我已立即冻结尾号4821的银行卡：新的交易无法通过。请马上拨打银行24小时热线。如果卡确实丢失，请在应用中点击“挂失”。只有您本人可以用指纹/密码解冻。",
     },
 }

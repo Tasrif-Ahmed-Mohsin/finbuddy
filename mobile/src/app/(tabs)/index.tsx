@@ -159,6 +159,8 @@ function TimelineCard({ item }: { item: TimelineItem }) {
         </Badge>
         {item.warn && <Badge tone="warn">{t('renewSoon')}</Badge>}
       </Row>
+      <Button title={t('renewalPlan')} variant={item.warn ? 'primary' : 'secondary'}
+        onPress={() => router.push({ pathname: '/renewal/[item]', params: { item: item.type } })} />
     </Card>
   );
 }

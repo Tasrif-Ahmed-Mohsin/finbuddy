@@ -12,6 +12,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="draft/[id]" options={{ headerShown: true, title: 'Payment', presentation: 'modal' }} />
+          <Stack.Screen name="renewal/[item]" options={{ headerShown: true, title: 'Renewal', presentation: 'modal' }} />
         </Stack>
       </ThemeProvider>
     </SessionProvider>

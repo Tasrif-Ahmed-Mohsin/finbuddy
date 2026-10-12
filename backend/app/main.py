@@ -89,6 +89,14 @@ class QuoteIn(BaseModel):
     fixed_fee_bdt: Decimal = Field(ge=0)
 
 
+class RenewalStepIn(BaseModel):
+    status: str
+
+
+class RenewalDoneIn(BaseModel):
+    new_expiry: date
+
+
 class FreezeIn(BaseModel):
     reason: str = Field(default="", max_length=120)
 
@@ -165,6 +173,26 @@ def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO) -> FastAPI:
     @app.get("/fx/history")
     def fx_history(days: int = 180, s: AppState = Depends(svc)):
         return s.fx_history(days)
+
+    # ---- renewals (T3) ----------------------------------------------------------
+    @app.post("/renewals/{item}")
+    def renewal_start(item: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.start_renewal, who, item)
+
+    @app.get("/renewals/{item}")
+    def renewal_get(item: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        case = s.renewal_for(item)
+        if case is None:
+            raise HTTPException(status_code=404, detail="no renewal plan yet")
+        return case
+
+    @app.post("/renewals/case/{case_id}/steps/{step_id}")
+    def renewal_step(case_id: str, step_id: str, body: RenewalStepIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.update_renewal_step, who, case_id, step_id, body.status)
+
+    @app.post("/renewals/case/{case_id}/complete")
+    def renewal_done(case_id: str, body: RenewalDoneIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.complete_renewal, who, case_id, body.new_expiry)
 
     # ---- card controls --------------------------------------------------------
     @app.get("/cards")

@@ -201,7 +201,7 @@ export type Insight = {
   title: string;
   body: string;
   savings_bdt: string | null;
-  action: { screen: string; mode?: string; need_cny?: string; op?: 'freeze' | 'report_lost'; last4?: string } | null;
+  action: { screen: string; mode?: string; need_cny?: string; op?: 'freeze' | 'report_lost'; last4?: string; item?: string } | null;
   txn_ids: string[];
   translated?: boolean;
 };
@@ -229,6 +229,35 @@ export type StoredMessage = { id: string; source: string; sender: string; receiv
 
 export type IngestResult = { kept: boolean; reason?: string; message?: StoredMessage; transaction?: InboxTxn | null; flags?: Flag[] };
 
-export type ChatReply = { reply: string; mode: 'llm' | 'fallback'; actions: ({ type: 'draft'; draft_id: string; status: string } | { type: 'card'; last4: string; status: string })[]; tools_used: string[] };
+export type ChatReply = { reply: string; mode: 'llm' | 'fallback'; actions: ({ type: 'draft'; draft_id: string; status: string } | { type: 'card'; last4: string; status: string } | { type: 'renewal'; item: string; case_id: string })[]; tools_used: string[] };
 
 export type Sources = Record<string, { available: boolean; note: string; path?: string; header?: string }> & { privacy: string[] };
+
+export type RenewalStep = {
+  id: string;
+  owner: 'student' | 'parent' | 'bank';
+  due: string;
+  days_left: number;
+  title: string;
+  detail: string;
+  status: 'todo' | 'done';
+  state: 'done' | 'overdue' | 'due_soon' | 'upcoming';
+};
+
+export type RenewalDoc = { key: string; en: string; zh?: string; bn: string; confidence: string; source: string };
+
+export type RenewalCase = {
+  id: string;
+  item: 'endorsement_expiry' | 'student_file_expiry';
+  label: { en: string; bn: string; zh: string };
+  expiry: string;
+  days_to_expiry: number;
+  status: 'open' | 'completed';
+  late: boolean;
+  new_expiry: string | null;
+  next_step: string | null;
+  steps: RenewalStep[];
+  documents: { university: RenewalDoc[]; bank: RenewalDoc[] };
+  messages: { university_email: { en: string; zh: string }; parent_message: { bn: string; en: string } };
+  note: string;
+};

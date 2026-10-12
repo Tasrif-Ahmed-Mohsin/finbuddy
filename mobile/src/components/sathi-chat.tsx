@@ -63,6 +63,8 @@ export function SathiChat() {
             {turn.reply?.actions.map((a) =>
               a.type === 'draft' ? (
                 <Button key={a.draft_id} title={t('openDraft')} onPress={() => router.push({ pathname: '/draft/[id]', params: { id: a.draft_id } })} />
+              ) : a.type === 'renewal' ? (
+                <Button key={a.case_id} title={t('openRenewal')} onPress={() => router.push({ pathname: '/renewal/[item]', params: { item: a.item } })} />
               ) : (
                 <Badge key={`card-${a.last4}`} tone="warn">
                   🔒 {t('card')} ••••{a.last4}: {a.status}

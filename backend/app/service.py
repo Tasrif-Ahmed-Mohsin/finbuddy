@@ -24,6 +24,7 @@ from app.inbox.service import Inbox
 from app.fx import FxProvider
 from app.market import BankQuote, Market, build_market, load_quote_config
 from app.money import D, q2
+from app.renewal import RenewalCase, plan_renewal
 from app.sandbox.bank import seed_demo_bank
 from app.security.compliance import ComplianceContext, Payee, is_blocked, run_draft_checks
 from app.security.permissions import (
@@ -84,7 +85,9 @@ class AppState:
             "student_card_last4": "4821",
             "parent_account_last4": "7730",
             "student_cn_last4": "3317",
+            "home_bank": "your bank",
         }
+        self.renewals: dict[str, RenewalCase] = {}
         self._n = 0
         self.inbox = Inbox(self)
         self.agent = ChatAgent(self)
@@ -391,6 +394,52 @@ class AppState:
         if pts and out[-1]["date"] != pts[-1].date:
             out.append({"date": pts[-1].date, "bdt_per_cny": round(pts[-1].bdt_per_cny, 4)})
         return out
+
+    # ---- renewals (T3) ------------------------------------------------------------
+    def start_renewal(self, actor: Actor, item: str) -> dict:
+        self._require(actor, "plan_renewal")
+        existing = next((c for c in self.renewals.values() if c.item == item and c.status == "open"), None)
+        if existing:
+            return existing.to_dict(self.now.date())
+        if item not in ("endorsement_expiry", "student_file_expiry"):
+            raise ValueError(f"unknown renewal item '{item}'")
+        case = plan_renewal(self._id("renewal"), item, self.profile[item], self.now.date(), self.corridor, self.profile)
+        self.renewals[case.id] = case
+        self._log("renewal_planned", actor, "plan_renewal", {"case_id": case.id, "item": item, "expiry": case.expiry.isoformat(),
+                  "late": case.late, "steps": [(s.id, s.due.isoformat()) for s in case.steps]})
+        return case.to_dict(self.now.date())
+
+    def renewal_for(self, item: str) -> dict | None:
+        case = next((c for c in reversed(list(self.renewals.values())) if c.item == item), None)
+        return case.to_dict(self.now.date()) if case else None
+
+    def update_renewal_step(self, actor: Actor, case_id: str, step_id: str, status: str) -> dict:
+        self._require(actor, "update_renewal")
+        if actor == Actor.AGENT:
+            raise PermissionError("only the student or parent can mark renewal steps")
+        if status not in ("todo", "done"):
+            raise ValueError("status must be 'todo' or 'done'")
+        case = self.renewals[case_id]
+        step = next(s for s in case.steps if s.id == step_id)
+        step.status = status
+        self._log("renewal_step", actor, "update_renewal", {"case_id": case_id, "step": step_id, "status": status})
+        return case.to_dict(self.now.date())
+
+    def complete_renewal(self, actor: Actor, case_id: str, new_expiry: date) -> dict:
+        self._require(actor, "update_renewal")
+        if actor == Actor.AGENT:
+            raise PermissionError("only the student or parent can confirm a renewal")
+        case = self.renewals[case_id]
+        if not (case.expiry < new_expiry <= case.expiry + timedelta(days=800)):
+            raise ValueError("the new expiry must be after the old one (and within about two years)")
+        case.new_expiry, case.status = new_expiry, "completed"
+        for s in case.steps:
+            s.status = "done"
+        old = self.profile[case.item]
+        self.profile[case.item] = new_expiry
+        self._log("renewal_completed", actor, "update_renewal", {"case_id": case_id, "item": case.item,
+                  "old_expiry": old.isoformat(), "new_expiry": new_expiry.isoformat()})
+        return case.to_dict(self.now.date())
 
     # ---- card controls -----------------------------------------------------------
     def freeze_card(self, actor: Actor, last4: str, reason: str = "") -> dict:

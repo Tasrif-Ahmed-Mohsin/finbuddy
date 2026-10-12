@@ -90,6 +90,27 @@ params:
     confidence: assumption
     source: "Product choice: warn three weeks before the endorsement or Student File expires"
 
+  renewal_university_doc_days:
+    value: 7
+    confidence: assumption
+    source: "Our estimate for a stamped enrolment certificate + transcript from an international office"
+    note: "Ask the friend how long their university takes."
+
+  renewal_scan_send_days:
+    value: 2
+    confidence: assumption
+    source: "Time to scan and send the documents to the parent in Bangladesh"
+
+  renewal_bank_processing_days:
+    value: 3
+    confidence: assumption
+    source: "Our estimate for the bank to process a Student File renewal / endorsement"
+
+  renewal_buffer_days:
+    value: 5
+    confidence: assumption
+    source: "Product choice: finish the renewal five days before the old one expires"
+
   # ---- China side ------------------------------------------------------------
   cn_atm_foreign_card_fee_cny:
     value: 25

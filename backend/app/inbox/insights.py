@@ -49,6 +49,7 @@ class InsightContext:
     card_bdt_used: Decimal
     executed_amounts_cny: list[Decimal]
     card_status: str = "active"
+    renewals: list = field(default_factory=list)  # open renewal cases (dicts)
 
 
 def fmt_bdt(x: Decimal) -> str:
@@ -152,9 +153,20 @@ def generate(ctx: InsightContext) -> list[Insight]:
 
     # 8. Renewals (N-05).
     warn_days = c.i("bd_endorsement_warn_days")
+    open_cases = {r["item"]: r for r in ctx.renewals if r["status"] == "open"}
     for key, label in (("endorsement_expiry", "Card endorsement"), ("student_file_expiry", "Student File")):
         expiry = ctx.profile.get(key)
         if expiry is None:
+            continue
+        case = open_cases.get(key)
+        if case:
+            step = next((s for s in case["steps"] if s["id"] == case["next_step"]), None)
+            if step:
+                sev = "alert" if step["state"] == "overdue" else "warn" if step["state"] == "due_soon" else "info"
+                when = f"overdue by {-step['days_left']} days" if step["days_left"] < 0 else f"due {step['due']} (in {step['days_left']} days)"
+                out.append(Insight(f"renewal_step:{case['id']}:{step['id']}", "renewal_step", sev,
+                                   f"{label} renewal: {step['title']}", f"{step['detail']} {when[0].upper() + when[1:]}.",
+                                   action={"screen": "renewal", "item": key}))
             continue
         days = (expiry - ctx.now.date()).days
         if days <= warn_days:

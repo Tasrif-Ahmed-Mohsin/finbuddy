@@ -19,6 +19,7 @@ Hero corridor: **Bangladesh → China**.
 | **T4 Scams** | Hundi, "discount tuition agents", fake police, card rental, crypto and prompt injection detected (EN/BN/ZH) → drafts **blocked** with an explanation |
 | **AI agent + inbox** | Share/forward bank SMS and emails → privacy redaction (OTP removed, numbers masked) → transactions tracked → alerts and savings insights. DeepSeek chat agent explains, plans and drafts (it can never approve or send). See [docs/03_agent_and_inbox.md](docs/03_agent_and_inbox.md) |
 | **Real rates** | Live BDT/CNY rate, 1-year chart, honest 80% ranges with a backtest (right 82% of 689 tests), "if you wait" cost range; refresh history with `python scripts/fetch_fx_history.py` |
+| **T3 Renewal assistant** | Endorsement / Student File renewal planned backwards from the expiry date; university email in English + Chinese; Bengali task list for the parent; reminders until the new expiry is confirmed |
 | **Card controls** | Freeze / unfreeze / report lost. The agent may freeze (protective) but never unfreeze; unfreeze needs fingerprint/PIN |
 | Security | Permission levels L0–L3, approval tokens bound to the exact draft (tamper and replay blocked), mandates with caps, hash-chained audit log |
 
@@ -46,7 +47,7 @@ On a phone, the app looks for the backend on the same computer at port 8000 (the
 
 ## Test it
 ```bash
-cd backend && .venv/Scripts/python -m pytest -q        # 120 tests: engines, security, agent, inbox, FX, cards
+cd backend && .venv/Scripts/python -m pytest -q        # 129 tests: engines, security, agent, inbox, FX, cards, renewals
 cd mobile && npx tsc --noEmit && npx expo lint
 ```
 

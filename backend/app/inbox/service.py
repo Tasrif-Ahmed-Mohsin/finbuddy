@@ -170,7 +170,8 @@ class Inbox:
         usage = self.app.bank.card_usage()
         executed = [d.amount_cny for d in self.app.drafts.values() if d.status == "executed"]
         ctx = InsightContext(self.app.corridor, self.app.market, self.app.now, self.app.profile, self.txns,
-                             self.messages, usage.tx_count, usage.bdt_charged, executed, self.app.student_card.status)
+                             self.messages, usage.tx_count, usage.bdt_charged, executed, self.app.student_card.status,
+                             [c.to_dict(self.app.now.date()) for c in self.app.renewals.values()])
         return [i.to_dict() for i in generate(ctx)]
 
     def summary(self) -> dict:
