@@ -172,6 +172,17 @@ const en = {
   completedShort: 'completed',
   noPayments: 'No payments yet. Payments you make through Sathi will appear here.',
   buildCredit: 'Build your credit history',
+  document: 'Read a document',
+  docIntro: 'Photograph a fee notice, a Chinese bank form or a university checklist. Sathi explains it in your language.',
+  takePhoto: 'Take photo',
+  choosePhoto: 'Choose photo',
+  reading: 'Reading the document…',
+  docPrivacy: 'Do not photograph your passport or bank card. The photo is sent to the AI to read and is not stored.',
+  amountsDropped: 'Some numbers were left out because they could not be found in the document text.',
+  useAsFeeNotice: 'Use this as my tuition fee notice?',
+  confirmFeeNotice: 'Yes, the amount and date are correct',
+  feeNoticeSaved: 'Fee notice saved. Payments are now checked against it.',
+  cameraDenied: 'Camera permission is needed to take a photo.',
 };
 
 type Dict = typeof en;
@@ -347,6 +358,17 @@ const bn: Dict = {
   completedShort: 'সম্পন্ন',
   noPayments: 'এখনো কোনো পেমেন্ট নেই। সাথীর মাধ্যমে করা পেমেন্ট এখানে দেখাবে।',
   buildCredit: 'আপনার ক্রেডিট ইতিহাস তৈরি করুন',
+  document: 'কাগজ পড়ুন',
+  docIntro: 'ফি নোটিশ, চীনা ব্যাংকের ফর্ম বা বিশ্ববিদ্যালয়ের তালিকার ছবি তুলুন। সাথী আপনার ভাষায় বুঝিয়ে দেবে।',
+  takePhoto: 'ছবি তুলুন',
+  choosePhoto: 'ছবি বাছুন',
+  reading: 'কাগজটি পড়া হচ্ছে…',
+  docPrivacy: 'পাসপোর্ট বা ব্যাংক কার্ডের ছবি তুলবেন না। ছবিটি পড়ার জন্য এআই-এর কাছে পাঠানো হয় এবং সংরক্ষণ করা হয় না।',
+  amountsDropped: 'কিছু সংখ্যা বাদ দেওয়া হয়েছে কারণ সেগুলো কাগজের লেখায় পাওয়া যায়নি।',
+  useAsFeeNotice: 'এটিকে আমার টিউশন ফি নোটিশ হিসেবে ব্যবহার করবেন?',
+  confirmFeeNotice: 'হ্যাঁ, পরিমাণ ও তারিখ সঠিক',
+  feeNoticeSaved: 'ফি নোটিশ সংরক্ষিত। এখন থেকে পেমেন্ট এর সাথে মিলিয়ে দেখা হবে।',
+  cameraDenied: 'ছবি তুলতে ক্যামেরার অনুমতি দরকার।',
 };
 
 const zh: Dict = {
@@ -520,6 +542,17 @@ const zh: Dict = {
   completedShort: '已完成',
   noPayments: '暂无付款。通过助手完成的付款会显示在这里。',
   buildCredit: '建立你的信用记录',
+  document: '读取文件',
+  docIntro: '拍下缴费通知、中文银行表格或学校材料清单，助手会用你的语言解释。',
+  takePhoto: '拍照',
+  choosePhoto: '选择照片',
+  reading: '正在读取文件…',
+  docPrivacy: '请勿拍摄护照或银行卡。照片会发送给AI读取，不会被保存。',
+  amountsDropped: '部分数字未采用，因为在文件文字中找不到。',
+  useAsFeeNotice: '将此作为我的学费缴费通知？',
+  confirmFeeNotice: '是的，金额和日期正确',
+  feeNoticeSaved: '缴费通知已保存。之后的付款将与其核对。',
+  cameraDenied: '拍照需要相机权限。',
 };
 
 export const STRINGS: Record<Lang, Dict> = { en, bn, zh };

@@ -29,6 +29,8 @@ class FakeLLM:
         if self.status != 200:
             return httpx.Response(self.status, json={"error": "boom"})
         body = self.responses.pop(0) if self.responses else completion("done")
+        if isinstance(body, int):  # scripted HTTP error for this call
+            return httpx.Response(body, json={"error": "scripted"})
         return httpx.Response(200, json=body)
 
     def client(self) -> DeepSeekClient:

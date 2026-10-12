@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-from app.agent.llm import make_llm
+from app.agent.llm import LLMUnavailable, make_llm
 from app.config import load_settings
 from app.inbox.email_imap import fetch_recent
 from app.passport import qr_svg
@@ -89,6 +89,16 @@ class QuoteIn(BaseModel):
     bank: str = Field(min_length=2, max_length=40)
     bdt_per_cny: Decimal = Field(gt=0)
     fixed_fee_bdt: Decimal = Field(ge=0)
+
+
+class DocumentIn(BaseModel):
+    image_base64: str = Field(min_length=100, max_length=12_000_000)
+    lang: str = "en"
+
+
+class FeeNoticeIn(BaseModel):
+    amount_cny: Decimal = Field(gt=0)
+    deadline: date
 
 
 class PassportIn(BaseModel):
@@ -183,6 +193,20 @@ def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO) -> FastAPI:
     @app.get("/fx/history")
     def fx_history(days: int = 180, s: AppState = Depends(svc)):
         return s.fx_history(days)
+
+    # ---- photo document reader ----------------------------------------------------
+    @app.post("/documents/read")
+    def documents_read(body: DocumentIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        try:
+            return guard(s.read_document, who, body.image_base64, body.lang)
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+        except LLMUnavailable:
+            raise HTTPException(status_code=502, detail="the AI could not read this photo; try a sharper, well-lit photo")
+
+    @app.post("/documents/apply")
+    def documents_apply(body: FeeNoticeIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.apply_fee_notice, who, body.amount_cny, body.deadline)
 
     # ---- payment passport (credit building) ---------------------------------------
     @app.post("/passport")

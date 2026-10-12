@@ -286,3 +286,19 @@ export type Passport = {
   verify_url: string;
   qr_svg: string;
 };
+
+export type DocumentResult = {
+  doc_type: 'fee_notice' | 'document_checklist' | 'bank_form' | 'residence_permit' | 'other';
+  title: string;
+  language: string;
+  summary_en: string;
+  summary_local: string;
+  amounts: { label: string; amount: string; currency: string | null }[];
+  amounts_dropped: number;
+  deadlines: { label: string; date: string | null; as_written: string }[];
+  checklist: { original: string; english: string }[];
+  transcript: string;
+  flags: Flag[];
+  suggestion: { type: 'set_tuition'; amount_cny: string; deadline: string; note: string } | null;
+  privacy: string;
+};

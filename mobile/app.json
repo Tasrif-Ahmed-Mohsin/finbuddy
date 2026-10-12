@@ -38,6 +38,13 @@
         {
           "faceIDPermission": "Allow Sathi to use Face ID to approve payments."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Sathi to read a photo of your fee notice or form.",
+          "cameraPermission": "Allow Sathi to photograph a fee notice or form so it can explain it."
+        }
       ]
     ],
     "experiments": {

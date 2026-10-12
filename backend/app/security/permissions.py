@@ -44,7 +44,9 @@ ACTION_LEVELS: dict[str, Level] = {
     "set_reminder": Level.DRAFT,
     "plan_renewal": Level.DRAFT,  # make a renewal plan + draft messages (nothing is sent)
     "update_renewal": Level.DRAFT,  # tick steps / confirm the new expiry: the user only
-    "share_passport": Level.DRAFT,  # issue / revoke a payment passport (shares personal data): the user only
+    "share_passport": Level.DRAFT,
+    "read_document": Level.READ,  # user uploads a photo (the agent cannot)
+    "apply_document": Level.DRAFT,  # user confirms an amount + deadline from a fee notice  # issue / revoke a payment passport (shares personal data): the user only
     # Protective and reversible, moves no money: low friction, the agent may do it in an emergency.
     "freeze_card": Level.DRAFT,
     # Re-enables spending or is irreversible: the user only, with fingerprint/PIN on the phone.

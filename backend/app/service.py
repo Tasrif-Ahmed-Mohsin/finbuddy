@@ -21,6 +21,7 @@ from app.config import Settings, load_settings
 from app.corridors.loader import load_corridor
 from app.engines.cost import atm_cost, tt_cost
 from app.engines.living_planner import LivingRequest, plan_living
+from app.documents import read_document as read_document_photo
 from app.engines.tuition_planner import TuitionRequest, plan_tuition
 from app.inbox.service import Inbox
 from app.fx import FxProvider
@@ -454,6 +455,33 @@ class AppState:
         self._log("renewal_completed", actor, "update_renewal", {"case_id": case_id, "item": case.item,
                   "old_expiry": old.isoformat(), "new_expiry": new_expiry.isoformat()})
         return case.to_dict(self.now.date())
+
+    # ---- photo document reader -----------------------------------------------------------
+    def read_document(self, actor: Actor, image_base64: str, lang: str = "en") -> dict:
+        self._require(actor, "read_document")
+        if actor == Actor.AGENT:
+            raise PermissionError("only the student or parent can upload a document")
+        if self.llm is None:
+            raise RuntimeError("reading photos needs the AI service, which is not available right now")
+        result = read_document_photo(self.llm, image_base64, lang)
+        self._log("document_read", actor, "read_document", {"doc_type": result["doc_type"], "amounts": len(result["amounts"]),
+                  "amounts_dropped": result["amounts_dropped"], "deadlines": len(result["deadlines"]),
+                  "flags": [f["category"] for f in result["flags"]], "stored_image": False})
+        return result
+
+    def apply_fee_notice(self, actor: Actor, amount_cny: Decimal, deadline: date) -> dict:
+        self._require(actor, "apply_document")
+        if actor == Actor.AGENT:
+            raise PermissionError("only the student or parent can confirm a fee notice")
+        amount = D(amount_cny)
+        if amount <= 0 or amount > Decimal("1000000"):
+            raise ValueError("that amount does not look like a tuition fee")
+        if deadline < self.now.date():
+            raise ValueError("the deadline is in the past")
+        old = {"amount": str(self.profile["tuition_invoice_cny"]), "deadline": self.profile["tuition_deadline"].isoformat()}
+        self.profile["tuition_invoice_cny"], self.profile["tuition_deadline"] = amount, deadline
+        self._log("fee_notice_applied", actor, "apply_document", {"old": old, "new": {"amount": str(amount), "deadline": deadline.isoformat()}})
+        return {"tuition_invoice_cny": str(amount), "tuition_deadline": deadline.isoformat()}
 
     # ---- payment passport (credit building) ------------------------------------------
     def issue_passport(self, actor: Actor, include_amounts: bool) -> dict:

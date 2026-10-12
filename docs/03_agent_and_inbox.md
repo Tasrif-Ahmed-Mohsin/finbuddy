@@ -49,6 +49,12 @@ message ─► financial filter ─► redaction ─► scam/phishing/injection 
 - Parsers are tuned on synthetic samples and need real anonymised alerts.
 - The phishing heuristic can flag legitimate "update KYC" messages (this fails safe).
 
+## Photo documents (DeepSeek vision)
+- `POST /documents/read` (users only): the photo is processed in memory and never stored. The audit log records the document type and counts only, never the text.
+- Amounts are kept only if they appear in the model's own transcription. Long numbers are masked. Injection phrases in the document are flagged.
+- A fee notice suggestion (amount + deadline) is applied only after the user confirms it (`POST /documents/apply`). From then on it backs the invoice check, so paying more than the notice is blocked.
+- Live test: the friend's real residence-permit checklist (Chinese/English) gave all 11 items and a Bengali summary in 3.6 s. One translation slip ("介绍信" rendered as "ID card" in Bengali) shows why confirmation matters.
+
 ## Tests
 `backend/tests/test_inbox.py` (privacy, parsing, grounding, insights, webhook, injection) and `backend/tests/test_agent.py` (tool calling with a fake DeepSeek, no-execute guarantee, bad tools, outage fallback, 3 languages). The suite never calls the real API.
 

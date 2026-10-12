@@ -2,11 +2,12 @@ import { useState } from 'react';
 
 import { SathiAdd } from '@/components/sathi-add';
 import { SathiChat } from '@/components/sathi-chat';
+import { SathiDocument } from '@/components/sathi-document';
 import { SathiUpdates } from '@/components/sathi-updates';
 import { H1, Screen, Segmented } from '@/components/ui';
 import { useSession } from '@/lib/session';
 
-type Pane = 'updates' | 'chat' | 'add';
+type Pane = 'updates' | 'chat' | 'add' | 'doc';
 
 export default function AssistantScreen() {
   const { t } = useSession();
@@ -20,12 +21,14 @@ export default function AssistantScreen() {
         options={[
           { value: 'updates', label: t('updates') },
           { value: 'chat', label: t('chat') },
-          { value: 'add', label: 'SMS / Email' },
+          { value: 'add', label: 'SMS' },
+          { value: 'doc', label: '📷' },
         ]}
       />
       {pane === 'updates' && <SathiUpdates />}
       {pane === 'chat' && <SathiChat />}
       {pane === 'add' && <SathiAdd />}
+      {pane === 'doc' && <SathiDocument />}
     </Screen>
   );
 }
