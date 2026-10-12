@@ -261,3 +261,28 @@ export type RenewalCase = {
   messages: { university_email: { en: string; zh: string }; parent_message: { bn: string; en: string } };
   note: string;
 };
+
+export type PassportEntry = {
+  kind: 'tuition' | 'living_transfer' | 'renewal';
+  date: string;
+  payee: string;
+  amount_cny: string | null;
+  due: string | null;
+  arrived: string | null;
+  on_time: boolean | null;
+  audit_seq: number;
+};
+
+export type Passport = {
+  id: string;
+  holder: { name: string; university: string; corridor: string };
+  issued_at: string;
+  valid_until: string;
+  include_amounts: boolean;
+  stats: { payments: number; renewals: number; with_deadline: number; on_time: number; on_time_pct: number | null; months_active: number; total_cny: string | null };
+  entries: PassportEntry[];
+  disclaimer: string;
+  signature: string;
+  verify_url: string;
+  qr_svg: string;
+};

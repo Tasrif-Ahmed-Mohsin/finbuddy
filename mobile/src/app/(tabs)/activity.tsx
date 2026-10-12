@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { Pressable } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Badge, Banner, Card, ErrorBox, H1, H2, Muted, Row, Screen, styles } from '@/components/ui';
+import { Badge, Banner, Button, Card, ErrorBox, H1, H2, Muted, Row, Screen, styles } from '@/components/ui';
 import type { AuditEntry, Draft } from '@/lib/api';
 import { bdt, cny, num, shortDate } from '@/lib/format';
 import { KIND_LABEL, STATUS_TONE } from '@/lib/labels';
@@ -25,6 +25,11 @@ export default function ActivityScreen() {
   return (
     <Screen refreshing={loading} onRefresh={reload}>
       <H1>{t('tabActivity')}</H1>
+      <Card tone="info">
+        <H2>{t('buildCredit')}</H2>
+        <Muted>{t('passportIntro')}</Muted>
+        <Button title={t('passport')} onPress={() => router.push('/passport')} />
+      </Card>
       <ErrorBox error={error} />
       {data && (
         <>

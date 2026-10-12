@@ -7,19 +7,21 @@ device-bound keys.
 from __future__ import annotations
 
 import hmac
+import html
 import os
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from app.agent.llm import make_llm
 from app.config import load_settings
 from app.inbox.email_imap import fetch_recent
+from app.passport import qr_svg
 from app.security.permissions import Actor
 from app.service import AppState
 
@@ -87,6 +89,14 @@ class QuoteIn(BaseModel):
     bank: str = Field(min_length=2, max_length=40)
     bdt_per_cny: Decimal = Field(gt=0)
     fixed_fee_bdt: Decimal = Field(ge=0)
+
+
+class PassportIn(BaseModel):
+    include_amounts: bool = False
+
+
+class PassportVerifyIn(BaseModel):
+    passport: dict
 
 
 class RenewalStepIn(BaseModel):
@@ -173,6 +183,51 @@ def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO) -> FastAPI:
     @app.get("/fx/history")
     def fx_history(days: int = 180, s: AppState = Depends(svc)):
         return s.fx_history(days)
+
+    # ---- payment passport (credit building) ---------------------------------------
+    @app.post("/passport")
+    def passport_issue(body: PassportIn, request: Request, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        doc = guard(s.issue_passport, who, body.include_amounts)
+        url = f"{str(request.base_url).rstrip('/')}/passport/{doc['id']}/verify?sig={doc['signature'][:24]}"
+        return {**doc, "verify_url": url, "qr_svg": qr_svg(url)}
+
+    @app.post("/passport/verify")
+    def passport_verify(body: PassportVerifyIn, s: AppState = Depends(svc)):
+        return s.verify_passport(body.passport)
+
+    @app.post("/passport/{passport_id}/revoke")
+    def passport_revoke(passport_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.revoke_passport, who, passport_id)
+
+    @app.get("/passport/{passport_id}/verify", response_class=HTMLResponse)
+    def passport_page(passport_id: str, sig: str = "", s: AppState = Depends(svc)):
+        # Public page for a landlord / bank who scans the QR code. Needs the signature, so ids can't be guessed.
+        doc = s.passports.get(passport_id)
+        if doc is None or not hmac.compare_digest(sig, doc["signature"][:24]):
+            result = {"valid": False, "reasons": ["unknown passport or wrong verification code"], "stats": None, "holder": None}
+        else:
+            result = s.verify_passport(doc)
+        e = html.escape
+        ok = result["valid"]
+        rows = ""
+        if doc and result.get("stats"):
+            for x in doc["entries"]:
+                mark = "✓ on time" if x["on_time"] else ("late" if x["on_time"] is False else "completed")
+                amt = f"¥{e(x['amount_cny'])}" if x.get("amount_cny") else ""
+                rows += f"<tr><td>{e(x['date'])}</td><td>{e(x['kind'].replace('_', ' '))}</td><td>{amt}</td><td>{mark}</td></tr>"
+        st = result.get("stats") or {}
+        holder = result.get("holder") or {}
+        body = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payment passport check</title><style>body{{font-family:system-ui,sans-serif;max-width:640px;margin:24px auto;padding:0 16px;color:#111;background:#fff}}
+.badge{{display:inline-block;padding:6px 14px;border-radius:999px;font-weight:700;color:#fff;background:{'#15803D' if ok else '#DC2626'}}}
+table{{width:100%;border-collapse:collapse}}td{{border-bottom:1px solid #ddd;padding:6px 4px;font-size:14px}}small{{color:#555}}</style></head>
+<body><h1>Sathi payment passport</h1><p><span class="badge">{'VALID' if ok else 'NOT VALID'}</span></p>
+{'' if ok else '<p>' + e('; '.join(result['reasons'])) + '</p>'}
+<p><b>{e(str(holder.get('name', '')))}</b><br>{e(str(holder.get('university', '')))}<br>{e(str(holder.get('corridor', '')))}</p>
+<p>On time: <b>{e(str(st.get('on_time', '–')))}/{e(str(st.get('with_deadline', '–')))}</b> · Payments: {e(str(st.get('payments', '–')))} ·
+Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
+<p><small>{e(doc['disclaimer']) if doc else ''}</small></p></body></html>"""
+        return HTMLResponse(body)
 
     # ---- renewals (T3) ----------------------------------------------------------
     @app.post("/renewals/{item}")

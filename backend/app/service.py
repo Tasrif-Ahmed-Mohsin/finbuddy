@@ -6,6 +6,8 @@ bypass it.
 """
 from __future__ import annotations
 
+import os
+import secrets
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -24,6 +26,8 @@ from app.inbox.service import Inbox
 from app.fx import FxProvider
 from app.market import BankQuote, Market, build_market, load_quote_config
 from app.money import D, q2
+from app.passport import issue as issue_passport_doc
+from app.passport import verify as verify_passport_doc
 from app.renewal import RenewalCase, plan_renewal
 from app.sandbox.bank import seed_demo_bank
 from app.security.compliance import ComplianceContext, Payee, is_blocked, run_draft_checks
@@ -49,6 +53,7 @@ class DraftSpec:
     withdrawals: list[Decimal]
     purpose: str
     origin_message: str | None
+    deadline: date | None = None  # tuition: the university deadline the payment must arrive by
 
 
 class AppState:
@@ -61,6 +66,9 @@ class AppState:
         self.quote_cfg = load_quote_config()
         self.real_quotes: list[BankQuote] = []
         self.audit = AuditLog(audit_path)
+        # The audit file persists across restarts but sandbox state (drafts, ids) does not:
+        # anything that interprets the log (e.g. the payment passport) only reads this session.
+        self.session_start_seq = len(self.audit.entries)
         self.bank = seed_demo_bank(self.corridor, self.audit, start, self.market.mid.cny_per_usd)
         self.bank.payees["student_cash_self"] = Payee(
             "student_cash_self", "Your own cash (ATM withdrawal)", "-", "-", "CNY", True, "Self", "student_cash"
@@ -88,6 +96,11 @@ class AppState:
             "home_bank": "your bank",
         }
         self.renewals: dict[str, RenewalCase] = {}
+        # Payment passports (credit building). The signing key should come from the environment in production.
+        env_secret = os.environ.get("SATHI_PASSPORT_SECRET")
+        self.passport_secret = env_secret.encode() if env_secret else secrets.token_bytes(32)
+        self.passports: dict[str, dict] = {}
+        self.revoked_passports: set[str] = set()
         self._n = 0
         self.inbox = Inbox(self)
         self.agent = ChatAgent(self)
@@ -202,7 +215,8 @@ class AppState:
                 self.market.quotes, key=lambda q: tt_cost(amount, q, mid).total_bdt)
             quote_id, rate = quote.quote_id, quote.bdt_per_cny
             total = tt_cost(amount, quote, mid).total_bdt  # computed by the engine, never by the LLM
-            payer, spec = Actor.PARENT, DraftSpec("parent_bd", [], "tuition" if kind == "tt_tuition" else "living", origin_message)
+            payer, spec = Actor.PARENT, DraftSpec("parent_bd", [], "tuition" if kind == "tt_tuition" else "living", origin_message,
+                                                  self.profile["tuition_deadline"] if kind == "tt_tuition" else None)
         elif kind == "atm_plan":
             ws = [D(w) for w in (withdrawals or [])]
             if not ws or sum(ws, Decimal(0)) != amount:
@@ -440,6 +454,30 @@ class AppState:
         self._log("renewal_completed", actor, "update_renewal", {"case_id": case_id, "item": case.item,
                   "old_expiry": old.isoformat(), "new_expiry": new_expiry.isoformat()})
         return case.to_dict(self.now.date())
+
+    # ---- payment passport (credit building) ------------------------------------------
+    def issue_passport(self, actor: Actor, include_amounts: bool) -> dict:
+        self._require(actor, "share_passport")
+        if actor == Actor.AGENT:
+            raise PermissionError("only the student or parent can share a payment passport")
+        doc = issue_passport_doc(self, self.passport_secret, self._id("passport"), include_amounts)
+        self.passports[doc["id"]] = doc
+        self._log("passport_issued", actor, "share_passport", {"passport_id": doc["id"], "entries": len(doc["entries"]),
+                  "include_amounts": include_amounts, "valid_until": doc["valid_until"]})
+        return doc
+
+    def verify_passport(self, passport: dict) -> dict:
+        return verify_passport_doc(self, self.passport_secret, passport, self.revoked_passports)
+
+    def revoke_passport(self, actor: Actor, passport_id: str) -> dict:
+        self._require(actor, "share_passport")
+        if actor == Actor.AGENT:
+            raise PermissionError("only the student or parent can revoke a payment passport")
+        if passport_id not in self.passports:
+            raise KeyError(passport_id)
+        self.revoked_passports.add(passport_id)
+        self._log("passport_revoked", actor, "share_passport", {"passport_id": passport_id})
+        return {"id": passport_id, "revoked": True}
 
     # ---- card controls -----------------------------------------------------------
     def freeze_card(self, actor: Actor, last4: str, reason: str = "") -> dict:
