@@ -54,6 +54,11 @@ cd backend && .venv/Scripts/python -m pytest -q        # 144 tests: engines, sec
 cd mobile && npx tsc --noEmit && npx expo lint
 ```
 
+## Submission documents
+- [Technical documentation](docs/TECHNICAL_DOCUMENTATION.md): architecture, core algorithms, security design, data, API, deployment, tests
+- [Security self-assessment](docs/SECURITY_SELF_ASSESSMENT.md): permission-tier implementation, threat model, red-team results, known-risk list
+- [Execution evidence](docs/evidence/scenario_summary.md): hash-chained sandbox operation log from a full end-to-end run
+
 ## Repository map
 ```
 docs/00_project_brief.md     competition rules, decisions, concept, plan

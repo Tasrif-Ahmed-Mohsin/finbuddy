@@ -8,8 +8,8 @@ Exchange rates: real saved history (mode `offline`); bank prices are estimates.
 |---|---|---|---|
 | 1 | 2026-10-12 | Inbox | 11/12 synthetic alerts kept (non-money message dropped); 7 insights: atm_fee_leak, duplicate_charge, fx_markup, large_debit, otp_received, phishing_link, suspicious_message |
 | 2 | 2026-10-12 | T4 scam blocked | draft draft-0001 status=blocked; failed checks: payee_allowlisted, origin_message_safe |
-| 3 | 2026-10-12 | T1 tuition | best Bank C (estimate) ৳659662.28 (saves ৳8797.24); send by 2026-11-05; agent execute → HTTP 403; approved by parent, student; sent |
-| 4 | 2026-10-12 | T2 living money | ¥5000.00 by transfer + ATM ['1000.00']; ৳114956.22 vs ৳117415.52 all-ATM (saves ৳2459.30) |
+| 3 | 2026-10-12 | T1 tuition | best Bank C (estimate) ৳653826.12 (saves ৳6854.20); send by 2026-11-05; agent execute → HTTP 403; approved by parent, student; sent |
+| 4 | 2026-10-12 | T2 living money | ¥5000.00 by transfer + ATM ['1000.00']; ৳114127.72 vs ৳117415.52 all-ATM (saves ৳3287.80) |
 | 5 | 2026-10-12 | Card controls | agent (fallback) froze card via ['check_message', 'freeze_card']; agent unfreeze → HTTP 403; student unfroze with fingerprint/PIN |
 | 6 | 2026-10-19 | Tuition arrived | university account ¥35200.00 (deadline 2026-11-15) |
 | 7 | 2026-11-18 | Living transfer Nov | ¥5000 to own Chinese account, approved by parent, status sent |

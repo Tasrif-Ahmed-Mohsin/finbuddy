@@ -12,7 +12,9 @@
 - ✅ **Credit building: payment passport.** Signed, verifiable record of on-time payments built only from this session's hash-chained log (tuition, living transfers, renewals done before expiry); hide-amounts option; QR code to a public verify page (needs the code); tampered, fabricated, revoked or expired passports fail; late payments shown as late. Users only.
 - ✅ **Execution evidence:** `backend/scripts/demo_scenario.py` runs the whole story through the real API over ~2 sandbox months and exports `docs/evidence/sandbox_operation_log.jsonl` (hash chain valid) + `scenario_summary.md`. **139 tests pass.**
 - ✅ **Photo document reader** (DeepSeek vision): fee notices, Chinese bank forms, university checklists → type, summary in the user's language, amounts (must appear in the transcription), deadlines, bilingual checklist; injection phrases flagged; long numbers masked; photo never stored; a fee notice is applied only after the user confirms (then it backs the invoice check). Live test on the friend's real residence-permit checklist: all 11 items read in 3.6 s. **144 tests pass.**
-- ⏭ Next: write the technical documentation and security self-assessment; deck + demo video; real anonymised SMS samples + friend's real BRAC quote; try on a real phone with Expo Go; deploy the backend.
+- ✅ **Real BRAC data point** (friend: ৳18.35/¥, ~৳8,000 file charge): BRAC's rate was only ~+0.2% over mid-market; the file charge was the bigger cost. Added a calibrated BRAC quote; generic estimates lowered to 0.6–1.8%.
+- ✅ **Technical documentation** ([TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md)) and **security self-assessment** ([SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md)) written: deliverables #1 and #5.
+- ⏭ Next: deck (≤10 min) + demo video (≤5 min); try on a real phone with Expo Go; deploy the backend; first full submission on 18 Oct; exact date of the friend's payment and real SMS samples.
 
 ---
 

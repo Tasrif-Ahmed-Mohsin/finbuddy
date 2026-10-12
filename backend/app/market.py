@@ -68,7 +68,8 @@ def build_market(mid: MidRates, cfg: dict, real_quotes: list[BankQuote] | None =
     for q in cfg["estimated_quotes"]:
         markup = D(q["markup_pct"])
         rate = (mid.bdt_per_cny * (1 + markup / 100)).quantize(FOUR_PLACES)
-        quotes.append(BankQuote(q["quote_id"], q["bank"], rate, D(q["fixed_fee_bdt"]), mid.as_of, cfg["source"], True, markup))
+        quotes.append(BankQuote(q["quote_id"], q["bank"], rate, D(q["fixed_fee_bdt"]), mid.as_of, q.get("source", cfg["source"]),
+                                True, markup))
     for rq in real_quotes or []:
         markup = ((rq.bdt_per_cny / mid.bdt_per_cny - 1) * 100).quantize(Decimal("0.01"))
         quotes.append(BankQuote(rq.quote_id, rq.bank, rq.bdt_per_cny, rq.fixed_fee_bdt, rq.as_of, rq.source, False, markup))
