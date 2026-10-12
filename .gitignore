@@ -1,0 +1,21 @@
+# Python
+backend/.venv/
+backend/var/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Secrets: never commit
+.env
+*.env
+backend/.env
+deepseek api key.txt
+
+# Local tooling (machine-specific paths)
+.claude/

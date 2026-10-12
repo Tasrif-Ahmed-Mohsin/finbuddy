@@ -1,0 +1,54 @@
+# ⚠️ SYNTHETIC demo messages written by the Sathi team to show the pipeline end to end.
+# The wording imitates typical bank alerts but is NOT copied from any real bank. Senders are generic or
+# reserved example domains. Replace/extend with real, anonymised samples (with consent) before relying
+# on the parsers. Card 4821 = demo student's Bangladeshi card; 3317 = demo student's Chinese account.
+synthetic: true
+messages:
+  - source: sms
+    sender: "BD Bank Alert"
+    minutes_ago: 12960   # 9 days ago
+    text: "Dear Customer, your Card ending 4821 was used for ATM withdrawal of CNY 2,000.00 at ICBC SHANGHAI on 03-Oct-26. Fee BDT 345.00. Avl Bal BDT 2,51,340.00"
+  - source: sms
+    sender: "BD Bank Alert"
+    minutes_ago: 10080   # 7 days ago
+    text: "Dear Customer, your Card ending 4821 was used for ATM withdrawal of CNY 2,000.00 at BOC PUDONG on 05-Oct-26. Fee BDT 345.00. Avl Bal BDT 2,13,950.00"
+  - source: sms
+    sender: "BD Bank Alert"
+    minutes_ago: 5760    # 4 days ago
+    text: "Dear Customer, your Card ending 4821 was used for ATM withdrawal of CNY 1,500.00 at ICBC SHANGHAI on 08-Oct-26. Fee BDT 345.00. Avl Bal BDT 1,85,610.00"
+  - source: sms
+    sender: "BD Bank Alert"
+    minutes_ago: 4320
+    text: "Your Card ending 4821 was used for purchase of CNY 3,200.00 at CAMPUS ELECTRONICS on 09-Oct-26 (BDT 58,912.00). Avl Bal BDT 1,26,698.00"
+  - source: sms
+    sender: "95588"
+    minutes_ago: 2880
+    text: "【工商银行】您尾号3317的借记卡10月10日14:03收入(跨境汇款)5,000.00元，余额5,500.00元。"
+  - source: sms
+    sender: "BD Bank Alert"
+    minutes_ago: 1442
+    text: "Your Card ending 4821 was used for purchase of CNY 45.00 at MEITUAN DELIVERY on 11-Oct-26. Avl Bal BDT 1,25,850.00"
+  - source: sms
+    sender: "BD Bank Alert"
+    minutes_ago: 1440
+    text: "Your Card ending 4821 was used for purchase of CNY 45.00 at MEITUAN DELIVERY on 11-Oct-26. Avl Bal BDT 1,25,002.00"
+  - source: sms
+    sender: "BD Bank Alert"
+    minutes_ago: 600
+    text: "Your OTP for card transaction is 482913. It is valid for 3 minutes. Do not share it with anyone."
+  - source: sms
+    sender: "+86 138 0000 0000"
+    minutes_ago: 300
+    text: "Bhai, hundi te pathale rate onek bhalo pabe, bank e onek jhamela. WhatsApp korun."
+  - source: sms
+    sender: "BD-Bank-Secure"
+    minutes_ago: 120
+    text: "Your card 4821 is BLOCKED. Verify your KYC within 24 hours at http://bd-bank-verify.example/login to avoid account closure."
+  - source: email
+    sender: "finance@demo-university.example"
+    minutes_ago: 60
+    text: "Tuition invoice 2026-27: 35,200 CNY due on 15 November 2026. Pay only to the official university account shown in the student portal."
+  - source: sms
+    sender: "Friend"
+    minutes_ago: 30
+    text: "Are you coming to the canteen at 7?"

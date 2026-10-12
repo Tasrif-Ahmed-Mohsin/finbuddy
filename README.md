@@ -1,0 +1,61 @@
+# Sathi: cross-border student finance agent
+
+**FinTechathon 2026 · International Track · Topic C (Cross-border & Student Finance Assistant)**
+
+Sathi (সাথী, "companion") helps international students and their families move money across borders at
+the **lowest true cost**, **inside every limit**, and **safely**, in Bengali, English and Chinese.
+Hero corridor: **Bangladesh → China**.
+
+> ⚠️ Sandbox only. No real money moves. Rates in `backend/app/data/market_sample.yaml` are **sample data**
+> until real quotes are loaded (the app shows a warning banner).
+
+## What works today
+
+| Task | What happens |
+|---|---|
+| **T1 Tuition** | Compare banks by all-in cost → send-by date worked back from the arrival deadline → draft → **parent + student approve** (two-person rule above ৳1 lakh) → sandbox transfer → arrives after the transfer delay |
+| **T2 Living money** | Constrained optimiser: transfer-to-own-account vs ATM withdrawals (~৳345 each) → cheapest plan that **never breaks** the 5 lakh BDT / 30 transactions / ATM / living-remittance caps |
+| **T4 Scams** | Hundi, "discount tuition agents", fake police, card rental, crypto and prompt injection detected (EN/BN/ZH) → drafts **blocked** with an explanation |
+| **AI agent + inbox** | Share/forward bank SMS and emails → privacy redaction (OTP removed, numbers masked) → transactions tracked → alerts and savings insights. DeepSeek chat agent explains, plans and drafts (it can never approve or send). See [docs/03_agent_and_inbox.md](docs/03_agent_and_inbox.md) |
+| Security | Permission levels L0–L3, approval tokens bound to the exact draft (tamper and replay blocked), mandates with caps, hash-chained audit log |
+
+## Run it
+
+**Backend** (Python 3.12):
+```bash
+cd backend
+python -m venv .venv
+.venv/Scripts/python -m pip install -r requirements.txt   # macOS/Linux: .venv/bin/python
+.venv/Scripts/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+API docs: http://localhost:8000/docs
+
+**AI (optional):** put `DEEPSEEK_API_KEY=...` in `backend/.env`. This file is git-ignored; never put the key in the mobile app. Without a key, Sathi uses rule-based answers. Optional email: `SATHI_IMAP_HOST`, `SATHI_IMAP_USER`, `SATHI_IMAP_PASSWORD` (an app password).
+
+**Mobile app** (Node 22, Expo SDK 57):
+```bash
+cd mobile
+npm install
+npx expo start          # scan the QR code with Expo Go on your phone
+npx expo start --web    # or open in a browser
+```
+On a phone, the app looks for the backend on the same computer at port 8000 (the phone and computer must be on the same Wi-Fi, and the firewall must allow port 8000). Change the address in **Settings** if needed, or set `EXPO_PUBLIC_API_URL`.
+
+## Test it
+```bash
+cd backend && .venv/Scripts/python -m pytest -q        # 78 tests: engines, security, end-to-end scenarios
+cd mobile && npx tsc --noEmit && npx expo lint
+```
+
+## Repository map
+```
+docs/00_project_brief.md     competition rules, decisions, concept, plan
+docs/01_problem_research.md  34 problems + field interview, with sources and confidence labels
+docs/02_build_plan.md        organiser expectations → scope → architecture → schedule
+backend/app/corridors/       rule pack (every number has a source + confidence)
+backend/app/engines/         cost engine, living optimiser, tuition planner, FX ranges
+backend/app/security/        permissions, compliance checks, scam/injection detection
+backend/app/sandbox/         simulated bank with clock, delays and fees
+backend/app/audit/           hash-chained operation log (execution evidence)
+mobile/src/app/              Expo Router screens (Home, Plan, Sathi, Activity, Settings, Draft)
+```

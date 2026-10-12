@@ -1,0 +1,158 @@
+# Corridor rule pack: Bangladesh → China
+#
+# Every parameter carries:
+#   value       the number the engines use
+#   confidence  official | secondary | field | assumption | sample
+#                 official   = regulator / government / university page
+#                 secondary  = guide, blog, news, vendor (verify before relying on it)
+#                 field      = our user interview (one student's experience)
+#                 assumption = our estimate, no source yet (shown to users as "estimate")
+#                 sample     = illustrative development value, NOT real data
+#   source      where it came from (see docs/01_problem_research.md)
+#   note        caveats
+#
+# The app must show an "estimate" badge for anything that is not `official`.
+
+id: BD-CN
+name: "Bangladesh → China"
+home_currency: BDT
+host_currency: CNY
+vehicle_currency: USD
+reviewed: "2026-10-12"
+
+params:
+  # ---- Bangladesh side -------------------------------------------------------
+  bd_living_remit_cap_usd_per_month:
+    value: 2000
+    confidence: secondary
+    source: "FE Circular No. 37 (2025) via legalseba.com/bd-articles/?p=1125"
+    note: "+50% for high-cost locations with proof. Circular reportedly valid until 2026-09-29; re-verify."
+
+  bd_incidental_once_usd:
+    value: 1000
+    confidence: secondary
+    source: "FE Circular No. 37 (2025) via legalseba.com"
+    note: "One-time, newly admitted students."
+
+  bd_student_card_cap_bdt_per_month:
+    value: 500000
+    confidence: field
+    source: "Interview #1 (2026-10-12)"
+    note: "Assumed to be the Bangladeshi student card/account; confirm which account and whether remittances count."
+
+  bd_student_card_tx_cap_per_month:
+    value: 30
+    confidence: field
+    source: "Interview #1 (2026-10-12)"
+    note: "Unclear whether card purchases count or only ATM withdrawals; we count both (conservative)."
+
+  bd_card_atm_fixed_fee_bdt:
+    value: 345
+    confidence: field
+    source: "Interview #1 (2026-10-12)"
+    note: "~USD 2.8; consistent with a fixed fee + VAT. Verify in the bank's schedule of charges."
+
+  bd_card_atm_daily_cap_usd:
+    value: 300
+    confidence: secondary
+    source: "Financial Express report on BRAC debit cards abroad (undated)"
+
+  bd_card_atm_monthly_cap_usd:
+    value: 1500
+    confidence: secondary
+    source: "Financial Express report on BRAC debit cards abroad (undated)"
+
+  bd_card_non_usd_factor_pct:
+    value: 3.0
+    confidence: secondary
+    source: "BRAC Bank card schedule of charges 2019"
+    note: "'Foreign currency factor' on non-USD transactions; may be outdated."
+
+  bd_card_fx_markup_pct:
+    value: 1.0
+    confidence: assumption
+    source: "Our estimate of card-network + issuer rate vs mid-market"
+    note: "Replace with a real card statement."
+
+  bd_tt_transfer_days:
+    value: 7
+    confidence: field
+    source: "Interview #1: BRAC Bank CNY tuition transfer arrived in ~1 week"
+
+  bd_student_file_fee_bdt:
+    value: 8000
+    confidence: field
+    source: "Interview #1 (2026-10-12)"
+    note: "One-time vs recurring unclear. Other banks list renewal Tk 4,500–6,000 + VAT per year."
+
+  bd_endorsement_warn_days:
+    value: 21
+    confidence: assumption
+    source: "Product choice: warn three weeks before the endorsement or Student File expires"
+
+  # ---- China side ------------------------------------------------------------
+  cn_atm_foreign_card_fee_cny:
+    value: 25
+    confidence: secondary
+    source: "Travel guides / forum reports (20–30 CNY at big state banks)"
+
+  cn_atm_max_per_withdrawal_cny:
+    value: 3000
+    confidence: secondary
+    source: "Travel guides / forum reports (2,500–5,000 CNY at big state banks)"
+
+  cn_alipay_foreign_card_fee_pct:
+    value: 3.0
+    confidence: secondary
+    source: "WentChina 2026 guide; travel guides"
+    note: "Charged on single payments above cn_alipay_fee_threshold_cny."
+
+  cn_alipay_fee_threshold_cny:
+    value: 200
+    confidence: secondary
+    source: "WentChina 2026 guide; travel guides"
+
+  cn_fx_annual_quota_usd:
+    value: 50000
+    confidence: official
+    source: "HSBC China personal FX guide; SAFE 2010 notice"
+    note: "Non-mainland individuals; supporting documents needed above it."
+
+  cn_outward_verify_threshold_cny:
+    value: 5000
+    confidence: secondary
+    source: "Sinoblawg on rules effective 2026-01-01 (Art. 34)"
+
+  cn_cash_declare_cny:
+    value: 20000
+    confidence: official
+    source: "Shanghai customs clearance guide (GACC)"
+
+  cn_cash_declare_usd:
+    value: 5000
+    confidence: official
+    source: "Shanghai customs clearance guide (GACC)"
+
+  # ---- Product safety settings -----------------------------------------------
+  two_person_threshold_bdt:
+    value: 100000
+    confidence: assumption
+    source: "Product choice: payments of 1 lakh BDT or more need student AND parent approval"
+
+  quote_max_age_minutes:
+    value: 60
+    confidence: assumption
+    source: "Product choice: an approval is only valid for a fresh rate quote"
+
+  large_debit_alert_bdt:
+    value: 50000
+    confidence: assumption
+    source: "Product choice: ask 'was this you?' for debits of 50,000 BDT or more not started in Sathi"
+
+  tuition_buffer_days:
+    value: 3
+    confidence: assumption
+    source: "Product choice: safety buffer before the university deadline"
+
+# Words that must never appear in a transfer note (banks' risk controls flag them; see P-16).
+blocked_memo_terms: ["bitcoin", "btc", "usdt", "tether", "crypto", "doge", "eth", "虚拟货币", "比特币", "泰达币"]
