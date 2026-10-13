@@ -74,6 +74,15 @@ class AdvanceIn(BaseModel):
     days: int = Field(ge=0, le=365)
 
 
+class ProposalIn(BaseModel):
+    text: str = Field(min_length=3, max_length=1000)
+    lang: str = "en"
+
+
+class SignIn(BaseModel):
+    proposal_hash: str = Field(min_length=64, max_length=64)
+
+
 class InboxIn(BaseModel):
     source: str = "sms"
     sender: str = Field(default="unknown", max_length=60)
@@ -136,7 +145,7 @@ _AUTO = object()
 
 
 def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO) -> FastAPI:
-    app = FastAPI(title="Sathi API", version="0.2.0",
+    app = FastAPI(title="Sathi API", version="0.3.0",
                   description="Cross-border student finance agent (sandbox). No real money moves.")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
     settings = load_settings()
@@ -160,6 +169,11 @@ def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO) -> FastAPI:
             raise HTTPException(status_code=404, detail=f"not found: {e}")
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
+
+    def user_only(who: Actor) -> Actor:
+        if who == Actor.AGENT:
+            raise HTTPException(status_code=403, detail="only the student or parent can do this")
+        return who
 
     # ---- routes -----------------------------------------------------------
     @app.get("/health")
@@ -350,21 +364,49 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     def revoke_mandate(mandate_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return guard(s.revoke_mandate, who, mandate_id)
 
+    @app.get("/mandates")
+    def list_mandates(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return s.mandates_view()
+
+    # ---- family mandate from the parent's own words → signatures → autopilot ----------------
+    @app.post("/mandates/proposals")
+    def propose_mandate(body: ProposalIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.propose_mandate, who, body.text, body.lang)
+
+    @app.get("/mandates/proposals/{proposal_id}")
+    def get_proposal(proposal_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(lambda: s.proposals[proposal_id].to_dict())
+
+    @app.post("/mandates/proposals/{proposal_id}/sign")
+    def sign_proposal(proposal_id: str, body: SignIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.sign_mandate, who, proposal_id, body.proposal_hash)
+
+    # ---- the loop: year plan (plan), feed (sense + act), receipts (prove) --------------------
+    @app.get("/plan/year")
+    def year_plan(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.year_plan, who)
+
+    @app.get("/feed")
+    def feed(lang: str = "en", s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return s.family_feed(user_only(who), lang)
+
+    @app.get("/runway")
+    def runway(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return s.runway()
+
+    @app.get("/receipts")
+    def receipts(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return s.receipts()
+
     @app.post("/sandbox/advance")
     def advance(body: AdvanceIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        events = guard(s.bank.advance, body.days, who.value)
-        return {"now": s.now.isoformat(), "events": events}
+        return guard(s.advance, who, body.days)
 
     @app.get("/audit")
     def audit(limit: int = 100, s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return {"verify": s.audit.verify(), "entries": s.audit.entries[-limit:][::-1]}
 
     # ---- inbox: shared / forwarded SMS and emails ----------------------------
-    def user_only(who: Actor) -> Actor:
-        if who == Actor.AGENT:
-            raise HTTPException(status_code=403, detail="only the student or parent can add or sync messages")
-        return who
-
     @app.post("/inbox/messages")
     def inbox_add(body: InboxIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return guard(s.inbox.ingest, user_only(who).value, body.source, body.sender, body.text)

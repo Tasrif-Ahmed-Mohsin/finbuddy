@@ -18,7 +18,7 @@ name: "Bangladesh → China"
 home_currency: BDT
 host_currency: CNY
 vehicle_currency: USD
-reviewed: "2026-10-12"
+reviewed: "2026-10-13"
 
 params:
   # ---- Bangladesh side -------------------------------------------------------
@@ -110,6 +110,38 @@ params:
     value: 5
     confidence: assumption
     source: "Product choice: finish the renewal five days before the old one expires"
+
+  endorsement_renewal_in_person:
+    value: 1
+    confidence: field
+    source: "Interview #1 follow-up (2026-10-13): the student must go to the bank, because renewal needs the passport"
+    note: "1 = yes. A student in China cannot renew the card endorsement until the next visit home."
+
+  # ---- Year plan / autopilot (docs: TECHNICAL_DOCUMENTATION.md, year plan) -------
+  living_safety_days:
+    value: 5
+    confidence: assumption
+    source: "Product choice: when a transfer lands, keep at least 5 days of money as a cushion for delays"
+
+  living_target_days:
+    value: 30
+    confidence: assumption
+    source: "Product choice: each living-money transfer covers about a month (one fixed fee per month)"
+
+  min_living_transfer_cny:
+    value: 1000
+    confidence: assumption
+    source: "Product choice: no tiny transfers (each one pays a fixed bank fee)"
+
+  baseline_reorder_days:
+    value: 7
+    confidence: assumption
+    source: "Our model of a careful family today: they send money when about a week is left, because a transfer takes a week"
+
+  atm_low_cash_days:
+    value: 2
+    confidence: assumption
+    source: "Our model of a student today: withdraws cash at an ATM when about 2 days of money are left"
 
   # ---- China side ------------------------------------------------------------
   cn_atm_foreign_card_fee_cny:

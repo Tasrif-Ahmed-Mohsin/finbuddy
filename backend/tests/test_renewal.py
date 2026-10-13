@@ -15,7 +15,7 @@ PROFILE = {"student_name": "Demo Student", "university": "Demo University", "hom
 
 
 def test_plan_works_backwards_from_expiry():
-    c = plan_renewal("r-1", "endorsement_expiry", date(2026, 12, 31), date(2026, 10, 12), load_corridor(), PROFILE)
+    c = plan_renewal("r-1", "student_file_expiry", date(2026, 12, 31), date(2026, 10, 12), load_corridor(), PROFILE)
     due = {s.id: s.due for s in c.steps}
     # buffer 5 + bank processing 3 → bank visit 23 Dec; scans 2 days before; university 7 days before that
     assert due["bank_visit"] == date(2026, 12, 23)
@@ -27,19 +27,34 @@ def test_plan_works_backwards_from_expiry():
 
 
 def test_late_plan_compresses_to_today_and_says_so():
-    c = plan_renewal("r-2", "endorsement_expiry", date(2026, 12, 31), date(2026, 12, 20), load_corridor(), PROFILE)
+    c = plan_renewal("r-2", "student_file_expiry", date(2026, 12, 31), date(2026, 12, 20), load_corridor(), PROFILE)
     assert c.late and all(s.due >= date(2026, 12, 20) for s in c.steps)
     assert "express" in c.steps[0].detail
 
 
 def test_messages_are_bilingual_and_contain_the_deadlines():
-    c = plan_renewal("r-3", "endorsement_expiry", date(2026, 12, 31), date(2026, 10, 12), load_corridor(), PROFILE)
+    c = plan_renewal("r-3", "student_file_expiry", date(2026, 12, 31), date(2026, 10, 12), load_corridor(), PROFILE)
     email, parent = c.messages["university_email"], c.messages["parent_message"]
     assert "在读证明" in email["zh"] and "成绩单" in email["zh"] and "缴费通知单" in email["zh"]
     assert "Enrolment certificate" in email["en"] and "2026-12-20" in email["en"]  # collect-docs deadline
     assert "2026-12-23" in parent["bn"] and "এনরোলমেন্ট" in parent["bn"]  # bank visit deadline, documents in Bengali
     assert "your bank" not in parent["bn"] and "আপনার ব্যাংক" in parent["bn"]  # no English words in the Bengali text
     assert "not only a few months" in parent["en"]  # ask for a longer endorsement (the friend's #1 pain)
+
+
+def test_endorsement_needs_the_student_in_person_so_money_switches_to_transfers():
+    """Interview #1 follow-up: renewal needs the passport at the bank, so a student in China cannot renew it."""
+    c = plan_renewal("r-4", "endorsement_expiry", date(2026, 12, 31), date(2026, 10, 12), load_corridor(), PROFILE)
+    steps = {x.id: x for x in c.steps}
+    assert list(steps) == ["check_cn_account", "switch_living_money", "renew_in_person", "confirm_new_expiry"]
+    # 7 transfer days + 5 days of cushion: the first transfer must land before the card stops
+    assert steps["switch_living_money"].due == date(2026, 12, 19) and steps["switch_living_money"].owner == "parent"
+    assert steps["renew_in_person"].owner == "student" and "passport" in steps["renew_in_person"].detail
+    bn = c.messages["parent_message"]["bn"]
+    assert "পাসপোর্ট" in bn and "ম্যান্ডেট" in bn and "2026-12-19" in bn
+    home = plan_renewal("r-5", "endorsement_expiry", date(2026, 12, 31), date(2026, 10, 12), load_corridor(),
+                        {**PROFILE, "student_location": "BD"})
+    assert "bank_visit" in {x.id for x in home.steps}  # at home, the normal bank-visit plan applies
 
 
 @pytest.fixture
@@ -49,10 +64,10 @@ def client():
 
 def test_full_renewal_flow_through_the_api(client):
     c = client.post("/renewals/endorsement_expiry", headers=H["student"]).json()
-    assert c["status"] == "open" and c["next_step"] == "request_docs"
+    assert c["status"] == "open" and c["next_step"] == "check_cn_account"
     assert client.post("/renewals/endorsement_expiry", headers=H["parent"]).json()["id"] == c["id"]  # idempotent
-    r = client.post(f"/renewals/case/{c['id']}/steps/request_docs", json={"status": "done"}, headers=H["student"]).json()
-    assert r["next_step"] == "collect_docs"
+    r = client.post(f"/renewals/case/{c['id']}/steps/check_cn_account", json={"status": "done"}, headers=H["student"]).json()
+    assert r["next_step"] == "switch_living_money"
     done = client.post(f"/renewals/case/{c['id']}/complete", json={"new_expiry": "2027-07-31"}, headers=H["parent"]).json()
     assert done["status"] == "completed"
     assert client.get("/profile", headers=H["parent"]).json()["endorsement_expiry"] == "2027-07-31"
@@ -62,7 +77,7 @@ def test_full_renewal_flow_through_the_api(client):
 
 def test_agent_may_plan_but_not_tick_steps_or_confirm(client):
     c = client.post("/renewals/endorsement_expiry", headers=H["agent"]).json()
-    assert client.post(f"/renewals/case/{c['id']}/steps/request_docs", json={"status": "done"}, headers=H["agent"]).status_code == 403
+    assert client.post(f"/renewals/case/{c['id']}/steps/check_cn_account", json={"status": "done"}, headers=H["agent"]).status_code == 403
     assert client.post(f"/renewals/case/{c['id']}/complete", json={"new_expiry": "2027-07-31"}, headers=H["agent"]).status_code == 403
 
 
@@ -76,7 +91,7 @@ def test_next_step_reminder_replaces_generic_warning_and_turns_red_when_overdue(
     types = {i["type"] for i in client.get("/insights", headers=H["parent"]).json()["insights"]}
     assert "renewal_due" in types
     client.post("/renewals/endorsement_expiry", headers=H["parent"])
-    client.post("/sandbox/advance", json={"days": 5}, headers=H["parent"])  # 16 Dec: request_docs (14 Dec) overdue
+    client.post("/sandbox/advance", json={"days": 5}, headers=H["parent"])  # 16 Dec: check_cn_account (12 Dec) overdue
     ins = client.get("/insights", headers=H["parent"]).json()["insights"]
     step = next(i for i in ins if i["type"] == "renewal_step")
     assert step["severity"] == "alert" and "overdue" in step["body"].lower() and "renewal_due" not in {i["type"] for i in ins}

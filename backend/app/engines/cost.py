@@ -23,6 +23,7 @@ HUNDRED = Decimal(100)
 class CostLine:
     label: str
     bdt: Decimal
+    kind: str = "fee"  # mid (the money itself) | rate (exchange-rate markup) | fee (fixed fees and surcharges)
 
 
 @dataclass
@@ -39,6 +40,9 @@ class CostBreakdown:
     def overhead_bdt(self) -> Decimal:
         return q2(self.total_bdt - self.mid_value_bdt)
 
+    def by_kind(self, kind: str) -> Decimal:
+        return q2(sum((l.bdt for l in self.lines if l.kind == kind), Decimal(0)))
+
     @property
     def overhead_pct(self) -> Decimal:
         if self.mid_value_bdt == 0:
@@ -54,7 +58,7 @@ class CostBreakdown:
             "overhead_bdt": str(self.overhead_bdt),
             "overhead_pct": str(self.overhead_pct),
             "card_transactions": self.card_transactions,
-            "lines": [{"label": l.label, "bdt": str(q2(l.bdt))} for l in self.lines],
+            "lines": [{"label": l.label, "bdt": str(q2(l.bdt)), "kind": l.kind} for l in self.lines],
             "notes": self.notes,
         }
 
@@ -77,8 +81,8 @@ def tt_cost(
     fx_markup = sent_cny * (quote.bdt_per_cny - mid_bdt_per_cny)
     intermediary_bdt = intermediary_fee_cny * mid_bdt_per_cny
     lines = [
-        CostLine("Amount at mid-market rate", mid_value),
-        CostLine(f"Exchange-rate markup ({quote.bank})", fx_markup),
+        CostLine("Amount at mid-market rate", mid_value, "mid"),
+        CostLine(f"Exchange-rate markup ({quote.bank})", fx_markup, "rate"),
     ]
     if intermediary_fee_cny:
         lines.append(CostLine("Intermediary bank deduction (covered)", intermediary_bdt))
@@ -119,8 +123,8 @@ def atm_cost(
     cn_fee_bdt = cn_fee * n * mid_bdt_per_cny
     bd_fee_total = bd_fee * n
     lines = [
-        CostLine("Amount at mid-market rate", mid_value),
-        CostLine("Card exchange-rate markup (estimate)", card_markup),
+        CostLine("Amount at mid-market rate", mid_value, "mid"),
+        CostLine("Card exchange-rate markup (estimate)", card_markup, "rate"),
         CostLine("Non-USD currency factor", non_usd),
         CostLine(f"Chinese ATM fees ({n} x {cn_fee} CNY)", cn_fee_bdt),
         CostLine(f"Bangladeshi bank ATM fees ({n} x {bd_fee} BDT)", bd_fee_total),
@@ -144,8 +148,8 @@ def alipay_card_cost(
     card_fx = delivered * (rate - mid_bdt_per_cny)
     service_bdt = service_fee_cny * rate
     lines = [
-        CostLine("Amount at mid-market rate", mid_value),
-        CostLine("Card exchange-rate markup + non-USD factor", card_fx),
+        CostLine("Amount at mid-market rate", mid_value, "mid"),
+        CostLine("Card exchange-rate markup + non-USD factor", card_fx, "rate"),
         CostLine(f"Alipay foreign-card fee ({corridor.v('cn_alipay_foreign_card_fee_pct')}% above {threshold} CNY)", service_bdt),
     ]
     total = mid_value + card_fx + service_bdt

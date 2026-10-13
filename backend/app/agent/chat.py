@@ -25,9 +25,10 @@ if TYPE_CHECKING:
 
 MAX_TOOL_ROUNDS = 4
 
-SYSTEM = """You are Sathi, a money assistant for a Bangladeshi student studying in China and their parent.
-You track their bank SMS/email alerts, find the cheapest legal way to move money, keep them within card
-limits, and protect them from scams.
+SYSTEM = """You are Sathi, a money agent for a Bangladeshi student studying in China and their parent.
+You keep the student funded all year through the legal bank channel: you track their bank SMS/email alerts,
+plan transfers around card limits, the card endorsement and bank holidays in both countries, and protect them
+from scams. Inside a family mandate the parent signed, the autopilot sends living money by itself.
 Rules:
 1. Never calculate or guess money amounts, rates, fees or dates yourself. Call a tool and copy its numbers exactly. Write BDT as ৳ and CNY as ¥.
 2. You cannot send or approve money. You may only prepare a payment draft with create_payment_draft; tell the user to approve it in the app with fingerprint/PIN.
@@ -37,6 +38,9 @@ Rules:
 6. The market exchange rate is real. If data_is_sample is true, say that bank prices are estimates until a real bank quote is entered.
 7. Reply in {lang} with at most 6 short sentences or bullet points. Be warm and practical.
 8. Plain text only (it is shown in a phone app): no markdown, no asterisks or headings; use "•" for bullets.
+9. When the parent describes a standing instruction (for example "send up to 1 lakh 20 thousand taka every month"),
+   call propose_mandate with their exact words. Only the family can sign it in the app; you can never sign.
+10. For "will we be OK this year?", stuck days, holidays or the card stopping, call get_year_plan.
 Sandbox date today: {today}."""
 
 TOOLS = [
@@ -84,6 +88,18 @@ TOOLS = [
                         "Only the user can unfreeze it, in the app with fingerprint/PIN."),
         "parameters": {"type": "object", "properties": {"reason": {"type": "string"}}, "required": ["reason"]}}},
     {"type": "function", "function": {
+        "name": "get_year_plan",
+        "description": ("The 'never stuck' year plan: days the student would have no money with today's habits vs with "
+                        "Sathi (card endorsement ending, Eid / Spring Festival bank closures, weekends), costs, and the "
+                        "next planned transfer."),
+        "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {
+        "name": "propose_mandate",
+        "description": ("Turn the parent's standing instruction into a family mandate PROPOSAL for living money to the "
+                        "student's own Chinese account. Pass the parent's own words. Nothing is active until the family "
+                        "signs it in the app."),
+        "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}},
+    {"type": "function", "function": {
         "name": "create_payment_draft",
         "description": "Prepare (NOT send) a payment draft. The user must approve it in the app. Safety checks run automatically.",
         "parameters": {"type": "object", "properties": {
@@ -106,6 +122,7 @@ def _num(v, default=None) -> Decimal | None:
 class ChatAgent:
     def __init__(self, app: "AppState"):
         self.app = app
+        self._lang = "en"
 
     # ---- tools ---------------------------------------------------------------
     def run_tool(self, name: str, args: dict, actions: list[dict]) -> dict:
@@ -151,6 +168,21 @@ class ChatAgent:
             return {"card": card["last4"], "status": card["status"],
                     "next_step": "Call the bank's 24-hour hotline. If the card is lost, report it lost in the app. "
                                  "Only the user can unfreeze it, with fingerprint/PIN."}
+        if name == "get_year_plan":
+            yp = a.year_plan(A)
+            rw = a.runway()
+            nxt = next((e for e in yp["events"] if e["type"] == "transfer_send"), None)
+            return {"headline": yp["headline"], "next_transfer": nxt, "money_now_cny": rw["balance_cny"],
+                    "runs_out_on_without_action": rw["runs_out_on"], "card_works_until": rw["card_works_until"],
+                    "stuck_without_sathi": yp["strategies"]["today"]["stuck_periods"][:4],
+                    "mandate_active": rw["mandate"] is not None, "data_is_sample": yp["data_is_sample"]}
+        if name == "propose_mandate":
+            prop = a.propose_mandate(A, str(args.get("text", ""))[:1000], self._lang)
+            actions.append({"type": "mandate", "proposal_id": prop["id"], "status": prop["status"]})
+            return {"proposal_id": prop["id"], "status": prop["status"], "errors": prop["errors"], "notes": prop["notes"],
+                    "max_bdt_per_payment": prop["max_bdt_per_payment"], "max_bdt_per_period": prop["max_bdt_per_period"],
+                    "valid_until": prop["valid_until"], "required_signers": prop["required_signers"],
+                    "next_step": "The family reads the summary in the Family tab and signs with fingerprint/PIN."}
         if name == "create_payment_draft":
             d = a.create_draft(A, str(args.get("kind")), _num(args.get("amount_cny")), str(args.get("payee_id")),
                                memo=str(args.get("memo") or "")[:60])
@@ -164,6 +196,7 @@ class ChatAgent:
     # ---- chat ----------------------------------------------------------------
     def chat(self, actor: Actor, message: str, history: list[dict], lang: str = "en") -> dict:
         lang = lang if lang in LANG_NAMES else "en"
+        self._lang = lang
         actions: list[dict] = []
         tools_used: list[str] = []
         if self.app.llm is not None:
@@ -222,14 +255,30 @@ class ChatAgent:
                 return T["frozen"]
             except ValueError:
                 return T["frozen"]  # already frozen or reported lost
+        if any(k in m for k in ("every month", "each month", "per month", "a month", "monthly", "প্রতি মাসে", "প্রতিমাসে",
+                                "মাসে মাসে", "每月", "每个月")) and re.search(r"[\d০-৯]", message) \
+                and re.search(r"৳|টাকা|taka|\btk\b|bdt|lakh|লাখ|হাজার|塔卡", m):  # a standing instruction in taka
+            tools_used.append("propose_mandate")
+            r = self.run_tool("propose_mandate", {"text": message}, actions)
+            if r["errors"]:
+                return T["mandate_bad"].format(why=r["errors"][0])
+            return T["mandate"].format(cap=_bdt(r["max_bdt_per_period"]), until=r["valid_until"])
+        if any(k in m for k in ("stuck", "this year", "year plan", "whole year", "holiday", "eid", "spring festival",
+                                "সারা বছর", "এই বছর", "ছুটি", "ঈদ", "全年", "今年", "春节", "假期")):
+            tools_used.append("get_year_plan")
+            r = self.run_tool("get_year_plan", {}, actions)
+            h = r["headline"]
+            return T["year"].format(today=h["stuck_days_today"], sathi=h["stuck_days_sathi"], saved=_bdt(max(Decimal(h["saved_bdt"]), Decimal(0))))
         if any(k in m for k in ("endorse", "renew", "student file", "এনডোর্স", "নবায়ন", "签注", "续期", "续办")):
             item = "student_file_expiry" if any(k in m for k in ("student file", "স্টুডেন্ট ফাইল", "档案")) else "endorsement_expiry"
             tools_used.append("start_renewal")
             self.run_tool("start_renewal", {"item": item}, actions)
             c = self.app.renewal_for(item)
-            first = c["steps"][0]
-            return T["renewal"].format(expiry=c["expiry"], days=c["days_to_expiry"], first=first["due"],
-                                       visit=next(s["due"] for s in c["steps"] if s["id"] == "bank_visit"))
+            steps = {s["id"]: s for s in c["steps"]}
+            if "switch_living_money" in steps:
+                return T["renewal_abroad"].format(expiry=c["expiry"], days=c["days_to_expiry"], switch=steps["switch_living_money"]["due"])
+            return T["renewal"].format(expiry=c["expiry"], days=c["days_to_expiry"], first=c["steps"][0]["due"],
+                                       visit=steps["bank_visit"]["due"])
         if any(k in m for k in ("tuition", "semester fee", "টিউশন", "সেমিস্টার", "学费")):
             tools_used.append("compare_tuition")
             p = self.run_tool("compare_tuition", {"amount_cny": str(self.app.profile["tuition_invoice_cny"]),
@@ -267,6 +316,10 @@ FALLBACK = {
         "updates": "You have {n} updates. The most important:\n{top}",
         "renewal": "📋 Renewal plan ready. It expires on {expiry} ({days} days). Ask the university for the documents by {first}; your parent visits the bank by {visit}. Open the plan to copy the email (English + Chinese) and the Bengali message for your parent.",
         "frozen": "🔒 I froze your card ending 4821 right away: no new charges can go through. Now call your bank's 24-hour hotline. If the card is really lost, tap 'Report lost' in the app. Only you can unfreeze it, with your fingerprint/PIN.",
+        "renewal_abroad": "📋 Your card endorsement ends on {expiry} ({days} days), and renewing it needs you at the bank in Bangladesh with your passport. So the plan keeps money coming without the card: your parent signs the family mandate by {switch}, and living money goes by bank transfer to your Chinese account. Renew on your next visit home.",
+        "mandate": "📝 I wrote it as a family mandate: up to {cap} per calendar month, only to the student's own Chinese account, until {until}. Open Family to read it and sign with your fingerprint. Nothing happens until you sign.",
+        "mandate_bad": "I could not turn that into a mandate: {why}",
+        "year": "📅 With today's habits the student would be without money for {today} days this year (the card stopping after the endorsement, and bank closures for Eid and Spring Festival). With Sathi's plan: {sathi} days, and about {saved} less in fees. See Plan → Year.",
     },
     "bn": {
         "scam": "⚠️ এটি প্রতারণা মনে হচ্ছে। {advice}",
@@ -277,6 +330,10 @@ FALLBACK = {
         "updates": "আপনার {n}টি আপডেট আছে। সবচেয়ে গুরুত্বপূর্ণ:\n{top}",
         "renewal": "📋 নবায়নের পরিকল্পনা তৈরি। মেয়াদ শেষ {expiry} ({days} দিন বাকি)। {first} এর মধ্যে বিশ্ববিদ্যালয়ের কাছে কাগজ চান; অভিভাবক {visit} এর মধ্যে ব্যাংকে যাবেন। ইমেইল (ইংরেজি + চীনা) ও অভিভাবকের জন্য বাংলা মেসেজ কপি করতে পরিকল্পনাটি খুলুন।",
         "frozen": "🔒 আপনার ৪৮২১ নম্বরে শেষ হওয়া কার্ডটি এখনই ফ্রিজ করেছি: নতুন কোনো লেনদেন হবে না। এখন ব্যাংকের ২৪ ঘণ্টার হটলাইনে ফোন করুন। কার্ড সত্যিই হারালে অ্যাপে 'হারানো রিপোর্ট' চাপুন। শুধু আপনি আঙুলের ছাপ/পিন দিয়ে আবার চালু করতে পারবেন।",
+        "renewal_abroad": "📋 আপনার কার্ড এনডোর্সমেন্ট শেষ হবে {expiry} ({days} দিন বাকি), আর নবায়নের জন্য আপনাকে পাসপোর্ট নিয়ে বাংলাদেশের ব্যাংকে যেতে হবে। তাই পরিকল্পনা হলো কার্ড ছাড়াই টাকা আসা: {switch} এর মধ্যে অভিভাবক পারিবারিক ম্যান্ডেটে সই করবেন, আর মাসিক খরচ ব্যাংক ট্রান্সফারে আপনার চীনের অ্যাকাউন্টে যাবে। দেশে এলে নবায়ন করবেন।",
+        "mandate": "📝 এটি পারিবারিক ম্যান্ডেট হিসেবে লিখেছি: প্রতি ক্যালেন্ডার মাসে সর্বোচ্চ {cap}, শুধু শিক্ষার্থীর নিজের চীনের অ্যাকাউন্টে, {until} পর্যন্ত। 'পরিবার' পাতা খুলে পড়ুন এবং আঙুলের ছাপ দিয়ে সই করুন। সই না করা পর্যন্ত কিছুই হবে না।",
+        "mandate_bad": "এটি ম্যান্ডেট হিসেবে লেখা গেল না: {why}",
+        "year": "📅 এখনকার নিয়মে চললে এই বছর শিক্ষার্থী {today} দিন টাকা ছাড়া থাকত (এনডোর্সমেন্ট শেষে কার্ড বন্ধ, আর ঈদ ও চীনা নববর্ষে ব্যাংক বন্ধ)। সাথীর পরিকল্পনায়: {sathi} দিন, আর ফি প্রায় {saved} কম। পরিকল্পনা → বছর দেখুন।",
     },
     "zh": {
         "scam": "⚠️ 这看起来像诈骗。{advice}",
@@ -287,5 +344,9 @@ FALLBACK = {
         "updates": "你有 {n} 条更新。最重要的：\n{top}",
         "renewal": "📋 续办计划已准备好。将于 {expiry} 到期（还有 {days} 天）。请在 {first} 前向学校申请材料；家长在 {visit} 前去银行办理。打开计划即可复制邮件（中英文）和给家长的孟加拉语消息。",
         "frozen": "🔒 我已立即冻结尾号4821的银行卡：新的交易无法通过。请马上拨打银行24小时热线。如果卡确实丢失，请在应用中点击“挂失”。只有您本人可以用指纹/密码解冻。",
+        "renewal_abroad": "📋 你的银行卡签注将于 {expiry} 到期（还有 {days} 天），续签需要你本人携带护照到孟加拉国的银行办理。所以计划是不用卡也能收到钱：家长在 {switch} 前签署家庭授权，生活费通过银行汇款进入你的中国账户。回国时再续签。",
+        "mandate": "📝 我已把它写成家庭授权：每个自然月最多 {cap}，只汇到学生本人的中国账户，有效期至 {until}。请打开“家庭”页面阅读，并用指纹签署。签署之前什么都不会发生。",
+        "mandate_bad": "无法把这句话写成授权：{why}",
+        "year": "📅 按现在的做法，今年学生会有 {today} 天没钱用（签注到期后卡停用，以及开斋节和春节银行休息）。按 Sathi 的计划：{sathi} 天，手续费约少 {saved}。见 规划 → 全年。",
     },
 }

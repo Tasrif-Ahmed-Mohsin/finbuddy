@@ -1,0 +1,50 @@
+# Days when banks cannot move a cross-border transfer.
+#
+#   BD side: the transfer is sent from the Student File at a Bangladeshi branch (closed Fri + Sat and on holidays).
+#   CN side: the transfer is credited to the student's Chinese account on a business day (closed Sat + Sun and on holidays).
+#
+# confidence (same scale as the corridor rule pack):
+#   official   = fixed-date public holiday set by law
+#   secondary  = reported practice (news / bank notices); verify each year
+#   assumption = estimated from the lunar calendar or past years. Both governments publish the exact days only
+#                1–2 months ahead (Bangladesh cabinet holiday list; China State Council notice). Update when published.
+# Not modelled yet: China's make-up working Saturdays (调休) and one-day religious holidays outside the main festivals.
+
+reviewed: "2026-10-13"
+
+weekends:
+  BD: [4, 5]   # Friday, Saturday (Python weekday numbers, Monday = 0)
+  CN: [5, 6]   # Saturday, Sunday
+
+closures:
+  # ---- Bangladesh --------------------------------------------------------------
+  - {country: BD, name: "Durga Puja (Bijoya Dashami)", name_bn: "দুর্গাপূজা (বিজয়া দশমী)", name_zh: "杜尔加节", from: 2026-10-20, to: 2026-10-21, confidence: assumption,
+     source: "Estimated from the Hindu lunar calendar (2026 has an extra month, so later than 2025's 2 Oct)"}
+  - {country: BD, name: "Victory Day", name_bn: "বিজয় দিবস", name_zh: "孟加拉国胜利日", from: 2026-12-16, to: 2026-12-16, confidence: official, source: "Fixed national holiday"}
+  - {country: BD, name: "Christmas", name_bn: "বড়দিন", name_zh: "圣诞节", from: 2026-12-25, to: 2026-12-25, confidence: official, source: "Fixed public holiday"}
+  - {country: BD, name: "Bank holiday (year-end closing)", name_bn: "ব্যাংক ছুটি (বছর শেষের হিসাব)", name_zh: "孟加拉国银行年终结算日", from: 2026-12-31, to: 2026-12-31, confidence: secondary,
+     source: "Bangladesh Bank closes banks to the public on 31 December each year (news reports)"}
+  - {country: BD, name: "Shaheed Day / International Mother Language Day", name_bn: "শহীদ দিবস ও আন্তর্জাতিক মাতৃভাষা দিবস", name_zh: "国际母语日", from: 2027-02-21, to: 2027-02-21,
+     confidence: official, source: "Fixed national holiday"}
+  - {country: BD, name: "Eid-ul-Fitr", name_bn: "ঈদুল ফিতর", name_zh: "开斋节", from: 2027-03-08, to: 2027-03-13, confidence: assumption,
+     source: "Eid expected ~10 Mar 2027 (Islamic calendar); recent years gave about a week off. Exact days set by the cabinet"}
+  - {country: BD, name: "Independence Day", name_bn: "স্বাধীনতা দিবস", name_zh: "孟加拉国独立日", from: 2027-03-26, to: 2027-03-26, confidence: official, source: "Fixed national holiday"}
+  - {country: BD, name: "Pohela Boishakh (Bengali New Year)", name_bn: "পহেলা বৈশাখ", name_zh: "孟加拉新年", from: 2027-04-14, to: 2027-04-14, confidence: official,
+     source: "Fixed national holiday"}
+  - {country: BD, name: "May Day", name_bn: "মে দিবস", name_zh: "孟加拉国劳动节", from: 2027-05-01, to: 2027-05-01, confidence: official, source: "Fixed public holiday"}
+  - {country: BD, name: "Eid-ul-Azha", name_bn: "ঈদুল আজহা", name_zh: "宰牲节", from: 2027-05-14, to: 2027-05-20, confidence: assumption,
+     source: "Eid expected ~17 May 2027 (Islamic calendar); recent years gave about a week off. Exact days set by the cabinet"}
+  - {country: BD, name: "Bank holiday (half-year closing)", name_bn: "ব্যাংক ছুটি (অর্ধবার্ষিক হিসাব)", name_zh: "孟加拉国银行半年结算日", from: 2027-07-01, to: 2027-07-01, confidence: secondary,
+     source: "Bangladesh Bank closes banks to the public on 1 July each year (news reports)"}
+
+  # ---- China ---------------------------------------------------------------------
+  - {country: CN, name: "New Year's Day", name_bn: "ইংরেজি নববর্ষ (চীন)", name_zh: "元旦", from: 2027-01-01, to: 2027-01-01, confidence: official, source: "Fixed public holiday"}
+  - {country: CN, name: "Spring Festival (Chinese New Year)", name_bn: "চীনা নববর্ষ (বসন্ত উৎসব)", name_zh: "春节", from: 2027-02-05, to: 2027-02-13, confidence: assumption,
+     source: "New Year's Day falls on 6 Feb 2027; the 2026 break ran about 2 days before to 6 days after. State Council sets the days"}
+  - {country: CN, name: "Qingming Festival", name_bn: "ছিংমিং উৎসব", name_zh: "清明节", from: 2027-04-03, to: 2027-04-05, confidence: assumption,
+     source: "Qingming is 5 Apr 2027; usual 3-day break"}
+  - {country: CN, name: "Labour Day", name_bn: "শ্রমিক দিবস (চীন)", name_zh: "劳动节", from: 2027-05-01, to: 2027-05-05, confidence: assumption, source: "Usual 5-day break"}
+  - {country: CN, name: "Dragon Boat Festival", name_bn: "ড্রাগন বোট উৎসব", name_zh: "端午节", from: 2027-06-09, to: 2027-06-09, confidence: assumption,
+     source: "Estimated from the Chinese lunar calendar"}
+  - {country: CN, name: "Mid-Autumn Festival", name_bn: "মধ্য-শরৎ উৎসব", name_zh: "中秋节", from: 2027-09-15, to: 2027-09-15, confidence: assumption,
+     source: "Estimated from the Chinese lunar calendar"}

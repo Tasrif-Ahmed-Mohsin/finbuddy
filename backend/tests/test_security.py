@@ -18,8 +18,8 @@ NOW = datetime(2026, 10, 12, 9, 0)
 THRESHOLD = D("100000")
 
 
-def draft(total="50000", amount="2500", payer=Actor.PARENT, payee="univ_demo") -> Draft:
-    return Draft("d-1", "tt_tuition", payer, D(amount), D(total), payee, "sample-a", D("18.02"), "Tuition",
+def draft(total="50000", amount="2500", payer=Actor.PARENT, payee="univ_demo", kind="tt_tuition") -> Draft:
+    return Draft("d-1", kind, payer, D(amount), D(total), payee, "sample-a", D("18.02"), "Tuition",
                  NOW, NOW + timedelta(minutes=60), Actor.AGENT)
 
 
@@ -84,14 +84,16 @@ def test_two_person_rule_above_threshold():
 
 def test_mandate_limits():
     m = Mandate("m-1", Actor.PARENT, "student_own_cn", D("60000"), D("100000"), 30, NOW + timedelta(days=90))
-    ok = draft(total="55000", payee="student_own_cn")
+    ok = draft(total="55000", payee="student_own_cn", kind="tt_living")
     assert check_mandate(m, ok, NOW).allowed
-    assert not check_mandate(m, draft(total="70000", payee="student_own_cn"), NOW).allowed  # per payment
-    assert not check_mandate(m, draft(total="1000", payee="univ_demo"), NOW).allowed  # other payee
+    assert not check_mandate(m, draft(total="70000", payee="student_own_cn", kind="tt_living"), NOW).allowed  # per payment
+    assert not check_mandate(m, draft(total="1000", payee="univ_demo", kind="tt_living"), NOW).allowed  # other payee
+    tuition = check_mandate(m, draft(total="1000", payee="student_own_cn", kind="tt_tuition"), NOW)
+    assert not tuition.allowed and "kind" in tuition.reason  # a mandate never covers tuition
     m.spent.append((NOW, D("55000")))
     assert not check_mandate(m, ok, NOW).allowed  # period cap
     m.revoked = True
-    assert not check_mandate(m, draft(total="10", payee="student_own_cn"), NOW).allowed
+    assert not check_mandate(m, draft(total="10", payee="student_own_cn", kind="tt_living"), NOW).allowed
 
 
 # ---- scam / injection ----------------------------------------------------

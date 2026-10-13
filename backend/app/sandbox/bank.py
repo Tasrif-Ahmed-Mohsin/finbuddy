@@ -2,8 +2,11 @@
 
 Rules of the sandbox:
   * It only executes drafts handed over by the API after approval/mandate checks passed.
-  * Bank transfers arrive after the corridor's transfer days (field data: ~7) on a simulated clock
-    that can be fast-forwarded for demos (`advance`).
+  * Bank transfers leave on the next Bangladeshi bank day and land after the corridor's transfer days
+    (field data: ~7) on the next Chinese bank day (app/data/bank_holidays.yaml), on a simulated clock
+    that can be fast-forwarded for demos.
+  * Each simulated day the student spends their daily living money in China (cash first, then the
+    Chinese account). A day they cannot cover is recorded as a "stuck day".
   * Every operation writes to the hash-chained audit log: this is the execution evidence.
 """
 from __future__ import annotations
@@ -14,6 +17,7 @@ from decimal import Decimal
 
 from app.audit.log import AuditLog
 from app.corridors.loader import Corridor
+from app.engines.year_plan import BankCalendar
 from app.money import q2
 from app.security.compliance import Payee
 
@@ -74,6 +78,9 @@ class SandboxBank:
     card: CardUsage | None = None
     living_remitted_usd: dict[str, Decimal] = field(default_factory=dict)  # month -> USD
     cards: dict[str, Card] = field(default_factory=dict)
+    calendar: BankCalendar | None = None
+    daily_spend_cny: Decimal = Decimal(0)  # simulated living spending in China (0 = off)
+    stuck_days: list[str] = field(default_factory=list)
     _seq: int = 0
     _cny_per_usd: Decimal = Decimal("6.95")  # set from market data at seed time
 
@@ -104,13 +111,19 @@ class SandboxBank:
         if src.balance < total_bdt:
             raise ValueError(f"insufficient funds: {q2(src.balance)} BDT available, {q2(total_bdt)} BDT needed")
         src.balance -= total_bdt
+        days = self.corridor.i("bd_tt_transfer_days")
+        if self.calendar:  # leaves on the next Bangladeshi bank day, lands on a Chinese bank day
+            leaves = self.calendar.next_open("BD", self.clock.date())
+            arrives_at = datetime.combine(self.calendar.arrival(leaves, days), self.clock.time())
+        else:
+            leaves, arrives_at = self.clock.date(), self.clock + timedelta(days=days)
         transfer = PendingTransfer(
             id=self._next_id("tt"),
             draft_id=draft_id,
             to_account_id=payee.credit_account_id,
             amount=amount_cny,
             currency="CNY",
-            arrives_at=self.clock + timedelta(days=self.corridor.i("bd_tt_transfer_days")),
+            arrives_at=arrives_at,
         )
         self.pending.append(transfer)
         if purpose == "living":
@@ -118,7 +131,7 @@ class SandboxBank:
         return self.log("transfer_sent", actor, level, {
             "transfer_id": transfer.id, "draft_id": draft_id, "from": from_account_id, "payee": payee_id,
             "amount_cny": str(q2(amount_cny)), "debited_bdt": str(q2(total_bdt)),
-            "arrives_at": transfer.arrives_at.isoformat(), "purpose": purpose,
+            "leaves_on": leaves.isoformat(), "arrives_at": transfer.arrives_at.isoformat(), "purpose": purpose,
             "balance_after_bdt": str(q2(src.balance)),
         })
 
@@ -159,10 +172,29 @@ class SandboxBank:
                                                   "replacement": card.replacement_last4})
         return card.to_dict()
 
-    def advance(self, days: int, actor: str = "system") -> list[dict]:
-        if days < 0 or days > 365:
-            raise ValueError("days must be between 0 and 365")
-        self.clock += timedelta(days=days)
+    # ---- simulated time ---------------------------------------------------------
+    def student_cny(self) -> Decimal:
+        return self.accounts["student_cash"].balance + self.accounts["student_cn"].balance
+
+    def spend_day(self) -> tuple[Decimal, bool]:
+        """End of the current day: the student spends today's living money. Returns (spent, stuck)."""
+        need = self.daily_spend_cny
+        if need <= 0:
+            return Decimal(0), False
+        spent = Decimal(0)
+        for acct_id in ("student_cash", "student_cn"):
+            acct = self.accounts[acct_id]
+            take = min(acct.balance, need - spent)
+            acct.balance -= take
+            spent += take
+        stuck = spent < need
+        if stuck:
+            self.stuck_days.append(self.clock.date().isoformat())
+        return spent, stuck
+
+    def next_day(self, actor: str = "system") -> list[dict]:
+        """Move to the next morning; transfers due by then land."""
+        self.clock += timedelta(days=1)
         arrived, events = [], []
         for t in self.pending:
             if t.arrives_at <= self.clock:
@@ -173,6 +205,16 @@ class SandboxBank:
                     "amount_cny": str(q2(t.amount)), "arrived_at": t.arrives_at.isoformat(),
                 }))
         self.pending = [t for t in self.pending if t not in arrived]
+        return events
+
+    def advance(self, days: int, actor: str = "system") -> list[dict]:
+        """Fast-forward without the agent (AppState.advance also runs the autopilot each day)."""
+        if days < 0 or days > 365:
+            raise ValueError("days must be between 0 and 365")
+        events = []
+        for _ in range(days):
+            self.spend_day()
+            events += self.next_day(actor)
         self.log("clock_advanced", actor, "SYSTEM", {"days": days, "now": self.clock.isoformat()})
         return events
 
@@ -185,7 +227,7 @@ def seed_demo_bank(corridor: Corridor, audit: AuditLog, start: datetime, cny_per
         Account("parent_bd", "parent", "Parent savings (Dhaka) [sandbox]", "BDT", Decimal("2000000")),
         Account("student_bd_card", "student", "Student File card account (Bangladesh) [sandbox]", "BDT", Decimal("300000")),
         Account("student_cn", "student", "Student's own Chinese bank account [sandbox]", "CNY", Decimal("500")),
-        Account("student_cash", "student", "Cash wallet (CNY)", "CNY", Decimal("0")),
+        Account("student_cash", "student", "Cash wallet (CNY), from the airport exchange", "CNY", Decimal("1800")),
         Account("university", "university", "Demo University finance office [sandbox]", "CNY", Decimal("0")),
     ):
         bank.accounts[acct.id] = acct

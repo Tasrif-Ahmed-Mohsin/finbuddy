@@ -46,7 +46,10 @@ ACTION_LEVELS: dict[str, Level] = {
     "update_renewal": Level.DRAFT,  # tick steps / confirm the new expiry: the user only
     "share_passport": Level.DRAFT,
     "read_document": Level.READ,  # user uploads a photo (the agent cannot)
-    "apply_document": Level.DRAFT,  # user confirms an amount + deadline from a fee notice  # issue / revoke a payment passport (shares personal data): the user only
+    "apply_document": Level.DRAFT,  # user confirms an amount + deadline from a fee notice
+    "plan_year": Level.READ,  # the "never stuck" year plan
+    "propose_mandate": Level.DRAFT,  # turn the parent's words into a mandate PROPOSAL (nothing is active yet)
+    "sign_mandate": Level.MANDATE,  # a user signs the exact proposal hash: the user only
     # Protective and reversible, moves no money: low friction, the agent may do it in an emergency.
     "freeze_card": Level.DRAFT,
     # Re-enables spending or is irreversible: the user only, with fingerprint/PIN on the phone.
@@ -59,7 +62,7 @@ ACTION_LEVELS: dict[str, Level] = {
 # The agent's ceiling. It can never EXECUTE on its own; only MANDATE within user-set caps.
 # Asymmetric by design: making things SAFER is easy, making them riskier needs a human.
 AGENT_ALLOWED = {"get_rates", "compare_tuition", "plan_living", "explain", "check_message", "create_draft",
-                 "set_reminder", "plan_renewal", "freeze_card", "execute_under_mandate"}
+                 "set_reminder", "plan_renewal", "freeze_card", "execute_under_mandate", "plan_year", "propose_mandate"}
 
 
 @dataclass
@@ -120,8 +123,16 @@ class Mandate:
     expires_at: datetime
     revoked: bool = False
     spent: list[tuple[datetime, Decimal]] = field(default_factory=list)
+    kinds: tuple[str, ...] = ("tt_living",)  # payment kinds covered: living money only, never tuition
+    auto_topup: bool = False  # the autopilot may use it (family mandates signed from a proposal)
+    signed_by: tuple[str, ...] = ()
+    proposal_id: str | None = None
+    proposal_hash: str | None = None
+    period: str = "rolling"  # rolling = the last `period_days` days | month = the current calendar month
 
     def spent_in_period(self, now: datetime) -> Decimal:
+        if self.period == "month":
+            return sum((amt for ts, amt in self.spent if (ts.year, ts.month) == (now.year, now.month)), Decimal(0))
         since = now - timedelta(days=self.period_days)
         return sum((amt for ts, amt in self.spent if ts >= since), Decimal(0))
 
@@ -208,6 +219,8 @@ def check_mandate(mandate: Mandate, draft: Draft, now: datetime) -> Decision:
         return Decision(False, "mandate expired")
     if draft.payee_id != mandate.payee_id:
         return Decision(False, "payee is not covered by the mandate")
+    if draft.kind not in mandate.kinds:
+        return Decision(False, "this kind of payment is not covered by the mandate")
     if draft.total_bdt > mandate.max_bdt_per_payment:
         return Decision(False, "amount exceeds the mandate's per-payment cap")
     if mandate.spent_in_period(now) + draft.total_bdt > mandate.max_bdt_per_period:

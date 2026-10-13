@@ -8,6 +8,12 @@ every year, so the money pipeline from home keeps breaking. This module turns a 
      (Bengali + English). Sathi never sends them; the user copies or shares them.
   3. track each step until the user confirms the new expiry date.
 
+Card endorsement (Interview #1 follow-up, 2026-10-13): renewing it needs the STUDENT in person at the bank,
+because it needs the passport. A student living in China therefore cannot renew it before the next visit
+home, and the card stops working abroad on the expiry date. The plan then switches living money to bank
+transfers from the Student File to the student's own Chinese account (which do not need the card) before
+that date, and schedules the renewal for the next visit home.
+
 Document lists come from Bangladeshi banks' Student File pages (secondary sources) and our interview.
 Exact requirements differ by bank, so every list ends with "confirm with your bank".
 """
@@ -91,6 +97,9 @@ class RenewalCase:
 def plan_renewal(case_id: str, item: str, expiry: date, today: date, corridor: Corridor, profile: dict) -> RenewalCase:
     if item not in ITEMS:
         raise ValueError(f"unknown renewal item '{item}'")
+    if (item == "endorsement_expiry" and corridor.i("endorsement_renewal_in_person") == 1
+            and profile.get("student_location", "CN") != "BD"):
+        return plan_endorsement_from_abroad(case_id, expiry, today, corridor, profile)
     buffer = corridor.i("renewal_buffer_days")
     processing = corridor.i("renewal_bank_processing_days")
     scan = corridor.i("renewal_scan_send_days")
@@ -125,14 +134,46 @@ def plan_renewal(case_id: str, item: str, expiry: date, today: date, corridor: C
     return case
 
 
+def plan_endorsement_from_abroad(case_id: str, expiry: date, today: date, corridor: Corridor, profile: dict) -> RenewalCase:
+    """The student is in China and must renew in person: keep the money coming without the card."""
+    lead = corridor.i("bd_tt_transfer_days") + corridor.i("living_safety_days")
+    switch = expiry - timedelta(days=lead)  # the first transfer must land before the card stops
+    check = switch - timedelta(days=7)
+    late = today > switch
+
+    def due(d: date) -> date:
+        return max(d, today)
+
+    bank = profile.get("home_bank", "your bank")
+    steps = [
+        RenewalStep("check_cn_account", "student", due(check), "Check your Chinese bank account can receive money",
+                    "Make sure the account is active and your current passport number is on file (an outdated passport is a "
+                    "common reason banks freeze foreigners' accounts). Transfers will now arrive there."),
+        RenewalStep("switch_living_money", "parent", due(switch), "Switch living money to bank transfers",
+                    "Sign the family mandate in Sathi (Family tab) so living money goes from the Student File to the student's "
+                    "own Chinese account. Transfers do not need the card, so nothing stops on "
+                    f"{expiry.isoformat()}." + (" You are late: sign it today." if late else "")),
+        RenewalStep("renew_in_person", "student", due(expiry), "Renew the endorsement on your next visit home",
+                    f"The bank needs you in person with your passport. On your next visit to Bangladesh, go to the {bank} branch "
+                    "that holds your Student File with the documents below, and ask for the endorsement to cover the whole "
+                    "study period, not only a few months."),
+        RenewalStep("confirm_new_expiry", "student", due(expiry), "Confirm the new expiry date in Sathi",
+                    "Enter the new expiry date the bank gives you, so Sathi can use the card again where it is cheaper."),
+    ]
+    case = RenewalCase(case_id, "endorsement_expiry", expiry, today, steps, late)
+    case.messages = draft_messages(case, profile)
+    return case
+
+
 def draft_messages(case: RenewalCase, profile: dict) -> dict:
     """Deterministic templates (work offline, no invented facts). The user fills the [brackets]."""
     name = profile.get("student_name", "[your name]")
     univ = profile.get("university", "[university]")
     bank = profile.get("home_bank", "your bank")
     steps = {s.id: s for s in case.steps}
-    need_by = steps["collect_docs"].due.isoformat()
-    visit_by = steps["bank_visit"].due.isoformat()
+    in_person = "renew_in_person" in steps
+    need_by = (steps["collect_docs"].due if "collect_docs" in steps else steps["renew_in_person"].due).isoformat()
+    visit_by = (steps["bank_visit"].due if "bank_visit" in steps else steps["switch_living_money"].due).isoformat()
     label = ITEMS[case.item]
 
     email_en = (
@@ -156,6 +197,22 @@ def draft_messages(case: RenewalCase, profile: dict) -> dict:
     bank_bn = "আপনার ব্যাংক" if bank == "your bank" else bank
     docs_bn = "\n".join(f"• {d['bn']}" for d in UNIVERSITY_DOCS + BANK_DOCS)
     docs_en = "\n".join(f"• {d['en']}" for d in UNIVERSITY_DOCS + BANK_DOCS)
+    if in_person:
+        parent_bn = (
+            f"আসসালামু আলাইকুম। আমার {label['bn']} এর মেয়াদ {case.expiry.isoformat()} তারিখে শেষ হবে। এরপর আমার কার্ড "
+            "বিদেশে কাজ করবে না, আর নবায়ন করতে আমাকে নিজে পাসপোর্ট নিয়ে ব্যাংকে যেতে হবে, যা দেশে আসার আগে সম্ভব নয়।\n\n"
+            f"তাই অনুগ্রহ করে {visit_by} তারিখের মধ্যে সাথী অ্যাপের 'পরিবার' পাতায় পারিবারিক ম্যান্ডেটে সই করবেন। তাহলে মাসিক খরচ "
+            "স্টুডেন্ট ফাইল থেকে সরাসরি আমার চীনের ব্যাংক অ্যাকাউন্টে যাবে, কার্ড লাগবে না। প্রতিবার আপনি জানতে পারবেন।\n\n"
+            "দেশে এলে আমি নিজে ব্যাংকে গিয়ে এনডোর্সমেন্ট নবায়ন করব, এবং শুধু কয়েক মাস নয়, পুরো পড়াশোনার সময়ের জন্য চাইব।"
+        )
+        parent_en = (
+            f"My {label['en']} expires on {case.expiry.isoformat()}. After that my card stops working abroad, and renewing it "
+            "needs me in person at the bank with my passport, which I can only do when I visit home.\n\n"
+            f"So please sign the family mandate in the Sathi app (Family tab) by {visit_by}. Then living money goes from the "
+            "Student File straight to my Chinese bank account, without the card, and you are told every time.\n\n"
+            "When I visit home I will renew the endorsement myself, and ask for the whole study period, not only a few months."
+        )
+        return {"university_email": {"en": email_en, "zh": email_zh}, "parent_message": {"bn": parent_bn, "en": parent_en}}
     parent_bn = (
         f"আসসালামু আলাইকুম। আমার {label['bn']} এর মেয়াদ {case.expiry.isoformat()} তারিখে শেষ হবে। "
         f"মেয়াদ শেষ হলে আমার কার্ড বিদেশে কাজ করবে না।\n\n"

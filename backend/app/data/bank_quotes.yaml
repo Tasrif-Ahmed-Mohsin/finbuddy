@@ -29,3 +29,14 @@ estimated_quotes:
     bank: "Bank C (estimate)"
     markup_pct: "0.6"
     fixed_fee_bdt: "1725"
+
+# Real payments reported by students (field data). Used to show where the money really went.
+field_payments:
+  - id: "interview-1-tuition"
+    bank: "BRAC Bank"
+    purpose: "tuition"
+    amount_cny: "35200"
+    bdt_per_cny: "18.35"
+    fee_bdt: "8000"
+    window: ["2026-08-15", "2026-09-30"]  # exact payment date not known yet: compare with the average over this window
+    source: "Interview #1 (2026-10-12/13): 35,200 CNY tuition, rate 18.35 BDT/CNY, ~8,000 BDT file charge"

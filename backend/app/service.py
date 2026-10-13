@@ -6,20 +6,25 @@ bypass it.
 """
 from __future__ import annotations
 
+import hmac
 import os
 import secrets
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
-from decimal import Decimal
+from datetime import date, datetime, time, timedelta
+from decimal import ROUND_FLOOR, Decimal
 from pathlib import Path
 
+from app.agent.autopilot import Autopilot
 from app.agent.chat import ChatAgent
+from app.agent.mandate_compiler import MandatePolicy, MandateProposal, compile_mandate
 from app.agent.explain import Translator
 from app.agent.llm import DeepSeekClient
 from app.audit.log import AuditLog
 from app.config import Settings, load_settings
 from app.corridors.loader import load_corridor
 from app.engines.cost import atm_cost, tt_cost
+from app.engines.cost_truth import field_payment_truth
+from app.engines.year_plan import Policy, Situation, load_calendar, plan_year, runs_out_on, topup_decision
 from app.engines.living_planner import LivingRequest, plan_living
 from app.documents import read_document as read_document_photo
 from app.engines.tuition_planner import TuitionRequest, plan_tuition
@@ -27,6 +32,7 @@ from app.inbox.service import Inbox
 from app.fx import FxProvider
 from app.market import BankQuote, Market, build_market, load_quote_config
 from app.money import D, q2
+from app.notify import Feed, draft_summaries, role_name
 from app.passport import issue as issue_passport_doc
 from app.passport import verify as verify_passport_doc
 from app.renewal import RenewalCase, plan_renewal
@@ -43,7 +49,7 @@ from app.security.permissions import (
     check_mandate,
     required_approvers,
 )
-from app.security.scam import scan_text
+from app.security.scam import has_high_risk, scan_text
 
 DEMO_START = datetime(2026, 10, 12, 9, 0)
 
@@ -74,6 +80,8 @@ class AppState:
         self.bank.payees["student_cash_self"] = Payee(
             "student_cash_self", "Your own cash (ATM withdrawal)", "-", "-", "CNY", True, "Self", "student_cash"
         )
+        self.calendar = load_calendar()  # bank days in both countries (sending in BD, crediting in CN)
+        self.bank.calendar = self.calendar
         self.approvals = ApprovalService()
         self.drafts: dict[str, Draft] = {}
         self.specs: dict[str, DraftSpec] = {}
@@ -95,7 +103,14 @@ class AppState:
             "parent_account_last4": "7730",
             "student_cn_last4": "3317",
             "home_bank": "your bank",
+            # Interview #1 follow-up: both parent and student handle money; the student lives in China, and
+            # renewing the card endorsement needs the student in person at the bank (passport).
+            "student_location": "CN",
         }
+        self.bank.daily_spend_cny = self.policy.daily_spend_cny
+        self.proposals: dict[str, MandateProposal] = {}
+        self.execution_auth: dict[str, dict] = {}  # draft id -> who/what authorised the payment (receipts)
+        self.feed = Feed()
         self.renewals: dict[str, RenewalCase] = {}
         # Payment passports (credit building). The signing key should come from the environment in production.
         env_secret = os.environ.get("SATHI_PASSPORT_SECRET")
@@ -105,6 +120,7 @@ class AppState:
         self._n = 0
         self.inbox = Inbox(self)
         self.agent = ChatAgent(self)
+        self.autopilot = Autopilot(self)
         self.translator = Translator(llm)
 
     # ---- utilities --------------------------------------------------------
@@ -133,6 +149,19 @@ class AppState:
     @property
     def student_card(self):
         return self.bank.cards[self.profile["student_card_last4"]]
+
+    @property
+    def policy(self) -> Policy:
+        return Policy.from_corridor(self.corridor, self.profile["monthly_living_cny"])
+
+    def card_usable(self, d: date) -> bool:
+        """The Bangladeshi card works abroad only while it is active AND the endorsement is valid."""
+        return self.student_card.status == "active" and d <= self.profile["endorsement_expiry"]
+
+    def student_money(self) -> tuple[Decimal, list[tuple[date, Decimal]]]:
+        """The student's money in China now, and living-money transfers on the way (arrival day, amount)."""
+        transit = sorted((t.arrives_at.date(), t.amount) for t in self.bank.pending if t.to_account_id == "student_cn")
+        return self.bank.student_cny(), transit
 
     def _id(self, prefix: str) -> str:
         self._n += 1
@@ -253,6 +282,8 @@ class AppState:
             "required_approvers": sorted(a.value for a in needed), "approved_by": have,
             "withdrawals": [str(w) for w in self.specs[draft_id].withdrawals],
             "payee_name": self.bank.payees[d.payee_id].name if d.payee_id in self.bank.payees else "Unknown payee",
+            "summary": draft_summaries(d, self.bank.payees.get(d.payee_id), self.specs[draft_id].withdrawals),
+            "draft_hash": d.hash(),
         }
 
     # ---- approvals and execution (L2) -------------------------------------
@@ -293,6 +324,9 @@ class AppState:
         result = self._run(d, spec, actor.value, Level.EXECUTE.name)
         self.approvals.consume(self.tokens[draft_id])
         d.status = "executed"
+        self.execution_auth[draft_id] = {"type": "approvals", "level": "EXECUTE", "executed_by": actor.value,
+                                         "approved_by": sorted(t["approver"] for t in self.tokens[draft_id]),
+                                         "draft_hash": d.hash()}
         return {"draft": self.draft_view(draft_id), "bank_event": result}
 
     def _run(self, d: Draft, spec: DraftSpec, actor: str, level: str) -> dict:
@@ -305,6 +339,8 @@ class AppState:
                        period_days: int, valid_days: int) -> dict:
         if actor == Actor.AGENT:
             raise PermissionError("only a user can create a mandate")
+        if actor != Actor.PARENT:  # mandated transfers are paid from the parent's account
+            raise PermissionError("only the parent, who pays, can create a mandate")
         if payee_id not in self.bank.payees or not self.bank.payees[payee_id].verified:
             raise ValueError("mandates are only allowed for verified payees")
         m = Mandate(self._id("mandate"), actor, payee_id, D(max_bdt_per_payment), D(max_bdt_per_period), period_days,
@@ -321,6 +357,8 @@ class AppState:
         m = self.mandates[mandate_id]
         m.revoked = True
         self._log("mandate_revoked", actor, "execute_under_mandate", {"mandate_id": mandate_id})
+        if m.auto_topup:
+            self.feed.add(self.now, "both", "info", "mandate_revoked", {}, {"screen": "family"})
         return self._mandate_view(m)
 
     def execute_under_mandate(self, actor: Actor, draft_id: str, mandate_id: str) -> dict:
@@ -335,13 +373,230 @@ class AppState:
         result = self._run(d, spec, actor.value, Level.MANDATE.name)
         m.spent.append((self.now, d.total_bdt))
         d.status = "executed"
+        self.execution_auth[draft_id] = {"type": "mandate", "level": "MANDATE", "executed_by": actor.value,
+                                         "mandate_id": m.id, "signed_by": list(m.signed_by) or [m.created_by.value],
+                                         "proposal_hash": m.proposal_hash, "draft_hash": d.hash()}
         return {"draft": self.draft_view(draft_id), "bank_event": result, "mandate": self._mandate_view(m)}
 
     def _mandate_view(self, m: Mandate) -> dict:
+        spent = m.spent_in_period(self.now)
+        prop = self.proposals.get(m.proposal_id) if m.proposal_id else None
         return {"id": m.id, "payee_id": m.payee_id, "max_bdt_per_payment": str(m.max_bdt_per_payment),
-                "max_bdt_per_period": str(m.max_bdt_per_period), "period_days": m.period_days,
+                "max_bdt_per_period": str(m.max_bdt_per_period), "period": m.period, "period_days": m.period_days,
                 "expires_at": m.expires_at.isoformat(), "revoked": m.revoked,
-                "spent_in_period_bdt": str(q2(m.spent_in_period(self.now)))}
+                "active": not m.revoked and self.now <= m.expires_at,
+                "spent_in_period_bdt": str(q2(spent)),
+                "left_in_period_bdt": str(q2(max(m.max_bdt_per_period - spent, Decimal(0)))),
+                "payments": len(m.spent), "kinds": list(m.kinds), "auto_topup": m.auto_topup, "signed_by": list(m.signed_by),
+                "proposal_id": m.proposal_id, "proposal_hash": m.proposal_hash,
+                "summary": prop.summary() if prop else None}
+
+    def mandates_view(self) -> list[dict]:
+        return [self._mandate_view(m) for m in reversed(list(self.mandates.values()))]
+
+    # ---- family mandates from the parent's own words (L3) ---------------------------------------
+    def _mandate_policy(self) -> MandatePolicy:
+        payee = self.bank.payees["student_own_cn"]
+        # Bangladesh's living-money limit (USD/month) in taka, with ~3% room for the bank's fee and rate.
+        cap = self.corridor.v("bd_living_remit_cap_usd_per_month") * self.market.mid.bdt_per_usd * Decimal("1.03")
+        return MandatePolicy("student_own_cn", f"{payee.bank} {payee.account_masked}",
+                             (cap / 1000).quantize(Decimal(1), rounding=ROUND_FLOOR) * 1000,
+                             self.corridor.v("two_person_threshold_bdt"), self.profile["student_file_expiry"])
+
+    def propose_mandate(self, actor: Actor, text: str, lang: str = "en") -> dict:
+        """Turn a standing instruction ("up to ৳1,20,000 a month") into a proposal. Nothing is active yet."""
+        self._require(actor, "propose_mandate")
+        prop = compile_mandate(self._id("proposal"), text, lang, self.now, actor.value, self._mandate_policy(), self.llm)
+        flags = scan_text(text)
+        if has_high_risk(flags):
+            prop.errors.append("This text contains scam or prompt-injection signals ("
+                               + ", ".join(sorted({f.category.replace("_", " ") for f in flags}))
+                               + "), so Sathi will not turn it into a mandate.")
+            prop.status = "needs_changes"
+        self.proposals[prop.id] = prop
+        self._log("mandate_proposed", actor, "propose_mandate", {
+            "proposal_id": prop.id, "parser": prop.parser, "text_length": len(prop.text), "status": prop.status,
+            "max_per_payment_bdt": str(prop.max_bdt_per_payment), "max_per_period_bdt": str(prop.max_bdt_per_period),
+            "period_days": prop.period_days, "valid_until": prop.valid_until.isoformat(),
+            "required_signers": list(prop.required_signers), "errors": len(prop.errors), "hash": prop.hash()[:16]})
+        return prop.to_dict()
+
+    def sign_mandate(self, actor: Actor, proposal_id: str, proposal_hash: str) -> dict:
+        """A user signs EXACTLY the proposal they read (its hash). Once everyone required has signed, it is active."""
+        self._require(actor, "sign_mandate")
+        if actor == Actor.AGENT:
+            raise PermissionError("the agent can never sign a mandate")
+        prop = self.proposals[proposal_id]
+        if prop.status != "proposed":
+            raise ValueError(f"this proposal is {prop.status.replace('_', ' ')} and cannot be signed")
+        if actor.value not in prop.required_signers:
+            raise PermissionError(f"the {actor.value} does not sign this mandate")
+        if not hmac.compare_digest(str(proposal_hash), prop.hash()):
+            self._log("mandate_sign_denied", actor, "sign_mandate", {"proposal_id": proposal_id, "reason": "hash mismatch"})
+            raise PermissionError("the mandate is not the one you read; open it again before signing")
+        if self.now - prop.created_at > timedelta(days=2):
+            prop.status = "superseded"
+            raise ValueError("this proposal is more than 2 days old; write the instruction again")
+        prop.signatures[actor.value] = self.now.isoformat()
+        self._log("mandate_signed", actor, "sign_mandate", {"proposal_id": proposal_id, "hash": prop.hash()[:16]})
+        missing = [x for x in prop.required_signers if x not in prop.signatures]
+        if missing:
+            summary = prop.summary()
+            params = {}
+            for lang in ("en", "bn", "zh"):
+                params[f"signed_{lang}"] = role_name(actor.value, lang)
+                params[f"missing_{lang}"] = role_name(missing[0], lang)
+                params[f"summary_{lang}"] = summary[lang]
+            self.feed.add(self.now, missing[0], "needs_you", "mandate_needs_signature", params,
+                          {"screen": "family", "proposal_id": prop.id})
+            return prop.to_dict()
+        for old in self.mandates.values():  # one family mandate at a time
+            if old.auto_topup and not old.revoked:
+                old.revoked = True
+                self._log("mandate_superseded", actor, "sign_mandate", {"mandate_id": old.id, "by": prop.id})
+        m = Mandate(self._id("mandate"), Actor.PARENT, prop.payee_id, prop.max_bdt_per_payment, prop.max_bdt_per_period,
+                    prop.period_days, datetime.combine(prop.valid_until, time(23, 59)), kinds=prop.kinds, auto_topup=True,
+                    signed_by=tuple(sorted(prop.signatures)), proposal_id=prop.id, proposal_hash=prop.hash(),
+                    period=prop.period)
+        self.mandates[m.id] = m
+        prop.status, prop.mandate_id = "active", m.id
+        self._log("mandate_created", actor, "execute_under_mandate", {
+            "mandate_id": m.id, "payee": m.payee_id, "max_per_payment_bdt": str(m.max_bdt_per_payment),
+            "max_per_period_bdt": str(m.max_bdt_per_period), "period": m.period, "period_days": m.period_days,
+            "expires_at": m.expires_at.isoformat(), "kinds": list(m.kinds), "auto_topup": True,
+            "signed_by": list(m.signed_by), "proposal_hash": m.proposal_hash})
+        summary = prop.summary()
+        self.feed.add(self.now, "both", "info", "mandate_active", {f"summary_{lang}": summary[lang] for lang in ("en", "bn", "zh")},
+                      {"screen": "family", "mandate_id": m.id})
+        actions = self.autopilot.tick()  # act right away if the money is already low
+        return {**prop.to_dict(), "mandate": self._mandate_view(m), "autopilot": actions}
+
+    # ---- year plan, runway, feed, receipts ---------------------------------------------------
+    def year_plan(self, actor: Actor) -> dict:
+        self._require(actor, "plan_year")
+        p, today = self.profile, self.now.date()
+        bal, transit = self.student_money()
+        send_by = p["tuition_deadline"] - timedelta(days=self.corridor.i("bd_tt_transfer_days") + self.corridor.i("tuition_buffer_days"))
+        end = min(p["student_file_expiry"], today + timedelta(days=260))
+        usage = self.bank.card_usage()
+        sit = Situation(today, end, bal, transit, p["endorsement_expiry"], self.student_card.status == "active",
+                        p["student_file_expiry"], usage.tx_count, usage.bdt_charged,
+                        (send_by, p["tuition_deadline"], p["tuition_invoice_cny"]))
+        plan = plan_year(sit, self.policy, self.calendar, self.corridor, self.market)
+        plan["cost_truth"] = [field_payment_truth(fp, self.fx.history) for fp in self.quote_cfg.get("field_payments", [])]
+        plan["calendar"] = {"reviewed": self.calendar.reviewed,
+                            "closures": [c.to_dict() for c in self.calendar.closures_in(today, end)]}
+        plan["assumptions"] = [{"name": k, **self.corridor.meta(k)} for k in (
+            "bd_tt_transfer_days", "endorsement_renewal_in_person", "living_safety_days", "living_target_days",
+            "baseline_reorder_days", "atm_low_cash_days", "bd_card_atm_fixed_fee_bdt", "bd_card_non_usd_factor_pct",
+            "bd_living_remit_cap_usd_per_month")]
+        m = self.autopilot.active_mandate()
+        plan["mandate"] = self._mandate_view(m) if m else None
+        plan["data_is_sample"], plan["data_quality"] = self.estimates, self.data_quality
+        self._log("year_planned", actor, "plan_year",
+                  {k: plan["headline"][k] for k in ("stuck_days_today", "stuck_days_sathi", "saved_bdt")})
+        return plan
+
+    def runway(self) -> dict:
+        pol, today = self.policy, self.now.date()
+        bal, transit = self.student_money()
+        m = self.autopilot.active_mandate()
+        dec = topup_decision(today, bal, transit, pol, self.calendar)
+        out = runs_out_on(bal, transit, today, pol.daily_spend_cny)
+        return {"balance_cny": str(q2(bal)), "daily_spend_cny": str(pol.daily_spend_cny),
+                "days_left": int(bal // pol.daily_spend_cny) if pol.daily_spend_cny > 0 else None,
+                "runs_out_on": out.isoformat() if out else None,
+                "in_transit": [{"arrives": d.isoformat(), "amount_cny": str(q2(a))} for d, a in transit],
+                "card_works_until": self.profile["endorsement_expiry"].isoformat(), "card_usable": self.card_usable(today),
+                "send_today": dec.to_dict() if dec else None, "mandate": self._mandate_view(m) if m else None,
+                "stuck_days": len(self.bank.stuck_days),
+                "bank_open_today": {"BD": self.calendar.is_open("BD", today), "CN": self.calendar.is_open("CN", today)}}
+
+    def family_feed(self, actor: Actor, lang: str = "en") -> dict:
+        who = actor.value
+        needs: list[dict] = []
+        for d in reversed(list(self.drafts.values())):
+            if d.status not in ("draft", "approved") or self.now > d.expires_at:
+                continue
+            v = self.draft_view(d.id)
+            item = {"draft_id": d.id, "kind": d.kind, "amount_cny": str(d.amount_cny), "total_bdt": str(d.total_bdt),
+                    "payee_name": v["payee_name"]}
+            if who in v["required_approvers"] and who not in v["approved_by"]:
+                needs.append({"type": "approve_draft", **item})
+            elif d.status == "approved" and who == d.payer.value:
+                needs.append({"type": "send_draft", **item})
+        for prop in reversed(list(self.proposals.values())):
+            if prop.status == "proposed" and prop.signatures and who in prop.required_signers and who not in prop.signatures:
+                needs.append({"type": "sign_mandate", "proposal_id": prop.id, "summary": prop.summary().get(lang, "")})
+        return {"now": self.now.isoformat(), "runway": self.runway(), "needs_you": needs,
+                "notes": self.feed.for_actor(who, lang)}
+
+    def receipts(self) -> list[dict]:
+        """Proof for every executed payment: what was checked, who or what authorised it, and its log entries."""
+        entries = [e for e in self.audit.entries if e["seq"] > self.session_start_seq]
+        out = []
+        for d in self.drafts.values():
+            if d.status != "executed":
+                continue
+            sent = next((e for e in entries if e["event"] in ("transfer_sent", "atm_withdrawals")
+                         and e["data"].get("draft_id") == d.id), None)
+            landed = next((e for e in entries if e["event"] == "transfer_arrived" and e["data"].get("draft_id") == d.id), None)
+            out.append({"draft": self.draft_view(d.id), "authority": self.execution_auth.get(d.id),
+                        "sent": ({k: sent[k] for k in ("seq", "hash", "sim_time", "permission_level")}
+                                 | {"arrives_at": sent["data"].get("arrives_at")}) if sent else None,
+                        "landed": {k: landed[k] for k in ("seq", "hash", "sim_time")} if landed else None})
+        return list(reversed(out))
+
+    # ---- simulated time ----------------------------------------------------------------------
+    def advance(self, actor: Actor, days: int) -> dict:
+        """Fast-forward the sandbox one day at a time: the student spends, transfers land, the autopilot runs."""
+        if days < 0 or days > 365:
+            raise ValueError("days must be between 0 and 365")
+        events, actions = [], []
+        spent_total, stuck_n = Decimal(0), 0
+        for _ in range(days):
+            spent, stuck = self.bank.spend_day()
+            spent_total += spent
+            if stuck:
+                stuck_n += 1
+                today = self.now.date()
+                if (today - timedelta(days=1)).isoformat() not in self.bank.stuck_days:  # first day of a stuck spell
+                    on = self.autopilot.active_mandate() is not None
+                    self.feed.add(self.now, "both", "warning", "stuck", {
+                        "date_date": today.isoformat(),
+                        "fix_en": "Check the payments waiting for approval." if on
+                        else "Sign a family mandate so Sathi sends living money before it runs out.",
+                        "fix_bn": "অনুমোদনের অপেক্ষায় থাকা পেমেন্টগুলো দেখুন।" if on
+                        else "পারিবারিক ম্যান্ডেটে সই করুন, যাতে টাকা শেষ হওয়ার আগেই সাথী মাসিক খরচ পাঠায়।",
+                        "fix_zh": "请查看待批准的付款。" if on else "签署家庭授权，让 Sathi 在钱用完之前汇生活费。",
+                    }, {"screen": "family"})
+            arrived = self.bank.next_day(actor.value)
+            for e in arrived:
+                if e["data"]["to"] == "student_cn":
+                    self.feed.add(self.now, "both", "info", "transfer_arrived", {
+                        "amount_cny": e["data"]["amount_cny"], "balance_cny": str(q2(self.bank.student_cny()))})
+            events += arrived
+            self._daily_notes()
+            actions += self.autopilot.tick()
+        self.bank.log("clock_advanced", actor.value, "SYSTEM", {"days": days, "now": self.now.isoformat(),
+                      "student_spent_cny": str(q2(spent_total)), "stuck_days": stuck_n})
+        return {"now": self.now.isoformat(), "events": events, "autopilot": actions, "stuck_days": stuck_n}
+
+    def _daily_notes(self) -> None:
+        expiry = self.profile["endorsement_expiry"]
+        if 0 <= (expiry - self.now.date()).days <= 21:
+            on = self.autopilot.active_mandate() is not None
+            plan = {
+                "en": "Sathi already sends living money by bank transfer to the Chinese account, so the card is not needed."
+                if on else "Sign a family mandate before then, so living money comes by bank transfer instead of the card.",
+                "bn": "সাথী ইতিমধ্যে ব্যাংক ট্রান্সফারে চীনের অ্যাকাউন্টে মাসিক খরচ পাঠাচ্ছে, তাই কার্ড লাগবে না।"
+                if on else "তার আগেই পারিবারিক ম্যান্ডেটে সই করুন, যাতে কার্ডের বদলে ব্যাংক ট্রান্সফারে মাসিক খরচ আসে।",
+                "zh": "Sathi 已通过银行汇款把生活费汇到中国账户，不再需要这张卡。"
+                if on else "请在此之前签署家庭授权，让生活费改为银行汇款，而不是用卡取现。",
+            }
+            self.feed.add(self.now, "both", "info" if on else "warning", "card_stops",
+                          {"card_date": expiry.isoformat(), "plan_en": plan["en"], "plan_bn": plan["bn"], "plan_zh": plan["zh"]},
+                          {"screen": "renewal", "item": "endorsement_expiry"}, once=f"card_stops:{expiry.isoformat()}")
 
     # ---- overview ---------------------------------------------------------
     def timeline(self) -> dict:

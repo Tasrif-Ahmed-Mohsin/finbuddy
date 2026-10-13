@@ -121,14 +121,18 @@ def test_stale_quote_cannot_be_executed(client):
     assert r.status_code == 403 and "quote_fresh" in r.json()["detail"]
 
 
-def test_endorsement_warning_then_block(client):
+def test_endorsement_stops_the_card_but_not_transfers(client):
+    """The endorsement is for using the card abroad; transfers come from the Student File and keep working."""
     client.post("/sandbox/advance", json={"days": 65}, headers=H["parent"])  # 2026-12-16: 15 days left
-    d = new_draft(client, kind="tt_living", amount_cny="1000", payee_id="student_own_cn")
-    warn = next(c for c in d["checks"] if c["id"] == "endorsement_valid")
-    assert warn["severity"] == "warn" and d["status"] == "draft"
+    atm = new_draft(client, kind="atm_plan", amount_cny="2000", withdrawals=["2000"])
+    warn = next(c for c in atm["checks"] if c["id"] == "endorsement_valid")
+    assert warn["severity"] == "warn" and atm["status"] == "draft"
     client.post("/sandbox/advance", json={"days": 20}, headers=H["parent"])  # 2027-01-05: expired
-    d2 = new_draft(client, kind="tt_living", amount_cny="1000", payee_id="student_own_cn")
-    assert d2["status"] == "blocked" and "endorsement_valid" in failed(d2)
+    atm2 = new_draft(client, kind="atm_plan", amount_cny="2000", withdrawals=["2000"])
+    assert atm2["status"] == "blocked" and "endorsement_valid" in failed(atm2)
+    tt = new_draft(client, kind="tt_living", amount_cny="1000", payee_id="student_own_cn")
+    assert tt["status"] == "draft" and "endorsement_valid" not in {c["id"] for c in tt["checks"]}
+    assert next(c for c in tt["checks"] if c["id"] == "student_file_valid")["passed"]
 
 
 def test_mandate_lets_the_agent_pay_only_within_caps(client):

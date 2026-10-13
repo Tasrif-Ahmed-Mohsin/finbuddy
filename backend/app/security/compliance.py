@@ -107,10 +107,12 @@ def run_draft_checks(draft: Draft, ctx: ComplianceContext) -> list[Check]:
                             "Card controls"))
 
     # 6. Endorsement / Student File must be valid; warn ahead of expiry (N-05).
+    #    The card endorsement only matters for using the card abroad (ATM). Bank transfers to the student's
+    #    own account or the university come from the Student File and keep working after the card stops.
     warn_days = c.i("bd_endorsement_warn_days")
     for check_id, label, expiry in (("endorsement_valid", "Endorsement", ctx.endorsement_expiry),
                                     ("student_file_valid", "Student File", ctx.student_file_expiry)):
-        if expiry is None:
+        if expiry is None or (check_id == "endorsement_valid" and draft.kind != "atm_plan"):
             continue
         days = (expiry - ctx.now.date()).days
         if days < 0:
