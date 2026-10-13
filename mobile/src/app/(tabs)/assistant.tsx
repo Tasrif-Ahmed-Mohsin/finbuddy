@@ -7,11 +7,11 @@ import { SathiUpdates } from '@/components/sathi-updates';
 import { H1, Screen, Segmented } from '@/components/ui';
 import { useSession } from '@/lib/session';
 
-type Pane = 'updates' | 'chat' | 'add' | 'doc';
+type Pane = 'chat' | 'add' | 'doc' | 'updates';
 
 export default function AssistantScreen() {
   const { t } = useSession();
-  const [pane, setPane] = useState<Pane>('updates');
+  const [pane, setPane] = useState<Pane>('chat');
   return (
     <Screen>
       <H1>{t('askSathi')}</H1>
@@ -19,10 +19,10 @@ export default function AssistantScreen() {
         value={pane}
         onChange={setPane}
         options={[
-          { value: 'updates', label: t('updates') },
           { value: 'chat', label: t('chat') },
           { value: 'add', label: 'SMS' },
           { value: 'doc', label: '📷' },
+          { value: 'updates', label: t('updates') },
         ]}
       />
       {pane === 'updates' && <SathiUpdates />}

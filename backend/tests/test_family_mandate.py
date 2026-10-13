@@ -65,6 +65,14 @@ def test_llm_numbers_must_come_from_the_text():
     assert p.max_bdt_per_period == D("120000") and any("not in your words" in n for n in p.notes)
 
 
+def test_only_the_rules_can_refuse_an_llm_flag_becomes_a_reminder():
+    # Seen with the live model: "ছেলের অ্যাকাউন্ট" (my son's account) was flagged as "another person".
+    fake = FakeLLM([completion('{"period_cap": 120000, "period": "month", "other_payee": true}')])
+    p = compile_mandate("a", BN_120K, "bn", NOW, "parent", POLICY, fake.client())
+    assert p.status == "proposed" and not p.errors and any("only send living money" in n for n in p.notes)
+    assert p.payee_id == "student_own_cn"  # the payee never comes from the text
+
+
 def test_read_back_is_a_template_in_three_languages():
     s = compile_mandate("a", BN_120K, "bn", NOW, "parent", POLICY).summary()
     assert "৳১,২০,০০০" in s["bn"] and "৳1,20,000" in s["en"] and "自然月" in s["zh"]

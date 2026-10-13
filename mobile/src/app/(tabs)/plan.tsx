@@ -3,17 +3,18 @@ import { useEffect, useState } from 'react';
 
 import { DataBanner } from '@/components/data-banner';
 import { FxChart } from '@/components/fx-chart';
+import { YearPlanView } from '@/components/year-plan';
 import { ThemedText } from '@/components/themed-text';
 import { Badge, Button, Card, ErrorBox, H1, H2, Meter, Muted, Row, Screen, Segmented, Field, styles } from '@/components/ui';
 import { post, type Draft, type FxOverview, type FxPoint, type LivingPlan, type Timeline, type TuitionPlan } from '@/lib/api';
 import { bdt, cny, localDigits, num, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
-type Mode = 'tuition' | 'living';
+type Mode = 'year' | 'tuition' | 'living';
 
 export default function PlanScreen() {
   const params = useLocalSearchParams<{ mode?: string }>();
-  const initial: Mode = params.mode === 'living' ? 'living' : 'tuition';
+  const initial: Mode = params.mode === 'living' ? 'living' : params.mode === 'tuition' ? 'tuition' : 'year';
   // Re-mount when the Home screen links here with a different mode.
   return <PlanBody key={initial} initial={initial} />;
 }
@@ -29,11 +30,12 @@ function PlanBody({ initial }: { initial: Mode }) {
         value={mode}
         onChange={setMode}
         options={[
+          { value: 'year', label: t('yearTab') },
           { value: 'tuition', label: t('tuitionTab') },
           { value: 'living', label: t('livingTab') },
         ]}
       />
-      {mode === 'tuition' ? <TuitionPlanner /> : <LivingPlanner />}
+      {mode === 'year' ? <YearPlanView /> : mode === 'tuition' ? <TuitionPlanner /> : <LivingPlanner />}
     </Screen>
   );
 }
@@ -267,7 +269,7 @@ function LivingPlanner() {
         const total = b.atm_withdrawals_cny.reduce((s, w) => s + Number(w), 0);
         await call<Draft>('/drafts', post({ kind: 'atm_plan', amount_cny: String(total), withdrawals: b.atm_withdrawals_cny }));
       }
-      router.push('/activity');
+      router.push('/family');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

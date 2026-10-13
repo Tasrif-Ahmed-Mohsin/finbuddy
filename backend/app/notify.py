@@ -107,7 +107,7 @@ TEMPLATES: dict[str, dict[str, tuple[str, str]]] = {
         "zh": ("家庭授权已生效", "{summary_zh}"),
     },
     "mandate_needs_signature": {
-        "en": ("Sign the family mandate", "{signed_en} signed. Sathi starts only after {missing_en} also signs. {summary_en}"),
+        "en": ("Sign the family mandate", "Signed by {signed_en}. Sathi starts only after {missing_en} also signs. {summary_en}"),
         "bn": ("পারিবারিক ম্যান্ডেটে সই করুন", "{signed_bn} সই করেছেন। {missing_bn} সই করলে তবেই সাথী শুরু করবে। {summary_bn}"),
         "zh": ("请签署家庭授权", "{signed_zh} 已签署。{missing_zh} 也签署后 Sathi 才会开始。{summary_zh}"),
     },
@@ -231,9 +231,12 @@ def why_texts(dec: dict, holiday_names: dict[str, dict[str, str]]) -> dict[str, 
             }[lang]
         else:
             out[lang] = {
-                "en": f"money drops below {safety} days on {low_on}; a transfer sent today lands on {lands}.",
-                "bn": f"{low_on} তারিখে হাতে {safety} দিনের কম টাকা থাকবে; আজ পাঠালে পৌঁছাবে {lands} তারিখে।",
-                "zh": f"{low_on} 余额将不足 {safety} 天；今天汇出将于 {lands} 到账。",
+                "en": f"the money drops below {safety} days on {low_on}; waiting for the next bank day ({nxt}) would land it "
+                      f"only on {wl}, so it was sent today and lands on {lands}.",
+                "bn": f"{low_on} তারিখে হাতে {safety} দিনের কম টাকা থাকবে; পরের ব্যাংক দিবস ({nxt}) পর্যন্ত অপেক্ষা করলে টাকা "
+                      f"পৌঁছাত {wl} তারিখে, তাই আজই পাঠানো হয়েছে, পৌঁছাবে {lands} তারিখে।",
+                "zh": f"{low_on} 余额将不足 {safety} 天；如果等到下一个银行工作日（{nxt}）再汇，要到 {wl} 才到账，所以今天就汇出，"
+                      f"将于 {lands} 到账。",
             }[lang]
     return out
 

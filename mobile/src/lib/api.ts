@@ -52,7 +52,11 @@ export type Draft = {
   required_approvers: Role[];
   approved_by: Role[];
   withdrawals: string[];
+  summary: Lang3;
+  draft_hash: string;
 };
+
+export type Lang3 = { en: string; bn: string; zh: string };
 
 export type CostBreakdown = {
   route: string;
@@ -229,7 +233,7 @@ export type StoredMessage = { id: string; source: string; sender: string; receiv
 
 export type IngestResult = { kept: boolean; reason?: string; message?: StoredMessage; transaction?: InboxTxn | null; flags?: Flag[] };
 
-export type ChatReply = { reply: string; mode: 'llm' | 'fallback'; actions: ({ type: 'draft'; draft_id: string; status: string } | { type: 'card'; last4: string; status: string } | { type: 'renewal'; item: string; case_id: string })[]; tools_used: string[] };
+export type ChatReply = { reply: string; mode: 'llm' | 'fallback'; actions: ({ type: 'draft'; draft_id: string; status: string } | { type: 'card'; last4: string; status: string } | { type: 'renewal'; item: string; case_id: string } | { type: 'mandate'; proposal_id: string; status: string })[]; tools_used: string[] };
 
 export type Sources = Record<string, { available: boolean; note: string; path?: string; header?: string }> & { privacy: string[] };
 
@@ -301,4 +305,191 @@ export type DocumentResult = {
   flags: Flag[];
   suggestion: { type: 'set_tuition'; amount_cny: string; deadline: string; note: string } | null;
   privacy: string;
+};
+
+// ---- the loop: Sense → Plan → Act → Prove ----------------------------------------------------
+export type NoteRef = {
+  screen?: 'draft' | 'topup' | 'family' | 'renewal' | 'proof' | 'plan';
+  draft_id?: string;
+  amount_cny?: string;
+  item?: 'endorsement_expiry' | 'student_file_expiry';
+  proposal_id?: string;
+  mandate_id?: string;
+  mode?: string;
+};
+
+export type Note = {
+  id: string;
+  at: string;
+  audience: 'parent' | 'student' | 'both';
+  kind: 'did' | 'needs_you' | 'warning' | 'info';
+  key: string;
+  title: string;
+  body: string;
+  ref: NoteRef;
+};
+
+export type MandateView = {
+  id: string;
+  payee_id: string;
+  max_bdt_per_payment: string;
+  max_bdt_per_period: string;
+  period: 'month' | 'rolling';
+  period_days: number;
+  expires_at: string;
+  revoked: boolean;
+  active: boolean;
+  spent_in_period_bdt: string;
+  left_in_period_bdt: string;
+  payments: number;
+  kinds: string[];
+  auto_topup: boolean;
+  signed_by: Role[];
+  proposal_id: string | null;
+  proposal_hash: string | null;
+  summary: Lang3 | null;
+};
+
+export type TopupDecision = {
+  send_on: string;
+  lands: string;
+  amount_cny: string;
+  bridge_cny: string;
+  next_chance: string;
+  wait_would_land: string;
+  low_on: string;
+  safety_days: number;
+  closures: string[];
+  reason: string;
+};
+
+export type Runway = {
+  balance_cny: string;
+  daily_spend_cny: string;
+  days_left: number | null;
+  runs_out_on: string | null;
+  in_transit: { arrives: string; amount_cny: string }[];
+  card_works_until: string;
+  card_usable: boolean;
+  send_today: TopupDecision | null;
+  mandate: MandateView | null;
+  stuck_days: number;
+  bank_open_today: { BD: boolean; CN: boolean };
+};
+
+export type NeedItem =
+  | { type: 'approve_draft' | 'send_draft'; draft_id: string; kind: Draft['kind']; amount_cny: string; total_bdt: string; payee_name: string }
+  | { type: 'sign_mandate'; proposal_id: string; summary: string };
+
+export type Feed = { now: string; runway: Runway; needs_you: NeedItem[]; notes: Note[] };
+
+export type Proposal = {
+  id: string;
+  payee_id: string;
+  payee_label: string;
+  max_bdt_per_payment: string;
+  max_bdt_per_period: string;
+  period: 'month' | 'rolling';
+  period_days: number;
+  valid_until: string;
+  required_signers: Role[];
+  signatures: Partial<Record<Role, string>>;
+  missing_signers: Role[];
+  status: 'proposed' | 'needs_changes' | 'active' | 'superseded';
+  errors: string[];
+  notes: string[];
+  summary: Lang3;
+  hash: string;
+  parser: 'rules' | 'llm';
+  text: string;
+  mandate_id: string | null;
+  mandate?: MandateView;
+  autopilot?: { type: string; amount_cny?: string; draft_id?: string }[];
+};
+
+export type StuckPeriod = { from: string; to: string; days: number; reasons: string[] };
+
+export type YearStrategy = {
+  name: 'today' | 'sathi';
+  stuck_days: number;
+  stuck_periods: StuckPeriod[];
+  transfers: { send_on: string; lands: string; amount_cny: string; total_bdt: string; bank: string; why: string; closures: string[] }[];
+  atm: { date: string; amount_cny: string; total_bdt: string }[];
+  cost: {
+    delivered_cny: string;
+    total_bdt: string;
+    rate_bdt: string;
+    fees_bdt: string;
+    overhead_bdt: string;
+    overhead_pct: string;
+    transfers: number;
+    atm_withdrawals: number;
+  };
+};
+
+export type YearEvent = {
+  date: string;
+  type: 'transfer_send' | 'atm_bridge' | 'card_stops' | 'tuition_send_by' | 'bank_closure' | 'stuck_without_sathi';
+  amount_cny?: string;
+  total_bdt?: string;
+  bank?: string;
+  lands?: string;
+  why?: string;
+  name?: string;
+  name_bn?: string;
+  name_zh?: string;
+  country?: 'BD' | 'CN';
+  to?: string;
+  days?: number;
+  reasons?: string[];
+  deadline?: string;
+  confidence?: string;
+};
+
+export type CostTruth = {
+  bank: string;
+  amount_cny: string;
+  bdt_per_cny_paid: string;
+  mid_avg: string;
+  mid_low: string;
+  mid_high: string;
+  paid_bdt: string;
+  rate_markup_bdt: string;
+  rate_markup_pct: string;
+  fee_bdt: string;
+  fee_vs_rate: string | null;
+  source: string;
+  note: string;
+  window: [string, string];
+};
+
+export type YearPlan = {
+  horizon: { from: string; to: string; days: number };
+  headline: {
+    stuck_days_today: number;
+    stuck_days_sathi: number;
+    overhead_today_bdt: string;
+    overhead_sathi_bdt: string;
+    overhead_today_pct: string;
+    overhead_sathi_pct: string;
+    saved_bdt: string;
+    fees_share_today_pct: string | null;
+  };
+  strategies: { today: YearStrategy; sathi: YearStrategy };
+  events: YearEvent[];
+  cost_truth: CostTruth[];
+  assumptions: ({ name: string } & CorridorParam)[];
+  mandate: MandateView | null;
+  data_quality: DataQuality;
+  method: string;
+};
+
+export type Receipt = {
+  draft: Draft;
+  authority:
+    | { type: 'approvals'; level: string; executed_by: string; approved_by: Role[]; draft_hash: string }
+    | { type: 'mandate'; level: string; executed_by: string; mandate_id: string; signed_by: Role[]; proposal_hash: string | null; draft_hash: string }
+    | null;
+  sent: { seq: number; hash: string; sim_time: string; permission_level: string; arrives_at?: string } | null;
+  landed: { seq: number; hash: string; sim_time: string } | null;
 };

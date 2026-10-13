@@ -14,6 +14,7 @@ export default function RootLayout() {
           <Stack.Screen name="draft/[id]" options={{ headerShown: true, title: 'Payment', presentation: 'modal' }} />
           <Stack.Screen name="renewal/[item]" options={{ headerShown: true, title: 'Renewal', presentation: 'modal' }} />
           <Stack.Screen name="passport" options={{ headerShown: true, title: 'Passport', presentation: 'modal' }} />
+          <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings', presentation: 'modal' }} />
         </Stack>
       </ThemeProvider>
     </SessionProvider>

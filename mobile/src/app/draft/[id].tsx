@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 
+import { ListenButton } from '@/components/listen-button';
 import { ThemedText } from '@/components/themed-text';
 import { Badge, Banner, Button, Card, ErrorBox, H1, H2, Muted, Row, Screen, styles } from '@/components/ui';
 import type { Draft } from '@/lib/api';
@@ -72,6 +73,15 @@ export default function DraftScreen() {
       )}
       {done && <Banner tone="ok">{done}</Banner>}
       <ErrorBox error={error} />
+
+      {d.summary && (
+        <Card tone="info">
+          <H2>{t('whatYouApprove')}</H2>
+          <ThemedText>{d.summary[lang]}</ThemedText>
+          <ListenButton text={d.summary[lang]} lang={lang} />
+          <Muted>{t('readAloudHint')}</Muted>
+        </Card>
+      )}
 
       <Card>
         <Row style={styles.between}>

@@ -19,11 +19,12 @@ export default function TabsLayout() {
   const { t } = useSession();
   return (
     <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: Brand.primary }}>
-      <Tabs.Screen name="index" options={{ title: t('tabHome'), tabBarIcon: icon('home-outline') }} />
-      <Tabs.Screen name="plan" options={{ title: t('tabPlan'), tabBarIcon: icon('calculator-outline') }} />
+      {/* One loop: Today (sense) · Plan · Family (act) · Sathi (talk, add messages) · Proof */}
+      <Tabs.Screen name="index" options={{ title: t('tabToday'), tabBarIcon: icon('today-outline') }} />
+      <Tabs.Screen name="plan" options={{ title: t('tabPlan'), tabBarIcon: icon('calendar-outline') }} />
+      <Tabs.Screen name="family" options={{ title: t('tabFamily'), tabBarIcon: icon('people-outline') }} />
       <Tabs.Screen name="assistant" options={{ title: t('tabSathi'), tabBarIcon: icon('chatbubbles-outline') }} />
-      <Tabs.Screen name="activity" options={{ title: t('tabActivity'), tabBarIcon: icon('shield-checkmark-outline') }} />
-      <Tabs.Screen name="settings" options={{ title: t('tabSettings'), tabBarIcon: icon('settings-outline') }} />
+      <Tabs.Screen name="proof" options={{ title: t('tabProof'), tabBarIcon: icon('shield-checkmark-outline') }} />
     </Tabs>
   );
 }
