@@ -1,7 +1,7 @@
 # Problem Research — International Students' Money Problems in China
 
 **Focus corridor:** Bangladesh → China (findings that apply to other South Asian / African corridors are noted).
-**Last updated:** 2026-10-12
+**Last updated:** 2026-10-13
 **Purpose:** Evidence base for the problems Sathi solves. Feeds the pitch deck, the technical doc, and the solution design (next step).
 
 ### Confidence labels
@@ -242,7 +242,8 @@ Other details:
 - **Hook:** explain-every-step design; jargon glossary in Bengali.
 
 ### P-33 · The payer is often a parent with a different language — H (our insight)
-- A parent in Dhaka (Bengali, branch banking) pays; the student in China (English, mobile) receives; the university and bank speak Chinese. **Needs validation in the friend interview.**
+- A parent in Dhaka (Bengali, branch banking) pays; the student in China (English, mobile) receives; the university and bank speak Chinese.
+- 🗣️ **Validated (Interview #1 follow-up, 13 Oct):** **both** the parent and the student handle the money.
 - **Hook:** two-user, three-language workflow with parent approval for big payments.
 
 ### P-34 · Information is scattered, inconsistent, and changing — H (meta-problem)
@@ -281,7 +282,8 @@ Original problem notes were in Bengali (Banglish); our translations are in quote
 ### N-05 · Short "endorsement" period for students (friend's biggest problem) — H
 - 🗣️ "The bigger problem is endorsement tenure. I came in September, but they gave me endorsement only **until December**. Then I have to go to the bank again to endorse. How can it work with such a short period? They do this only for students; others get longer endorsement."
 - Corroboration ⚠️: Bangladesh Bank allowed **multi-year** dollar endorsement for travellers (up to USD 12,000/yr) **but excluded people going abroad for study**, employment, and immigration ([New Age](https://www.newagebd.net/article/149926/bb-allows-multiple-years-dollar-endorsement-at-once-based-on-passport-validity), about 5 years old). Student Files must be **renewed yearly** with an enrolment certificate, transcript, and invoice ⚠️ (bank pages, P-07).
-- Unknown ❓: the rule behind the short student endorsement, who must visit the bank (student abroad or parent in Bangladesh), and whether it can be done online.
+- 🗣️ **Answered (follow-up, 13 Oct): the student must go to the bank in person, because renewal needs the passport.** A student in China therefore **cannot renew before the next visit home**, so the card stops working abroad on the expiry date. This makes N-05 a money-access problem, not only a paperwork problem: living money has to switch to Student File transfers to the student's own Chinese account (which don't need the card) before that date. Sathi's year plan and renewal plan now do exactly this.
+- Still unknown ❓: the rule behind the short student endorsement, and whether any bank allows renewal online or through a parent with a power of attorney.
 - **Hook (very agent-shaped):** an endorsement and Student File tracker. The agent reminds ahead of expiry, drafts the request to the university for an enrolment certificate (Chinese/English), assembles the renewal pack, and tells the parent in Bengali what to bring to the branch. It's a multi-step task with deadlines, documents, and two users.
 
 ### N-06 · Student account transaction limits: 5 lakh BDT and 30 transactions per month — H
@@ -337,9 +339,9 @@ Downgraded: P-10 (bank account opened same day with passport only, at least at t
 - **P-07:** was the 8,000 BDT a one-time file-opening fee? Any other charges (SWIFT, VAT, receiving)?
 - **N-01/N-02:** which card (BRAC multicurrency/Visa debit?), which Chinese ATM bank, the maximum per withdrawal, and did the Chinese ATM also charge?
 - **N-03:** whose card was blocked, why, and how it was fixed.
-- **N-05:** what amount and period were endorsed; who must visit the bank to renew (student or parent); which documents; is online renewal possible?
+- **N-05 (partly answered: the student, in person, with the passport):** what amount and period were endorsed; which documents; is online renewal or a power of attorney possible?
 - **N-06 (partly answered: 5 lakh BDT and 30 transactions per month):** confirm it's the Bangladeshi card/account; do card purchases (Alipay, POS) count toward the 30, or only ATM withdrawals? Do Student File remittances count?
 - **N-09:** how exactly did seniors convert cash into Alipay balance? At what rate?
 - **N-10:** what did "agency fees" mean?
-- **P-33 (unanswered):** who handles the money, parent or student, and in what language?
+- **P-33 (answered: both):** in which language does the parent prefer to read about payments?
 - **P-15/P-17:** n/a (self-funded) / see N-06.

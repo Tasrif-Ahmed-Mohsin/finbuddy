@@ -14,7 +14,15 @@
 - ✅ **Photo document reader** (DeepSeek vision): fee notices, Chinese bank forms, university checklists → type, summary in the user's language, amounts (must appear in the transcription), deadlines, bilingual checklist; injection phrases flagged; long numbers masked; photo never stored; a fee notice is applied only after the user confirms (then it backs the invoice check). Live test on the friend's real residence-permit checklist: all 11 items read in 3.6 s. **144 tests pass.**
 - ✅ **Real BRAC data point** (friend: ৳18.35/¥, ~৳8,000 file charge): BRAC's rate was only ~+0.2% over mid-market; the file charge was the bigger cost. Added a calibrated BRAC quote; generic estimates lowered to 0.6–1.8%.
 - ✅ **Technical documentation** ([TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md)) and **security self-assessment** ([SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md)) written: deliverables #1 and #5.
-- ⏭ Next: deck (≤10 min) + demo video (≤5 min); try on a real phone with Expo Go; deploy the backend; first full submission on 18 Oct; exact date of the friend's payment and real SMS samples.
+- 🔁 **13 Oct: re-architecture around one loop (Sense → Plan → Act → Prove).** Honest audit: the project read as 11 separate features; our own data showed the exchange rate was not the main problem (BRAC +0.22% vs a ৳8,000 charge, 5.5×); the one part where the AI acts (mandates) had no screen. Interview follow-up: **both** parent and student handle money; **renewing the endorsement needs the student in person** (passport), so a student in China loses the card abroad on 31 Dec. Built:
+  - **Year plan** ("never stuck"): day-by-day simulation with both countries' bank calendars (`data/bank_holidays.yaml`, confidence per date), the endorsement end and card caps. Today's habits: 20 stuck days; Sathi: 0. Cost truth: rate markup vs fees.
+  - **Family mandate** from the parent's own words (bn/en/zh): rules parser + grounded DeepSeek + policy validator; template read-back; signatures bound to the proposal hash; both sign from ৳1 lakh; living money to the student's own account only; calendar-month caps.
+  - **Autopilot**: the same look-ahead rule; acts only inside the mandate; asks the family when a cap is too small; explains why in the family feed.
+  - **App**: Today · Plan (Year) · Family · Sathi · Proof; spoken read-back before approving or signing; receipts showing who or what authorised each payment.
+  - **Fixes**: the endorsement no longer blocks transfers (only card use); raw mandates are for the paying parent only; the Student File renewal link.
+  - **Renewal plan** for a student abroad.
+  - **Evidence**: 4 sandbox months, 0 stuck days, 187-entry log. **183 tests pass.**
+- ⏭ Next: deck (≤10 min) + demo video (≤5 min); try on a real phone with Expo Go (fingerprint, speech in Bengali); deploy the backend; first full submission on 18 Oct; ask organisers whether the on-chain bonus expects FISCO BCOS (anchor the log's chain head); exact date of the friend's payment and real SMS samples.
 
 ---
 
