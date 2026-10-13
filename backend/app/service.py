@@ -29,6 +29,7 @@ from app.engines.living_planner import LivingRequest, plan_living
 from app.documents import read_document as read_document_photo
 from app.engines.tuition_planner import TuitionRequest, plan_tuition
 from app.inbox.service import Inbox
+from app.integrations.whatsapp import WhatsAppNotifier, mask, normalise_number
 from app.fx import FxProvider
 from app.bank_rates import BankRateStore
 from app.market import BankQuote, Market, build_market, load_quote_config, student_file_fees
@@ -113,6 +114,17 @@ class AppState:
         self.proposals: dict[str, MandateProposal] = {}
         self.execution_auth: dict[str, dict] = {}  # draft id -> who/what authorised the payment (receipts)
         self.feed = Feed()
+        # WhatsApp alerts for the family: notifications only, to the family's own number, mode set by the server env.
+        self.whatsapp = WhatsAppNotifier.from_settings(self.settings)
+        self.profile["parent_whatsapp"] = None
+        self.profile["parent_lang"] = "bn"
+        if self.settings.whatsapp_demo_to:
+            try:
+                self.profile["parent_whatsapp"] = normalise_number(self.settings.whatsapp_demo_to)
+            except ValueError:
+                pass
+        self._wa_batch: list | None = None  # collects notes while simulated time is fast-forwarded
+        self.feed.listeners.append(self._on_note)
         self.renewals: dict[str, RenewalCase] = {}
         # Payment passports (credit building). The signing key should come from the environment in production.
         env_secret = os.environ.get("SATHI_PASSPORT_SECRET")
@@ -570,6 +582,77 @@ class AppState:
                         "landed": {k: landed[k] for k in ("seq", "hash", "sim_time")} if landed else None})
         return list(reversed(out))
 
+    # ---- WhatsApp alerts ----------------------------------------------------------------------
+    WA_KINDS = ("did", "needs_you", "warning")
+    WA_FOOTER = {"bn": "অনুমোদন শুধু সাথী অ্যাপে, আঙুলের ছাপ দিয়ে। এই মেসেজের উত্তরে কিছু অনুমোদন হয় না, আর সাথী কখনো কোড বা পিন চায় না।",
+                 "en": "Approvals happen only in the Sathi app, with your fingerprint. Replying here approves nothing, and Sathi never asks for codes or PINs.",
+                 "zh": "只能在 Sathi 应用中用指纹批准。回复此消息不会批准任何操作，Sathi 也从不索要验证码或密码。"}
+
+    def _on_note(self, note) -> None:
+        if not self.whatsapp.enabled or not self.profile.get("parent_whatsapp"):
+            return
+        if note.audience not in ("parent", "both") or note.kind not in self.WA_KINDS:
+            return
+        if self._wa_batch is not None:
+            self._wa_batch.append(note)
+            return
+        lang = self.profile.get("parent_lang", "bn")
+        r = note.render(lang)
+        brand = "সাথী" if lang == "bn" else "Sathi"
+        self._wa_send(f"{brand} · {r['title']}\n\n{r['body']}", "note", note.key)
+
+    def _wa_send(self, text: str, kind: str, key: str):
+        lang = self.profile.get("parent_lang", "bn")
+        to = self.profile["parent_whatsapp"]
+        entry = self.whatsapp.send(to, f"{text}\n\n{self.WA_FOOTER.get(lang, self.WA_FOOTER['en'])}", kind, key, self.now)
+        self.bank.log("whatsapp_notified", "system", "SYSTEM", {"kind": kind, "key": key, "mode": entry.mode,
+                      "status": entry.status, "to": mask(to)})  # never the text or the token
+        return entry
+
+    def _wa_digest(self, notes: list, days: int) -> None:
+        lang = self.profile.get("parent_lang", "bn")
+        rendered = [n.render(lang) for n in notes]
+        did = sum(1 for n in notes if n.kind == "did")
+        need = sum(1 for n in notes if n.kind == "needs_you")
+        warn = sum(1 for n in notes if n.kind == "warning")
+        tr = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
+        if lang == "bn":
+            head = (f"সাথী · গত {str(days).translate(tr)} দিনের সারসংক্ষেপ: {str(did).translate(tr)}টি কাজ করেছে, "
+                    f"{str(need).translate(tr)}টিতে আপনার অনুমোদন দরকার, {str(warn).translate(tr)}টি সতর্কতা।")
+        else:
+            head = f"Sathi · last {days} days: {did} done, {need} need you, {warn} warnings."
+        lines = "\n".join(f"• {r['title']}" for r in rendered[-6:])
+        self._wa_send(f"{head}\n{lines}", "digest", f"digest:{days}d")
+
+    def whatsapp_status(self) -> dict:
+        return {**self.whatsapp.status(), "recipient": mask(self.profile.get("parent_whatsapp")),
+                "lang": self.profile.get("parent_lang", "bn"),
+                "rules": ["Notifications only: nothing can be approved by replying on WhatsApp.",
+                          "Only to the family's own number, set by a user (never by the agent).",
+                          "Only the server can switch real sending on (WHATSAPP_MODE=live)."]}
+
+    def set_whatsapp_recipient(self, actor: Actor, number: str | None, lang: str = "bn") -> dict:
+        if actor == Actor.AGENT:
+            raise PermissionError("only the student or parent can choose who gets WhatsApp alerts")
+        self.profile["parent_whatsapp"] = normalise_number(number) if number else None
+        self.profile["parent_lang"] = lang if lang in ("bn", "en", "zh") else "bn"
+        self._log("whatsapp_recipient_set", actor, None, {"to": mask(self.profile["parent_whatsapp"]),
+                                                          "lang": self.profile["parent_lang"]})
+        return self.whatsapp_status()
+
+    def whatsapp_test(self, actor: Actor) -> dict:
+        if actor == Actor.AGENT:
+            raise PermissionError("only the student or parent can send a WhatsApp test")
+        if not self.whatsapp.enabled:
+            raise ValueError("WhatsApp is off on this server (set WHATSAPP_MODE=dry_run or live)")
+        if not self.profile.get("parent_whatsapp"):
+            raise ValueError("add the family's WhatsApp number first")
+        lang = self.profile.get("parent_lang", "bn")
+        text = {"bn": "সাথী · টেস্ট মেসেজ। এখান থেকে আপনি জানতে পারবেন সাথী কী পাঠিয়েছে আর কোথায় আপনার অনুমোদন দরকার।",
+                "en": "Sathi · test message. You will get updates here on what Sathi sent and what needs your approval.",
+                "zh": "Sathi · 测试消息。你会在这里收到 Sathi 汇款和需要你批准的通知。"}[lang]
+        return self._wa_send(text, "test", "test").to_dict()
+
     # ---- simulated time ----------------------------------------------------------------------
     def advance(self, actor: Actor, days: int) -> dict:
         """Fast-forward the sandbox one day at a time: the student spends, transfers land, the autopilot runs."""
@@ -577,6 +660,7 @@ class AppState:
             raise ValueError("days must be between 0 and 365")
         events, actions = [], []
         spent_total, stuck_n = Decimal(0), 0
+        self._wa_batch = [] if days > 1 else None  # a fast-forward sends one summary, not one message per note
         for _ in range(days):
             spent, stuck = self.bank.spend_day()
             spent_total += spent
@@ -601,6 +685,9 @@ class AppState:
             events += arrived
             self._daily_notes()
             actions += self.autopilot.tick()
+        batch, self._wa_batch = self._wa_batch, None
+        if batch:
+            self._wa_digest(batch, days)
         self.bank.log("clock_advanced", actor.value, "SYSTEM", {"days": days, "now": self.now.isoformat(),
                       "student_spent_cny": str(q2(spent_total)), "stuck_days": stuck_n})
         return {"now": self.now.isoformat(), "events": events, "autopilot": actions, "stuck_days": stuck_n}

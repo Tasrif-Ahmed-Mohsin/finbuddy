@@ -83,6 +83,11 @@ class SignIn(BaseModel):
     proposal_hash: str = Field(min_length=64, max_length=64)
 
 
+class WhatsAppRecipientIn(BaseModel):
+    number: str | None = Field(default=None, max_length=24)
+    lang: str = "bn"
+
+
 class InboxIn(BaseModel):
     source: str = "sms"
     sender: str = Field(default="unknown", max_length=60)
@@ -398,6 +403,20 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     @app.get("/runway")
     def runway(s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return s.runway()
+
+    # ---- WhatsApp alerts for the family (notifications only) ------------------------------
+    @app.get("/notify/whatsapp")
+    def whatsapp_status(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        user_only(who)
+        return s.whatsapp_status()
+
+    @app.post("/notify/whatsapp/recipient")
+    def whatsapp_recipient(body: WhatsAppRecipientIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.set_whatsapp_recipient, who, body.number, body.lang)
+
+    @app.post("/notify/whatsapp/test")
+    def whatsapp_test(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.whatsapp_test, who)
 
     @app.get("/receipts")
     def receipts(s: AppState = Depends(svc), who: Actor = Depends(actor)):

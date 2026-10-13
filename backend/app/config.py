@@ -34,10 +34,21 @@ class Settings:
     imap_host: str | None
     imap_user: str | None
     imap_password: str | None
+    # WhatsApp Cloud API (Meta) for family alerts. mode: off | dry_run (log only) | live (really send).
+    # Only the environment can switch it to live: neither the app nor the agent can.
+    whatsapp_mode: str = "off"
+    whatsapp_token: str | None = None
+    whatsapp_phone_number_id: str | None = None
+    whatsapp_graph_version: str = "v21.0"
+    whatsapp_demo_to: str | None = None
 
     @property
     def imap_configured(self) -> bool:
         return bool(self.imap_host and self.imap_user and self.imap_password)
+
+    @property
+    def whatsapp_configured(self) -> bool:
+        return bool(self.whatsapp_token and self.whatsapp_phone_number_id)
 
 
 def load_settings() -> Settings:
@@ -52,4 +63,9 @@ def load_settings() -> Settings:
         imap_host=os.environ.get("SATHI_IMAP_HOST") or None,
         imap_user=os.environ.get("SATHI_IMAP_USER") or None,
         imap_password=os.environ.get("SATHI_IMAP_PASSWORD") or None,
+        whatsapp_mode=(os.environ.get("WHATSAPP_MODE") or "off").strip().lower(),
+        whatsapp_token=os.environ.get("WHATSAPP_ACCESS_TOKEN") or None,
+        whatsapp_phone_number_id=os.environ.get("WHATSAPP_PHONE_NUMBER_ID") or None,
+        whatsapp_graph_version=os.environ.get("WHATSAPP_GRAPH_VERSION") or "v21.0",
+        whatsapp_demo_to=os.environ.get("WHATSAPP_DEMO_TO") or None,
     )

@@ -182,6 +182,7 @@ class Feed:
         self.notes: list[Note] = []
         self._keys: set[str] = set()
         self._n = 0
+        self.listeners: list = []  # called with each new note (e.g. WhatsApp alerts)
 
     def add(self, at: datetime, audience: str, kind: str, key: str, params: dict, ref: dict | None = None,
             once: str | None = None) -> Note | None:
@@ -195,6 +196,8 @@ class Feed:
         self._n += 1
         note = Note(f"note-{self._n:04d}", at, audience, kind, key, params, ref or {})
         self.notes.append(note)
+        for listener in self.listeners:
+            listener(note)
         return note
 
     def for_actor(self, actor: str, lang: str, limit: int = 30) -> list[dict]:

@@ -19,3 +19,14 @@ deepseek api key.txt
 
 # Local tooling (machine-specific paths)
 .claude/
+
+# Local secrets: never commit
+credentials*
+*.credentials
+
+# Personal documents (passport, registration forms): never commit
+registration/
+*passport*.jpg
+*passport*.jpeg
+*passport*.png
+*passport*.pdf

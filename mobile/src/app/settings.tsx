@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { ThemedText } from '@/components/themed-text';
+import { WhatsAppCard } from '@/components/whatsapp-card';
 import { Badge, Banner, Button, Card, ErrorBox, Field, H1, H2, Muted, Row, Screen, Segmented, styles } from '@/components/ui';
 import { post, type Accounts, type CorridorParam, type Role, type Sources } from '@/lib/api';
 import { shortDate } from '@/lib/format';
@@ -84,6 +85,8 @@ export default function SettingsScreen() {
         {status && <Banner tone="ok">{status}</Banner>}
       </Card>
       <ErrorBox error={error} />
+
+      <WhatsAppCard />
 
       {data && (
         <Card>

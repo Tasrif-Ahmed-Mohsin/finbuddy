@@ -276,6 +276,15 @@ const en = {
   comparedPublished: "Same weeks, Eastern Bank's published rate averaged",
   sheetsLabel: "sheets",
   feesSource: "Fees from each bank's published schedule of charges",
+  waTitle: "WhatsApp alerts for the parent",
+  waIntro: "Sathi sends the family feed to WhatsApp in Bengali: what it did and what needs you. Nothing can be approved by replying; approvals stay in the app with your fingerprint.",
+  waNumber: "Parent's WhatsApp number (international format)",
+  waSave: "Save number",
+  waSaved: "Number saved",
+  waTest: "Send test message",
+  waLive: "Live: messages are really sent",
+  waDryRun: "Test mode: messages are only logged",
+  waOff: "Off",
 };
 
 type Dict = typeof en;
@@ -555,6 +564,15 @@ const bn: Dict = {
   comparedPublished: "একই সপ্তাহগুলোতে ইস্টার্ন ব্যাংকের প্রকাশিত হারের গড়",
   sheetsLabel: "দিনের শিট",
   feesSource: "ফি প্রতিটি ব্যাংকের প্রকাশিত চার্জ তালিকা থেকে",
+  waTitle: "অভিভাবকের জন্য হোয়াটসঅ্যাপ বার্তা",
+  waIntro: "সাথী পারিবারিক আপডেট বাংলায় হোয়াটসঅ্যাপে পাঠায়: কী করেছে আর কোথায় আপনার অনুমোদন দরকার। উত্তর দিয়ে কিছু অনুমোদন করা যায় না; অনুমোদন শুধু অ্যাপে, আঙুলের ছাপ দিয়ে।",
+  waNumber: "অভিভাবকের হোয়াটসঅ্যাপ নম্বর (আন্তর্জাতিক ফরম্যাটে)",
+  waSave: "নম্বর সেভ করুন",
+  waSaved: "নম্বর সেভ হয়েছে",
+  waTest: "টেস্ট মেসেজ পাঠান",
+  waLive: "চালু: মেসেজ সত্যিই যাবে",
+  waDryRun: "টেস্ট মোড: মেসেজ শুধু লগ হয়",
+  waOff: "বন্ধ",
 };
 
 const zh: Dict = {
@@ -832,6 +850,15 @@ const zh: Dict = {
   comparedPublished: "同期东方银行公布汇率的平均值",
   sheetsLabel: "份牌价",
   feesSource: "费用来自各银行公布的收费表",
+  waTitle: "给家长的 WhatsApp 通知",
+  waIntro: "Sathi 会用孟加拉语把家庭动态发到 WhatsApp：做了什么、哪里需要你。回复消息不能批准任何操作；批准只能在应用中用指纹完成。",
+  waNumber: "家长的 WhatsApp 号码（国际格式）",
+  waSave: "保存号码",
+  waSaved: "号码已保存",
+  waTest: "发送测试消息",
+  waLive: "已开启：会真实发送",
+  waDryRun: "测试模式：只记录不发送",
+  waOff: "关闭",
 };
 
 export const STRINGS: Record<Lang, Dict> = { en, bn, zh };

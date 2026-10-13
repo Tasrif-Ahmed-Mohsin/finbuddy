@@ -8,3 +8,5 @@ os.environ.setdefault("SATHI_AUDIT_PATH", os.path.join(tempfile.mkdtemp(prefix="
 os.environ["SATHI_LLM_ENABLED"] = "0"
 # Fixed exchange rates in tests (deterministic numbers, no network); the real history CSV is still used for ranges.
 os.environ["SATHI_FX_MODE"] = "fixture"
+# Never send WhatsApp messages from tests; tests that need it build their own notifier with a fake transport.
+os.environ["WHATSAPP_MODE"] = "off"
