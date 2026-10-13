@@ -7,8 +7,13 @@ and acts on its own only inside a limit the family has signed**, in Bengali, Eng
 Hero corridor: **Bangladesh → China**.
 
 > ⚠️ Sandbox only. No real money moves. The **mid-market exchange rate is real** (live, with 953 days of saved
-> history from [fawazahmed0/exchange-api](https://github.com/fawazahmed0/exchange-api), CC0). **Bank prices are
-> estimates** (`backend/app/data/bank_quotes.yaml`), calibrated with one real payment; the app always says which.
+> history from [fawazahmed0/exchange-api](https://github.com/fawazahmed0/exchange-api), CC0). **Bank prices are real or
+> published:**
+> - Eastern Bank's own daily CNY rate sheets: 139 sheets, March–October 2026, refreshed by `scripts/fetch_bank_rates.py`.
+> - Fees from banks' published 2026 schedules of charges.
+> - One real BRAC payment.
+>
+> Anything not published is labelled as an assumption in the app.
 
 ## The problem in one paragraph
 
@@ -32,7 +37,8 @@ costs families most: a real BRAC tuition payment was only 0.22% above the market
 | **Prove** | A receipt for every payment: approved by people (EXECUTE) or by the autopilot under the signed mandate (MANDATE, with the proposal hash). Hash-chained log, payment passport | **Proof** |
 
 **Results** (saved real rates):
-- **Year plan:** stuck days **20 → 0**; fees + markup **3.34% → 2.15%** (৳11,899 saved for the same money).
+- **Year plan:** stuck days **20 → 0**; fees + markup **4.39% → 3.88%** (৳5,126 saved for the same money). **89%** of what families lose today is fees, not the exchange rate.
+- **Published data:** Eastern Bank's CNY transfer rate averaged **+0.96%** above the market (138 days). Its fees on a ৳1 lakh transfer are **৳3,565**, more than the rate markup.
 - **Live sandbox run:** 12 Oct 2026 → 21 Feb 2027, through the card stop and Spring Festival: **0 stuck days**.
 - See [docs/evidence/scenario_summary.md](docs/evidence/scenario_summary.md).
 
@@ -40,7 +46,7 @@ costs families most: a real BRAC tuition payment was only 0.22% above the market
 - Permission levels L0–L3; the AI can never approve, sign, unfreeze or widen a limit.
 - Signatures and approvals are bound to the exact proposal or draft. What people read and hear is generated from those exact fields, never by the AI.
 - Numbers from the AI must appear in the user's text.
-- Two-person rule from ৳1 lakh; hash-chained audit log; 183 tests, including the red-team cases.
+- Two-person rule from ৳1 lakh; hash-chained audit log; 203 tests, including the red-team cases.
 
 ## Run it
 
@@ -66,7 +72,7 @@ On a phone, the app looks for the backend on the same computer at port 8000 (the
 
 ## Test it
 ```bash
-cd backend && .venv/Scripts/python -m pytest -q        # 183 tests: year plan, mandates + autopilot, security, engines, agent, inbox, FX, cards, renewals, passport, documents
+cd backend && .venv/Scripts/python -m pytest -q        # 203 tests: bank prices, year plan, mandates + autopilot, security, engines, agent, inbox, FX, cards, renewals, passport, documents
 cd mobile && npx tsc --noEmit && npx expo lint
 ```
 

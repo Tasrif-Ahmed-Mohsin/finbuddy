@@ -30,7 +30,8 @@ from app.documents import read_document as read_document_photo
 from app.engines.tuition_planner import TuitionRequest, plan_tuition
 from app.inbox.service import Inbox
 from app.fx import FxProvider
-from app.market import BankQuote, Market, build_market, load_quote_config
+from app.bank_rates import BankRateStore
+from app.market import BankQuote, Market, build_market, load_quote_config, student_file_fees
 from app.money import D, q2
 from app.notify import Feed, draft_summaries, role_name
 from app.passport import issue as issue_passport_doc
@@ -71,6 +72,7 @@ class AppState:
         self.corridor = load_corridor("bd_cn")
         self.fx = FxProvider()  # real mid-market rate (live → saved history → fixture in tests)
         self.quote_cfg = load_quote_config()
+        self.bank_rates = BankRateStore()  # banks' own published daily rate sheets (saved + live)
         self.real_quotes: list[BankQuote] = []
         self.audit = AuditLog(audit_path)
         # The audit file persists across restarts but sandbox state (drafts, ids) does not:
@@ -130,7 +132,7 @@ class AppState:
 
     @property
     def market(self) -> Market:
-        return build_market(self.fx.latest(), self.quote_cfg, self.real_quotes)
+        return build_market(self.fx.latest(), self.quote_cfg, self.real_quotes, self.bank_rates)
 
     @property
     def estimates(self) -> bool:
@@ -141,10 +143,29 @@ class AppState:
     @property
     def data_quality(self) -> dict:
         m = self.market
-        real = [q for q in m.quotes if not q.sample]
         return {"mid": self.fx.status, "mid_as_of": m.mid.as_of, "mid_source": m.mid.source,
-                "bdt_per_cny": str(round(m.mid.bdt_per_cny, 4)),
-                "bank_quotes": "real" if real and len(real) == len(m.quotes) else "mixed" if real else "estimated"}
+                "bdt_per_cny": str(round(m.mid.bdt_per_cny, 4)), "bank_quotes": m.quality,
+                "quotes": [{"bank": q.bank, "basis": q.basis, "as_of": q.as_of, "fees_assumed": q.fees_assumed}
+                           for q in m.quotes]}
+
+    def bank_prices(self) -> dict:
+        """Where every bank price comes from: published sheets and fee schedules, real payments, estimates."""
+        m = self.market
+        principal = Decimal(100000)
+        return {
+            "quotes": [{"quote_id": q.quote_id, "bank": q.bank, "basis": q.basis, "bdt_per_cny": str(q.bdt_per_cny),
+                        "markup_pct": str(q.markup_pct), "as_of": q.as_of, "rate_source": q.source,
+                        "fees": q.fees.to_dict() if q.fees else None, "fees_assumed": q.fees_assumed,
+                        "fee_example": {"for_bdt": str(principal), "total_bdt": str(q2(q.fee_total(principal))),
+                                        "lines": [{"label": lbl, "bdt": str(q2(a))} for lbl, a in q.fee_lines(principal)]}}
+                       for q in m.quotes],
+            "student_file_fees": student_file_fees(self.quote_cfg.get("fees", {})),
+            "published_history": [{"date": r.date, "bank_id": r.bank_id, "cny_tt_selling": str(r.cny_tt_selling),
+                                   "cny_bank_mid": str(r.cny_bank_mid)} for r in self.bank_rates.history("ebl", 400)],
+            "notes": m.notes,
+            "quality": m.quality,
+            "fees_reviewed": self.quote_cfg.get("fees", {}).get("reviewed"),
+        }
 
     @property
     def student_card(self):
@@ -483,7 +504,9 @@ class AppState:
                         p["student_file_expiry"], usage.tx_count, usage.bdt_charged,
                         (send_by, p["tuition_deadline"], p["tuition_invoice_cny"]))
         plan = plan_year(sit, self.policy, self.calendar, self.corridor, self.market)
-        plan["cost_truth"] = [field_payment_truth(fp, self.fx.history) for fp in self.quote_cfg.get("field_payments", [])]
+        plan["cost_truth"] = [field_payment_truth(fp, self.fx.history, self.bank_rates.rates)
+                              for fp in self.quote_cfg.get("field_payments", [])]
+        plan["student_file_fees"] = student_file_fees(self.quote_cfg.get("fees", {}))
         plan["calendar"] = {"reviewed": self.calendar.reviewed,
                             "closures": [c.to_dict() for c in self.calendar.closures_in(today, end)]}
         plan["assumptions"] = [{"name": k, **self.corridor.meta(k)} for k in (
@@ -636,7 +659,7 @@ class AppState:
         if not (mid * Decimal("0.9") <= rate <= mid * Decimal("1.2")) or fee < 0:
             raise ValueError(f"that rate looks wrong: the market rate is about {round(mid, 2)} BDT per CNY")
         q = BankQuote(f"real-{len(self.real_quotes) + 1}", bank[:40], rate, fee, self.now.date().isoformat(),
-                      f"Real quote entered by {actor.value}", False)
+                      f"Real quote entered by {actor.value}", False, basis="user_quote")
         self.real_quotes.append(q)
         self._log("real_quote_added", actor, None, {"quote_id": q.quote_id, "bank": q.bank, "bdt_per_cny": str(rate),
                                                     "fixed_fee_bdt": str(fee)})

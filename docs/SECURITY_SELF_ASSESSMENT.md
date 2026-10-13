@@ -205,7 +205,7 @@ The agent's ceiling is the explicit allow-list `AGENT_ALLOWED` (`permissions.py:
 | AI outage | rule-based answer | ✅ | `test_llm_outage_falls_back_to_rules` |
 | AI calls an unknown tool | error, nothing executed | ✅ | `test_agent_survives_unknown_tools_and_bad_arguments` |
 
-Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (183 cases).
+Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (203 cases).
 
 ## 10. Known-risk list
 
@@ -237,6 +237,8 @@ Likelihood and impact are rated for a **production** deployment (L = low, M = me
 | R22 | **Holiday dates are estimates** (Eid, Spring Festival; China's make-up Saturdays not modelled) | H | M | Confidence label per date; 5-day cushion; the plan is recomputed every day | Open | Load official calendars when published; bank-specific cut-off times |
 | R23 | **Spoken read-back depends on the phone's voices** (Bengali text-to-speech may be missing) | M | L | Text is always shown; the button is optional | Open | Bundle or check for a Bengali voice; fall back to text with a warning |
 | R24 | **A signed mandate on a stolen, unlocked phone** | L | M | Both signatures for large caps; caps and expiry; one-tap cancel by either person; the feed tells both | Partial | Device-bound signing keys (R2), out-of-band confirmation of new mandates |
+| R25 | **Published bank rates are 'indicative'** and a sheet's layout can change | M | M | Labelled 'published by the bank' (never a binding quote); every row sanity-checked (buying < mid < selling, spread < 5%), a changed layout is rejected, not guessed; downloaded PDFs are untrusted (size and page limits, parsed in memory, never executed); real payments and user quotes stay the gold standard | Partial | More banks' sheets, a second source per bank, alert when a sheet stops parsing |
+| R26 | **Some fees are not published** (correspondent/SWIFT 'at actual cost'; BRAC's schedule not found online) | H | M | Taken from the same bank's SME schedule (labelled secondary) or a peer's published schedule (labelled assumption); a bank whose fee is unknown is not priced at all | Partial | Ask the banks; collect real debit advices from students |
 
 **Not done yet (stated honestly):** an external penetration test, a formal STRIDE workshop, a privacy impact assessment, and a mobile app hardening review (root/jailbreak detection, certificate pinning).
 
@@ -248,6 +250,6 @@ For the **sandbox demo**, the residual risk is low: no real money or data. Every
 
 ```bash
 cd backend
-.venv/Scripts/python -m pytest -q                # 183 cases incl. all red-team tests above
+.venv/Scripts/python -m pytest -q                # 203 cases incl. all red-team tests above
 .venv/Scripts/python scripts/demo_scenario.py    # end-to-end run → docs/evidence/ (hash-chained log)
 ```

@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.fx import FxPoint, FxProvider, load_history
 from app.main import create_app
+from app.bank_rates import BankRateStore
 from app.market import build_market, load_quote_config
 from app.security.permissions import Actor
 from tests.fake_llm import FakeLLM, completion, tool_call
@@ -44,11 +45,12 @@ def test_live_mode_falls_back_when_the_network_fails(monkeypatch):
     assert mid.as_of == "2026-10-01" and fx.last_error == "OSError"
 
 
-def test_bank_quotes_are_markups_on_the_real_mid_rate():
+def test_bank_prices_sit_above_the_real_mid_rate_and_say_where_they_come_from():
     fx = FxProvider(mode="offline")
-    m = build_market(fx.latest(), load_quote_config())
+    m = build_market(fx.latest(), load_quote_config(), published=BankRateStore(mode="offline"))
+    assert m.quotes
     for q in m.quotes:
-        assert q.sample and q.bdt_per_cny > m.mid.bdt_per_cny  # every estimate costs more than mid-market
+        assert q.basis in ("published", "real_payment") and q.bdt_per_cny > m.mid.bdt_per_cny
 
 
 def test_ranges_on_real_history_and_backtest_honesty():
@@ -63,7 +65,7 @@ def test_tuition_plan_now_includes_wait_risk(client):
     p = client.post("/plan/tuition", json={"amount_cny": "35200", "deadline": "2026-11-15"}, headers=H["parent"]).json()
     w = p["wait_risk"]
     assert w is not None and D(w["if_wait_low_bdt"]) < D(w["pay_now_bdt"]) < D(w["if_wait_high_bdt"])
-    assert w["backtest"]["empirical_coverage"] > 0 and p["data_quality"]["bank_quotes"] == "estimated"
+    assert w["backtest"]["empirical_coverage"] > 0 and p["data_quality"]["bank_quotes"] == "mixed"  # BRAC fees assumed
 
 
 def test_fx_overview_and_history(client):

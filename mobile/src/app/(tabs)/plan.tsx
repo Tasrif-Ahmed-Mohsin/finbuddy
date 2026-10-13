@@ -1,14 +1,16 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { DataBanner } from '@/components/data-banner';
 import { FxChart } from '@/components/fx-chart';
 import { YearPlanView } from '@/components/year-plan';
 import { ThemedText } from '@/components/themed-text';
 import { Badge, Button, Card, ErrorBox, H1, H2, Meter, Muted, Row, Screen, Segmented, Field, styles } from '@/components/ui';
-import { post, type Draft, type FxOverview, type FxPoint, type LivingPlan, type Timeline, type TuitionPlan } from '@/lib/api';
+import { post, type BankPrices, type Draft, type FxOverview, type FxPoint, type LivingPlan, type QuoteBasis, type Timeline, type TuitionPlan } from '@/lib/api';
+import type { StringKey } from '@/lib/i18n';
 import { bdt, cny, localDigits, num, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
+import { useLoad } from '@/lib/use-load';
 
 type Mode = 'year' | 'tuition' | 'living';
 
@@ -41,6 +43,61 @@ function PlanBody({ initial }: { initial: Mode }) {
 }
 
 const STATUS_TONE = { on_track: 'ok', urgent: 'warn', urgent_no_buffer: 'warn', at_risk_late: 'block' } as const;
+const BASIS: Record<QuoteBasis, { key: StringKey; tone: 'ok' | 'info' | 'warn' }> = {
+  published: { key: 'basisPublished', tone: 'ok' },
+  real_payment: { key: 'basisRealPayment', tone: 'info' },
+  user_quote: { key: 'basisUserQuote', tone: 'ok' },
+  estimate: { key: 'basisEstimate', tone: 'warn' },
+};
+
+/** Where a bank price comes from: the bank's published sheet, a real payment, your quote, or an estimate. */
+function BasisBadge({ basis, feesAssumed, date }: { basis: QuoteBasis; feesAssumed: boolean; date: string }) {
+  const { t, lang } = useSession();
+  const b = BASIS[basis];
+  return (
+    <Row>
+      <Badge tone={b.tone}>
+        {t(b.key)}
+        {basis === 'published' ? ` · ${shortDate(date, lang)}` : ''}
+      </Badge>
+      {feesAssumed && <Badge tone="neutral">{t('feesAssumed')}</Badge>}
+    </Row>
+  );
+}
+
+/** Opening and renewal fees from each bank's published schedule of charges. */
+function StudentFileFees() {
+  const { t, lang, call } = useSession();
+  const { data: prices } = useLoad(useCallback(() => call<BankPrices>('/market/prices'), [call]));
+  if (!prices) return null;
+  return (
+    <Card>
+      <H2>{t('studentFileFees')}</H2>
+      <Row style={styles.between}>
+        <Muted style={{ flex: 1 }}> </Muted>
+        <Muted style={{ width: 90, textAlign: 'right' }}>{t('openingFee')}</Muted>
+        <Muted style={{ width: 90, textAlign: 'right' }}>{t('renewalFee')}</Muted>
+      </Row>
+      {prices.student_file_fees.map((f) => (
+        <Row key={f.bank_id} style={styles.between}>
+          <ThemedText type="small" style={{ flex: 1 }}>
+            {f.bank}
+          </ThemedText>
+          <ThemedText type="smallBold" style={{ width: 90, textAlign: 'right' }}>
+            {f.opening_bdt ? bdt(f.opening_bdt, lang) : '–'}
+          </ThemedText>
+          <ThemedText type="smallBold" style={{ width: 90, textAlign: 'right' }}>
+            {f.renewal_bdt ? bdt(f.renewal_bdt, lang) : '–'}
+          </ThemedText>
+        </Row>
+      ))}
+      <Muted>
+        {t('feesSource')}
+        {prices.fees_reviewed ? ` (${shortDate(prices.fees_reviewed, lang)})` : ''}.
+      </Muted>
+    </Card>
+  );
+}
 
 /** Real BDT/CNY history, today's rate, and how often our past ranges were right (honesty first). */
 function FxCard() {
@@ -181,6 +238,8 @@ function TuitionPlanner() {
             <Card tone="ok">
               <Badge tone="ok">{t('bestOption')}</Badge>
               <H2>{best.bank}</H2>
+              <BasisBadge basis={best.basis} feesAssumed={best.fees_assumed} date={best.rate_date} />
+              <Muted>{best.rate_source}</Muted>
               <Row style={styles.between}>
                 <Muted>{t('total')}</Muted>
                 <ThemedText type="smallBold">{bdt(best.total_bdt, lang)}</ThemedText>
@@ -205,6 +264,7 @@ function TuitionPlanner() {
                   <ThemedText type="smallBold">{o.bank}</ThemedText>
                   <ThemedText type="smallBold">{bdt(o.total_bdt, lang)}</ThemedText>
                 </Row>
+                <BasisBadge basis={o.basis} feesAssumed={o.fees_assumed} date={o.rate_date} />
                 <Muted>
                   {t('hiddenCost')}: {bdt(o.overhead_bdt, lang)} ({num(o.overhead_pct, lang)}%)
                 </Muted>
@@ -229,6 +289,7 @@ function TuitionPlanner() {
           <QuoteForm onAdded={compare} />
         </>
       )}
+      <StudentFileFees />
     </>
   );
 }

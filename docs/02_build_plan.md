@@ -22,6 +22,13 @@
   - **Fixes**: the endorsement no longer blocks transfers (only card use); raw mandates are for the paying parent only; the Student File renewal link.
   - **Renewal plan** for a student abroad.
   - **Evidence**: 4 sandbox months, 0 stuck days, 187-entry log. **183 tests pass.**
+- ✅ **13 Oct: real bank prices.**
+  - Eastern Bank's daily CNY rate sheets (139 sheets, Mar–Oct 2026) via `scripts/fetch_bank_rates.py`, plus live refresh. Its CNY selling rate averaged +0.96% above the market.
+  - Per-transfer fees from published 2026 schedules (EBL Retail + SME; Southeast; Prime): commission by amount + correspondent ৳2,500 + SWIFT ৳500 + 15% VAT, i.e. ৳3,680 on ৳1.13 lakh.
+  - A Student File fee table: EBL ৳8,625 / ৳7,475; Southeast ৳8,050 / ৳4,025; Prime ৳6,900 / ৳6,900.
+  - The unnamed estimates are gone. Every price says where it comes from: published, real payment, your quote, or estimate. BRAC's fees are labelled as an assumption.
+  - The friend's ৳8,000 matches a one-time Student File opening fee.
+  - **203 tests pass.**
 - ⏭ Next: deck (≤10 min) + demo video (≤5 min); try on a real phone with Expo Go (fingerprint, speech in Bengali); deploy the backend; first full submission on 18 Oct; ask organisers whether the on-chain bonus expects FISCO BCOS (anchor the log's chain head); exact date of the friend's payment and real SMS samples.
 
 ---

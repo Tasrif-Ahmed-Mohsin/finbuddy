@@ -193,8 +193,13 @@ def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO) -> FastAPI:
                         "sample": m.mid.sample},
                 "quotes": [{"quote_id": q.quote_id, "bank": q.bank, "bdt_per_cny": str(q.bdt_per_cny),
                             "fixed_fee_bdt": str(q.fixed_fee_bdt), "markup_pct": str(q.markup_pct),
-                            "as_of": q.as_of, "estimate": q.sample, "source": q.source} for q in m.quotes],
+                            "as_of": q.as_of, "estimate": q.sample, "basis": q.basis, "fees_assumed": q.fees_assumed,
+                            "source": q.source} for q in m.quotes],
                 "data_quality": s.data_quality}
+
+    @app.get("/market/prices")
+    def bank_prices(s: AppState = Depends(svc)):
+        return s.bank_prices()
 
     @app.post("/market/quotes")
     def add_quote(body: QuoteIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):

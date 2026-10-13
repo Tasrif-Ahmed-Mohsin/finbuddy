@@ -68,6 +68,13 @@ export function YearPlanView() {
                 {t('feeTimesRate')}
               </ThemedText>
             )}
+            {truth.fee_note ? <Muted>ℹ️ {truth.fee_note}</Muted> : null}
+            {truth.published_same_window && (
+              <Muted>
+                {t('comparedPublished')} ৳{localDigits(truth.published_same_window.avg, lang)} ({num(truth.published_same_window.sheets, lang)}{' '}
+                {t('sheetsLabel')}: ৳{localDigits(truth.published_same_window.low, lang)}–{localDigits(truth.published_same_window.high, lang)})
+              </Muted>
+            )}
             <Muted>{truth.note}</Muted>
           </>
         )}

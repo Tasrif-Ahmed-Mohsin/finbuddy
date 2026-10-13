@@ -1,0 +1,78 @@
+# Published fees for sending money abroad from a Student File (Bangladesh). Amounts in BDT BEFORE VAT:
+# every schedule below says "+ 15% VAT" (VAT on bank services in Bangladesh).
+#
+# confidence: official   = the bank's own published schedule of charges / product page
+#             secondary  = published, but in another schedule of the same bank (e.g. its SME schedule)
+#             assumption = not published; we assume the structure of a published peer (labelled in the app)
+#
+# Checked by reading the original PDFs on 2026-10-13.
+
+reviewed: "2026-10-13"
+vat_pct: 15
+
+banks:
+  ebl:
+    name: "Eastern Bank (EBL)"
+    student_file:
+      opening: 7500        # = ৳8,625 incl. VAT, as on EBL's Student File page
+      renewal: 6500        # = ৳7,475 incl. VAT
+      confidence: official
+      source: "EBL Retail Schedule of Charges, effective 1 Jul 2026 (Student File service ৳7,500; renewal ৳6,500)"
+      url: "https://www.ebl.com.bd/assets/home/schedule/Retail-SOC-01-July-26v3.pdf"
+    transfer:
+      commission_tiers:    # by the BDT value sent: [up to BDT, fee]; null = no upper limit
+        - [100000, 100]
+        - [500000, 200]
+        - [1000000, 300]
+        - [null, 500]
+      commission_confidence: official
+      commission_source: "EBL Retail Schedule of Charges 1 Jul 2026: Outward Remittance FCY"
+      correspondent: 2500
+      correspondent_confidence: secondary
+      correspondent_source: "EBL SME Schedule of Charges 1 Jul 2026, 10.1.6: ৳2,500 + VAT 'for all outward remittance in all cases' (the retail schedule says 'at actual cost')"
+      swift: 500
+      swift_confidence: secondary
+      swift_source: "EBL SME Schedule of Charges 1 Jul 2026, 10.1.3: SWIFT ৳500 + VAT (the retail schedule says 'at actual cost')"
+      url: "https://www.ebl.com.bd/assets/home/schedule/SME-SOC-EFF-01st-July-2026.pdf"
+
+  southeast:
+    name: "Southeast Bank"
+    student_file:
+      opening: 7000
+      renewal: 3500        # "maintenance ৳3,500 for each subsequent year"
+      confidence: official
+      source: "Southeast Bank Foreign Trade Schedule of Charges, effective 1 Jan 2026, item 1"
+      url: "https://southeastbank.com.bd/documents/sbl_schedule_charge/Foreign%20Trade%2001.01.2026.pdf"
+    transfer:
+      commission_tiers:
+        - [100000, 100]
+        - [500000, 200]
+        - [1000000, 300]
+        - [null, 500]
+      commission_confidence: official
+      commission_source: "Southeast Bank Foreign Trade SOC 1 Jan 2026, item 5 (plus correspondent bank's charge, amount not published)"
+      correspondent: null  # "plus correspondent bank's charge": amount not published
+      swift: null
+
+  prime:
+    name: "Prime Bank"
+    student_file:
+      opening: 6000
+      renewal: 6000
+      confidence: official
+      source: "Prime Bank Student File Services Schedule of Charges, 1 Jul – 31 Dec 2026"
+      url: "https://www.primebank.com.bd/assets/schedule-charge/files/1782976521_SOC-STUDENT-BANKING-01-07-2026-TO-31-12-2026.pdf"
+    transfer: null         # not in the student schedule
+
+  brac:
+    name: "BRAC Bank"
+    student_file:
+      opening: null        # not found online
+      renewal: null
+      confidence: field
+      source: "Not found online. The interviewee paid about ৳8,000 with the first tuition payment, which matches other banks' published opening fees (৳6,900–৳8,625 incl. VAT): most likely the one-time Student File opening fee (to confirm)"
+      url: ""
+    transfer:
+      like: ebl            # BRAC's schedule was not found; assume the published structure of a peer
+      confidence: assumption
+      source: "BRAC Bank's schedule of charges was not found online; assumed to match Eastern Bank's published fees (Southeast Bank publishes the same commission tiers)"

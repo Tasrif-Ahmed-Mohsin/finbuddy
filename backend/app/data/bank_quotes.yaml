@@ -1,34 +1,32 @@
-# Bangladeshi bank CNY transfer pricing.
+# Bangladeshi bank CNY transfer prices: where every number comes from (see app/market.py).
 #
-# The MID-MARKET rate is REAL (live, see app/fx.py). Bank prices below are a markup over the live
-# mid-market rate plus a fixed fee. Real quotes can also be entered (POST /market/quotes).
+# The MID-MARKET rate is REAL (live, see app/fx.py). A bank price = the bank's CNY rate + its per-transfer fees.
+#   published_quotes : the bank's own daily rate sheet (app/bank_rates.py, data/bank_rates.csv) + its published
+#                      fee schedule (data/bank_fees.yaml)
+#   field_quotes     : a real payment someone made (rate) + published or assumed fees
+#   estimated_quotes : markup estimates. None are needed any more: every bank below has real or published data.
+# Users can also enter a real quote from their bank (POST /market/quotes).
 #
-# Calibration (2026-10-13): one REAL payment from our interviewee: BRAC Bank, 35,200 CNY tuition at
-# 18.35 BDT/CNY (late Aug / Sep 2026). The mid-market rate then averaged 18.31 (range 18.09–18.44), so BRAC's
-# rate was only ~+0.2% over mid-market (between −0.5% and +1.4% depending on the exact day). The
-# ~8,000 BDT Student File charge seen on that payment was the bigger cost. The generic estimates were
-# therefore lowered from 1.5–3.0% to 0.6–1.8%.
+# History: until 13 Oct 2026 we used three unnamed estimates ("Bank A/B/C") with fees of ৳800–1,725 per transfer.
+# The published schedules show real per-transfer fees are higher (EBL: ৳3,680 incl. VAT on a ৳1 lakh transfer),
+# and that the ~৳8,000 on the interviewee's payment matches a one-time Student File opening fee.
 
 source: "Estimated: markup over the live mid-market rate (not a real bank quote)"
 
-estimated_quotes:
+published_quotes:
+  - quote_id: "ebl-published"
+    bank: "Eastern Bank (EBL)"
+    rate_source: "ebl"      # bank_rates.csv: EBL daily sheet, CNY TT/OD selling
+    fees: "ebl"             # bank_fees.yaml: EBL Retail + SME schedules of charges, 1 Jul 2026
+
+field_quotes:
   - quote_id: "brac-field"
-    bank: "BRAC Bank (from 1 real payment, Sep 2026)"
-    markup_pct: "0.22"     # 18.35 vs average mid-market 18.31 (15 Aug–30 Sep 2026)
-    fixed_fee_bdt: "8000"  # includes the Student File charge seen on that payment; repeat-transfer fee unknown
-    source: "Field data: interviewee's real tuition payment (rate 18.35, ~8,000 BDT charge); exact date to confirm"
-  - quote_id: "est-a"
-    bank: "Bank A (estimate)"
-    markup_pct: "1.0"      # TT selling rate vs mid-market
-    fixed_fee_bdt: "1150"  # per transfer, VAT included
-  - quote_id: "est-b"
-    bank: "Bank B (estimate)"
-    markup_pct: "1.8"
-    fixed_fee_bdt: "800"
-  - quote_id: "est-c"
-    bank: "Bank C (estimate)"
-    markup_pct: "0.6"
-    fixed_fee_bdt: "1725"
+    bank: "BRAC Bank"
+    markup_pct: "0.22"      # 18.35 vs the average mid-market rate 18.31 (15 Aug–30 Sep 2026); see field_payments
+    fees: "brac"            # BRAC's schedule was not found: assumed like EBL's published fees (labelled)
+    source: "One real payment (Interview #1): 18.35 BDT/CNY, Aug–Sep 2026, exact day to confirm; compared with the market average for those weeks"
+
+estimated_quotes: []
 
 # Real payments reported by students (field data). Used to show where the money really went.
 field_payments:
@@ -40,3 +38,4 @@ field_payments:
     fee_bdt: "8000"
     window: ["2026-08-15", "2026-09-30"]  # exact payment date not known yet: compare with the average over this window
     source: "Interview #1 (2026-10-12/13): 35,200 CNY tuition, rate 18.35 BDT/CNY, ~8,000 BDT file charge"
+    fee_note: "Most likely the one-time Student File opening fee: banks publish ৳6,900–৳8,625 incl. VAT (Prime, Southeast, Eastern Bank, 2026). To confirm with the interviewee."

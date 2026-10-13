@@ -8,6 +8,7 @@ export function DataBanner({ dq }: { dq?: DataQuality | null }) {
   const { t, lang } = useSession();
   if (!dq) return null;
   const rate = dq.mid === 'fixture' ? t('sampleBanner') : `${dq.mid === 'live' ? t('liveRate') : t('savedRate')} ${shortDate(dq.mid_as_of, lang)}`;
-  const quotes = dq.bank_quotes === 'real' ? t('bankReal') : dq.bank_quotes === 'mixed' ? t('bankMixed') : t('bankEstimates');
-  return <Banner tone={dq.bank_quotes === 'real' && dq.mid !== 'fixture' ? 'ok' : 'warn'}>{`${rate} · ${quotes}`}</Banner>;
+  const quotes = dq.bank_quotes === 'published' ? t('pricesPublished') : dq.bank_quotes === 'mixed' ? t('pricesMixed') : t('bankEstimates');
+  const tone = dq.mid === 'fixture' || dq.bank_quotes === 'estimated' ? 'warn' : dq.bank_quotes === 'published' ? 'ok' : 'info';
+  return <Banner tone={tone}>{`${rate} · ${quotes}`}</Banner>;
 }

@@ -86,9 +86,15 @@ def tt_cost(
     ]
     if intermediary_fee_cny:
         lines.append(CostLine("Intermediary bank deduction (covered)", intermediary_bdt))
-    lines.append(CostLine("Bank transfer fee", quote.fixed_fee_bdt))
-    total = sent_cny * quote.bdt_per_cny + quote.fixed_fee_bdt
-    notes = ["Rates are SAMPLE data, not a real quote"] if quote.sample else []
+    principal = sent_cny * quote.bdt_per_cny
+    fee_lines = quote.fee_lines(principal)  # published schedule (commission by amount + correspondent + SWIFT + VAT)
+    lines += [CostLine(label, amt, "fee") for label, amt in fee_lines]
+    total = principal + sum((amt for _, amt in fee_lines), Decimal(0))
+    notes = []
+    if quote.sample:
+        notes.append("Bank price is an estimate, not a real quote")
+    if quote.fees_assumed:
+        notes.append("Fees assumed from a peer bank's published schedule")
     return CostBreakdown(route, delivered_cny, total, mid_value, lines, 0, notes)
 
 

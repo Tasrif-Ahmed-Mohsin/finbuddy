@@ -262,6 +262,20 @@ const en = {
   whatYouApprove: "What you are approving",
   settingsLink: "Settings",
   autopilotPayments: "Autopilot payments",
+  basisPublished: "Published by the bank",
+  basisRealPayment: "From a real payment",
+  basisUserQuote: "Your real quote",
+  basisEstimate: "Estimate",
+  feesAssumed: "fees assumed from a peer bank",
+  pricesPublished: "bank prices: published rates and fees",
+  pricesMixed: "bank prices: published or real, some fees assumed",
+  studentFileFees: "Student File fees by bank (incl. 15% VAT)",
+  openingFee: "Opening",
+  renewalFee: "Yearly renewal",
+  notPublished: "not published",
+  comparedPublished: "Same weeks, Eastern Bank's published rate averaged",
+  sheetsLabel: "sheets",
+  feesSource: "Fees from each bank's published schedule of charges",
 };
 
 type Dict = typeof en;
@@ -527,6 +541,20 @@ const bn: Dict = {
   whatYouApprove: "আপনি যা অনুমোদন করছেন",
   settingsLink: "সেটিংস",
   autopilotPayments: "অটোপাইলট পেমেন্ট",
+  basisPublished: "ব্যাংকের প্রকাশিত হার",
+  basisRealPayment: "সত্যিকারের পেমেন্ট থেকে",
+  basisUserQuote: "আপনার দেওয়া সত্যিকারের দর",
+  basisEstimate: "আনুমানিক",
+  feesAssumed: "ফি অন্য ব্যাংকের প্রকাশিত হার ধরে নেওয়া",
+  pricesPublished: "ব্যাংকের দর: প্রকাশিত হার ও ফি",
+  pricesMixed: "ব্যাংকের দর: প্রকাশিত বা সত্যিকারের, কিছু ফি অনুমান",
+  studentFileFees: "ব্যাংক অনুযায়ী স্টুডেন্ট ফাইলের ফি (১৫% ভ্যাটসহ)",
+  openingFee: "খোলার ফি",
+  renewalFee: "বাৎসরিক নবায়ন",
+  notPublished: "প্রকাশিত নয়",
+  comparedPublished: "একই সপ্তাহগুলোতে ইস্টার্ন ব্যাংকের প্রকাশিত হারের গড়",
+  sheetsLabel: "দিনের শিট",
+  feesSource: "ফি প্রতিটি ব্যাংকের প্রকাশিত চার্জ তালিকা থেকে",
 };
 
 const zh: Dict = {
@@ -790,6 +818,20 @@ const zh: Dict = {
   whatYouApprove: "你正在批准的内容",
   settingsLink: "设置",
   autopilotPayments: "自动付款",
+  basisPublished: "银行公布",
+  basisRealPayment: "来自真实付款",
+  basisUserQuote: "你输入的真实报价",
+  basisEstimate: "估算",
+  feesAssumed: "费用参照同业银行估算",
+  pricesPublished: "银行价格：公布的汇率和费用",
+  pricesMixed: "银行价格：公布或真实数据，部分费用为估算",
+  studentFileFees: "各银行留学档案费用（含15%增值税）",
+  openingFee: "开户",
+  renewalFee: "每年续办",
+  notPublished: "未公布",
+  comparedPublished: "同期东方银行公布汇率的平均值",
+  sheetsLabel: "份牌价",
+  feesSource: "费用来自各银行公布的收费表",
 };
 
 export const STRINGS: Record<Lang, Dict> = { en, bn, zh };

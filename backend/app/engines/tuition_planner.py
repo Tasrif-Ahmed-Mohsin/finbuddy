@@ -64,7 +64,9 @@ def plan_tuition(req: TuitionRequest, corridor: Corridor, market: Market, fx: Ra
         "status": status,
         "transfer_days": transfer_days,
         "buffer_days": buffer_days,
-        "options": [{"bank": q.bank, "quote_id": q.quote_id, "sample": q.sample, **c.to_dict()} for q, c in options],
+        "options": [{"bank": q.bank, "quote_id": q.quote_id, "sample": q.sample, "basis": q.basis,
+                     "fees_assumed": q.fees_assumed, "rate_source": q.source, "rate_date": q.as_of, **c.to_dict()}
+                    for q, c in options],
         "best_quote_id": best_q.quote_id,
         "savings_best_vs_worst_bdt": str(q2(worst.total_bdt - best.total_bdt)),
         "savings_best_vs_current_bdt": str(q2(current[1].total_bdt - best.total_bdt)) if current else None,
@@ -79,8 +81,8 @@ def plan_tuition(req: TuitionRequest, corridor: Corridor, market: Market, fx: Ra
         principal = amount * best_q.bdt_per_cny
         result["wait_risk"] = {
             "pay_now_bdt": str(q2(pay_now)),
-            "if_wait_low_bdt": str(q2(principal * scale_lo + best_q.fixed_fee_bdt)),
-            "if_wait_high_bdt": str(q2(principal * scale_hi + best_q.fixed_fee_bdt)),
+            "if_wait_low_bdt": str(q2(principal * scale_lo + best_q.fee_total(principal * scale_lo))),
+            "if_wait_high_bdt": str(q2(principal * scale_hi + best_q.fee_total(principal * scale_hi))),
             "level": fx.level,
             "horizon_days": fx.horizon_days,
             "honest_note": (

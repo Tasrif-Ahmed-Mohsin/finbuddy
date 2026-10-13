@@ -78,7 +78,7 @@ export type TuitionPlan = {
   status: 'on_track' | 'urgent' | 'urgent_no_buffer' | 'at_risk_late';
   transfer_days: number;
   buffer_days: number;
-  options: (CostBreakdown & { bank: string; quote_id: string; sample: boolean })[];
+  options: (CostBreakdown & { bank: string; quote_id: string; sample: boolean; basis: QuoteBasis; fees_assumed: boolean; rate_source: string; rate_date: string })[];
   best_quote_id: string;
   savings_best_vs_worst_bdt: string;
   wait_risk: null | {
@@ -145,12 +145,43 @@ export type Timeline = {
   card: Card;
 };
 
+export type QuoteBasis = 'published' | 'real_payment' | 'user_quote' | 'estimate';
+
 export type DataQuality = {
   mid: 'live' | 'saved' | 'fixture';
   mid_as_of: string;
   mid_source: string;
   bdt_per_cny: string;
-  bank_quotes: 'estimated' | 'mixed' | 'real';
+  bank_quotes: 'estimated' | 'mixed' | 'published';
+  quotes?: { bank: string; basis: QuoteBasis; as_of: string; fees_assumed: boolean }[];
+};
+
+export type StudentFileFee = {
+  bank_id: string;
+  bank: string;
+  opening_bdt: string | null;
+  renewal_bdt: string | null;
+  confidence: string;
+  source: string;
+  url: string;
+};
+
+export type BankPrices = {
+  quotes: {
+    quote_id: string;
+    bank: string;
+    basis: QuoteBasis;
+    bdt_per_cny: string;
+    markup_pct: string;
+    as_of: string;
+    rate_source: string;
+    fees_assumed: boolean;
+    fee_example: { for_bdt: string; total_bdt: string; lines: { label: string; bdt: string }[] };
+  }[];
+  student_file_fees: StudentFileFee[];
+  published_history: { date: string; bank_id: string; cny_tt_selling: string; cny_bank_mid: string }[];
+  quality: DataQuality['bank_quotes'];
+  fees_reviewed: string | null;
 };
 
 export type Card = {
@@ -458,9 +489,11 @@ export type CostTruth = {
   rate_markup_pct: string;
   fee_bdt: string;
   fee_vs_rate: string | null;
+  fee_note: string | null;
   source: string;
   note: string;
   window: [string, string];
+  published_same_window: { bank_id: string; sheets: number; avg: string; low: string; high: string; paid_vs_published_avg_pct: string; paid_below_every_sheet: boolean } | null;
 };
 
 export type YearPlan = {
@@ -478,6 +511,7 @@ export type YearPlan = {
   strategies: { today: YearStrategy; sathi: YearStrategy };
   events: YearEvent[];
   cost_truth: CostTruth[];
+  student_file_fees: StudentFileFee[];
   assumptions: ({ name: string } & CorridorParam)[];
   mandate: MandateView | null;
   data_quality: DataQuality;

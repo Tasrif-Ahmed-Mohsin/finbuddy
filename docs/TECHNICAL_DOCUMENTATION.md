@@ -3,7 +3,12 @@
 **FinTechathon 2026 · International Track · Topic C: Cross-border & Student Finance Assistant**
 Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy · Version: 13 Oct 2026 · Companion: [SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md)
 
-> **Sandbox:** no real money moves. All payments run in a simulated bank. The **exchange rate is real** (live, plus 953 days of saved daily history). **Bank prices are estimates**, calibrated with one real payment (BRAC Bank, ৳18.35/¥), until real quotes are entered. Every rule and holiday date carries its source and a confidence label.
+> **Sandbox:** no real money moves. All payments run in a simulated bank. The **exchange rate is real** (live, plus 953 days of saved daily history). **Bank prices are real or published**:
+> - Eastern Bank's own daily CNY rate sheets (`bank_rates.csv`, refreshed automatically).
+> - Fees from banks' published 2026 schedules of charges.
+> - One real payment (BRAC Bank, ৳18.35/¥).
+>
+> The few parts that are not published are labelled as assumptions. Every rule, fee and holiday date carries its source and a confidence label.
 
 ---
 
@@ -34,7 +39,7 @@ When the channel breaks, families are pushed toward hundi, and in China, money f
 | **Task planning** | Year plan with look-ahead top-ups; living optimiser; tuition send-by planner; renewal plan for a student abroad |
 | **Safe execution** | Autopilot only inside a signed mandate (L3); every payment re-checked by deterministic compliance rules; approval tokens bound to the exact draft; sandbox bank; hash-chained log |
 | **User control** | Read-back read aloud before signing or approving; signatures bound to the proposal hash; two-person rule from ৳1 lakh; one-tap cancel; the family is asked whenever a limit would be exceeded |
-| **Measurable value** | Stuck days: **20 → 0** in the year plan, **0** in a 4-month live sandbox run; overhead **3.34% → 2.15%**; the real payment's fee was **5.5×** its rate markup |
+| **Measurable value** | Stuck days: **20 → 0** in the year plan, **0** in a 4-month live sandbox run; overhead **4.39% → 3.88%** with published bank fees; the real payment's fee was **5.5×** its rate markup |
 
 ## 2. Problem and evidence (short)
 
@@ -147,7 +152,7 @@ sequenceDiagram
 | `backend/app/corridors/bd_cn.yaml` | Rule pack: every number with value, confidence (official / secondary / field / assumption) and source |
 | `backend/app/data/` | `bank_holidays.yaml` (BD + CN closures), `bank_quotes.yaml` (estimates + real payment), `fx_history.csv`, `demo_messages.yaml` |
 | `backend/scripts/` | `fetch_fx_history.py` (data pipeline), `demo_scenario.py` (end-to-end run + evidence export) |
-| `backend/tests/` | 183 automated test cases (13 files) |
+| `backend/tests/` | 203 automated test cases (14 files) |
 | `mobile/src/` | Expo Router screens (`app/`), components, API client, i18n (bn/en/zh), formatting (lakh, Bengali digits) |
 | `docs/` | Research, plans, this document, security self-assessment, `evidence/` (sandbox operation logs) |
 
@@ -174,9 +179,11 @@ A **stuck day** is a day the student cannot cover their spending. The **bank cal
 | | Today's habits | Sathi |
 |---|---|---|
 | Days without money | **20** (5 spells: just after the card stops; Spring Festival; Eid-ul-Fitr; a weekend; Eid-ul-Azha) | **0** |
-| Fees + markup | ৳31,995 (**3.34%**) | ৳21,499 (**2.15%**) |
-| Of which fees and surcharges | **70%** | 54% |
-| Saved for the same money | | **৳11,899** |
+| Fees + markup (published rates and fees) | ৳42,005 (**4.39%**) | ৳38,772 (**3.88%**) |
+| Of which fees and surcharges | **89%** | 94% |
+| Saved for the same money | | **৳5,126** |
+
+With real published fees (৳3,680 per transfer at EBL), a transfer is fee-heavy and rate-light. Sathi's value is mainly **no stuck days**; the cost saving comes from avoiding ATM fees and card surcharges. Larger, less frequent transfers would cut fees further, but the mandate's per-payment cap is the family's choice.
 
 Each stuck spell lists its reason ("The card stopped working abroad when the endorsement ended on 2026-12-31 (renewing it needs the student at the bank in Bangladesh)"; "Banks were closed for Eid-ul-Fitr, which delayed the transfer").
 
@@ -224,10 +231,31 @@ It runs once per sandbox day, and right after a mandate is signed:
 
 It also warns 14 days before the mandate ends and when the card is about to stop. Reading an SMS never triggers a payment.
 
-### 4.5 All-in cost engine and cost truth (`engines/cost.py`, `engines/cost_truth.py`)
+### 4.5 All-in cost engine and cost truth (`engines/cost.py`, `engines/cost_truth.py`, `market.py`, `bank_rates.py`)
 All money uses `Decimal`. Each line is tagged `mid` (the money itself), `rate` (exchange-rate markup) or `fee` (fixed fees and surcharges), so the app can show **where the money goes**.
 
-- TT: `total = (X + intermediary) × bank_rate + fixed_fee`
+**Where bank prices come from.** Each price has two halves, each with its own label:
+
+| Half | Sources, best first |
+|---|---|
+| Rate | `published`: the bank's own daily sheet · `real_payment` · `user_quote` · `estimate` |
+| Fees | the bank's published schedule of charges; otherwise a peer bank's schedule, labelled `assumption` |
+
+There are no unnamed estimates any more. A bank whose fees are not published at all is not priced.
+
+**Rates: `bank_rates.py`, `scripts/fetch_bank_rates.py`.**
+- Eastern Bank (EBL) publishes a daily PDF rate sheet with a CNY row. The fetcher downloads the sheets (incremental, one request at a time) and parses the CNY TT/OD selling rate and EBL's own mid-rate. Two date layouts are supported.
+- Each row is sanity-checked: buying < mid < selling, spread < 5%. A changed layout is **rejected, not guessed**.
+- Downloaded PDFs are untrusted: magic bytes, ≤ 2 MB, ≤ 5 pages, parsed in memory.
+- In `live` mode the server also tries today's sheet, at most once an hour, with a 4-second timeout, and falls back to the saved file.
+- If the market rate and the sheet are from the same days (±3), the published rate is used as is. Otherwise (an old sheet, or the test fixture) the bank's own published markup over its mid-rate is applied to today's market rate.
+
+**Fees: `data/bank_fees.yaml`**, read from the original PDFs on 13 Oct 2026:
+- **Per transfer:** commission by the BDT value sent (৳100 / 200 / 300 / 500 up to ৳1 lakh / ৳5 lakh / ৳10 lakh / above; identical at EBL and Southeast Bank), plus correspondent bank ৳2,500 and SWIFT ৳500, plus 15% VAT on all fees. Example: a ৳1,13,000 transfer pays **৳3,680** in fees at EBL.
+- **Student File:** opening and yearly renewal fees per bank, incl. VAT: EBL ৳8,625 / ৳7,475; Southeast ৳8,050 / ৳4,025; Prime ৳6,900 / ৳6,900. These are shown as a comparison table, not added to each transfer.
+
+**Formulas:**
+- TT: `total = (X + intermediary) × bank_rate + fees(principal)`, with `fees = (commission(principal) + correspondent + SWIFT) × 1.15`
 - ATM withdrawal i: `(wᵢ + CN_fee) × mid × (1+card_markup) × (1+non_USD_factor) + BD_fee`
 - Alipay with a foreign card: 3% above ¥200.
 
@@ -238,6 +266,9 @@ All money uses `Decimal`. Each line is tagged `mid` (the money itself), `rate` (
 | Rate markup | **৳1,448 (0.22%)** |
 | Fixed charge | **৳8,000** |
 | Charge vs markup | **5.5×** |
+| Eastern Bank's published rate, same weeks | ৳18.49 average over 30 sheets (৳18.33–18.55): BRAC's ৳18.35 was 0.74% below that average |
+
+The ৳8,000 matches the banks' published one-time **Student File opening fees** (৳6,900–৳8,625 incl. VAT), so it was most likely not a per-transfer charge (to confirm with the interviewee).
 | Paid in total | ৳6,53,920 |
 
 ### 4.6 Living-money constrained optimiser (`engines/living_planner.py`)
@@ -249,7 +280,7 @@ Every option must stay within:
 - the USD 2,000/month living-remittance cap;
 - a cash bridge for the days before a transfer can arrive.
 
-Every rejected option records which limit it breaks. A property-style test checks 30 input combinations: the chosen plan **never breaks a limit**. Result on real rates: ¥6,000 a month saves ৳3,288 compared with ATM only.
+Every rejected option records which limit it breaks. A property-style test checks 30 input combinations: the chosen plan **never breaks a limit**. Result on real rates and published fees: ¥6,000 a month saves ৳3,001 compared with ATM only.
 
 ### 4.7 Tuition planner (`engines/tuition_planner.py`)
 - **Send-by date** = deadline − transfer days (7) − buffer (3). Chinese universities count a fee as paid on arrival.
@@ -327,13 +358,14 @@ Full details, the permission-tier implementation and the known-risk list are in 
 | Data | Source | Confidence / licence |
 |---|---|---|
 | Mid-market BDT/CNY (live + 953 days) | fawazahmed0/exchange-api | CC0-1.0 (public domain) |
-| Bank prices | `bank_quotes.yaml`: estimates + **1 real BRAC payment** (৳18.35/¥, ~৳8,000 charge) | estimate labelled in the app |
+| Bank rates | `bank_rates.csv`: **Eastern Bank's published daily CNY sheets** (fetched by `scripts/fetch_bank_rates.py`) + **1 real BRAC payment** (৳18.35/¥) | published (indicative) / field |
+| Bank fees | `bank_fees.yaml`: EBL Retail + SME schedules (1 Jul 2026), Southeast Bank (1 Jan 2026), Prime Bank (Jul–Dec 2026) | official / secondary; BRAC fees = assumption (schedule not found) |
 | Rules and limits | `corridors/bd_cn.yaml`, 34 parameters, each with source | official / secondary / field / assumption |
 | Bank holidays | `data/bank_holidays.yaml`, BD + CN, Oct 2026 – Sep 2027 | official (fixed dates) / secondary / assumption (lunar dates) |
 | Demo messages | `data/demo_messages.yaml` | **synthetic**, written by us |
 | Research | `docs/01_problem_research.md` | sources cited per item |
 
-**Software licences** (all permissive): FastAPI, Pydantic, PyYAML, pytest (MIT); Uvicorn, NumPy, httpx, qrcode (BSD); Expo, React Native, react-native-svg and Expo modules incl. expo-speech (MIT).
+**Software licences** (all permissive): FastAPI, Pydantic, PyYAML, pytest (MIT); Uvicorn, NumPy, httpx, qrcode, pypdf (BSD); Expo, React Native, react-native-svg and Expo modules incl. expo-speech (MIT). Bank rate sheets and schedules of charges are public documents published by the banks; we store only the numbers we use, with their source address.
 
 ## 7. Measurable value
 
@@ -341,9 +373,10 @@ Full details, the permission-tier implementation and the known-risk list are in 
 |---|---|---|
 | Days without money (year) | **20 → 0** | year plan, same banks and rate (§4.1) |
 | Days without money (live) | **0** over 12 Oct 2026 → 21 Feb 2027, through the card stop and Spring Festival | `demo_scenario.py` in the live sandbox |
-| Overhead for the year | **3.34% → 2.15%** (৳11,899 saved for the same money) | year plan |
-| Where money is lost | fees are **70%** of today's loss; the real payment's charge was **5.5×** its rate markup | cost truth (§4.5) |
-| Living money ¥6,000/month | ৳3,288 saved per month vs ATM-only | optimiser |
+| Overhead for the year | **4.39% → 3.88%** (৳5,126 saved for the same money), with published fees | year plan |
+| Where money is lost | fees are **89%** of today's loss; the real payment's charge was **5.5×** its rate markup | cost truth (§4.5) |
+| Bank rate markup (published) | Eastern Bank's CNY TT selling averaged **+0.96%** over the market (median 0.97%, range 0.28–1.52%, 138 days) | 139 published sheets |
+| Living money ¥6,000/month | ৳3,001 saved per month vs ATM-only | optimiser |
 | Limits | 0 breaches in 30 tested combinations; autopilot never above a mandate or the living cap (tested) | automated tests |
 | FX honesty | 7-day 80% ranges right **81.9%** of 689 tests | coverage backtest |
 | Safety | every red-team case blocked (security report §9) | automated tests |
@@ -388,11 +421,12 @@ cd mobile && npm install && npx expo start
 
 ## 10. Testing and execution evidence
 
-- `cd backend && .venv/Scripts/python -m pytest -q` runs **183 test cases** (139 test functions, some parameterised), all passing:
+- `cd backend && .venv/Scripts/python -m pytest -q` runs **203 test cases** (156 test functions, some parameterised), all passing:
 
   | Area | Test cases |
   |---|---|
   | Living optimiser (incl. 30-combination limit check) | 36 |
+  | **Bank prices: published sheets, fee schedules, labels** | **21** |
   | **Family mandate, signatures and autopilot** | **26** |
   | Security and permissions | 20 |
   | Inbox and privacy | 17 |
@@ -426,7 +460,11 @@ cd mobile && npm install && npx expo start
 ## 11. Limitations and next steps
 
 - **Sandbox only.** Real execution would go through licensed banks: the autopilot would submit Student File transfer requests via a bank API, or prepare a branch-ready request.
-- **Bank prices** rest on one real data point. Next: anonymous, consented "true-cost" contributions from students' parsed bank alerts, shown only when at least k students have contributed.
+- **Bank prices:** one bank publishes daily CNY rates that we can read (EBL). The sheets are "indicative", and BRAC's schedule of charges was not found online (its fees are an assumption). Next:
+  - read more banks' sheets;
+  - ask the banks for the "at actual cost" correspondent and SWIFT charges;
+  - collect real debit advices from students;
+  - anonymous, consented "true-cost" contributions from students' parsed bank alerts, shown only when at least k students have contributed.
 - **Lunar holiday dates are estimates** until the governments publish them. China's make-up working Saturdays are not modelled.
 - **The demo persona's spending is constant** (¥200/day). Real spending varies, so the cushion would adapt to the real alerts.
 - **On-chain anchoring is not used yet.** The hash chain is ready: anchoring daily chain heads on a permissioned chain such as FISCO BCOS would let a bank verify the receipts without trusting our server.
