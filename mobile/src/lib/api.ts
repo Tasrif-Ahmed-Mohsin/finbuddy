@@ -518,6 +518,26 @@ export type YearPlan = {
   method: string;
 };
 
+export type StuckStats = { zero_share_pct: number; median: number; p90: number; worst: number; mean: number };
+export type WhatIfKey = 'taka_weakens_10' | 'spending_plus_30' | 'transfers_3_days_late' | 'holidays_2_days_later' | 'all_at_once';
+export type StressTest = {
+  runs: number;
+  seed: number;
+  assumptions: Record<string, string>;
+  stuck_days: { today: StuckStats; sathi: StuckStats };
+  sathi_worst: { stuck_days: number; holiday_shift: number; periods: { from: string; to: string; days: number; reasons: string[] }[] } | null;
+  what_if: {
+    key: WhatIfKey;
+    stuck_days_sathi: number;
+    stuck_days_today: number;
+    family_pays_bdt: string;
+    change_bdt: string;
+    overhead_pct: string;
+    overhead_pct_today: string;
+  }[];
+  method: string;
+};
+
 export type Receipt = {
   draft: Draft;
   authority:

@@ -14,23 +14,24 @@ Exchange rates: real saved history (mode `offline`); bank prices are estimates e
 | 1 | 2026-10-12 | Sense: bank SMS/email | 11/12 synthetic alerts kept (non-money message dropped, OTPs removed); 7 insights: atm_fee_leak, duplicate_charge, fx_markup, large_debit, otp_received, phishing_link, suspicious_message |
 | 2 | 2026-10-12 | Sense: money in China | ¥2300.00 at ¥200.00/day: runs out 2026-10-23; card works abroad until 2026-12-31 |
 | 3 | 2026-10-12 | Plan: year plan | today's habits → 20 stuck days (2027-01-11→2027-01-11 (1d); 2027-02-11→2027-02-14 (4d); 2027-03-17→2027-03-21 (5d); 2027-04-21→2027-04-21 (1d); 2027-05-22→2027-05-30 (9d)); Sathi plan → 0; overhead 4.39% → 3.88% (saves ৳5125.92); fees are 89.42% of today's loss |
-| 4 | 2026-10-12 | Plan: cost truth (real payment) | BRAC rate 18.35 vs market avg 18.31 → markup ৳1448.14 (0.22%); fixed charge ৳8000.00 = 5.52× the rate markup |
-| 5 | 2026-10-12 | Act: mandate from the parent's words | Bengali instruction → up to ৳120000.00 per calendar month, student's own account only, until 2027-04-10; signers ['parent', 'student'] (two-person rule); parser=rules |
-| 6 | 2026-10-12 | Act: signatures → autopilot | wrong hash → HTTP 403; agent signs → HTTP 403; parent + student signed; autopilot sent ¥6100 at once (lands 2026-10-19) |
-| 7 | 2026-10-12 | Security: injected instruction | proposal status=needs_changes: This text contains scam or prompt-injection signals (prompt injection), so Sathi will not … |
-| 8 | 2026-10-12 | T4 scam blocked | draft draft-0005 status=blocked; failed checks: payee_allowlisted, origin_message_safe |
-| 9 | 2026-10-12 | T1 tuition | best BRAC Bank ৳653435.64; read aloud before signing: “আপনি Demo University Finance Office (Sandbox Bank of China ****6021)-ক…”; agent execute → HTTP 403; approved by parent, student; sent |
-| 10 | 2026-10-12 | Card controls | agent (fallback) froze card via ['check_message', 'freeze_card']; agent unfreeze → HTTP 403; student unfroze with fingerprint/PIN |
-| 11 | 2026-10-12 | T3 renewal from abroad | renewal needs the student in person → plan: check Chinese account by 2026-12-12, living money by transfer by 2026-12-19 (done: mandate signed), renew on the next visit home |
-| 12 | 2026-10-19 | Tuition arrived | university account ¥35200.00 (deadline 2026-11-15) |
-| 13 | 2027-01-22 | Card stopped abroad (31 Dec) | card usable=False; living money kept arriving by transfer; stuck days so far = 0 |
-| 14 | 2027-02-21 | Spring Festival passed | stuck days in the live sandbox = 0; autopilot payments = 4 (all to the student's own account, inside the mandate); family approvals when the cap was not enough: ¥4200.00 on 2027-01-28 |
-| 15 | 2027-02-21 | Prove: family feed (Bengali) | “সাথী শিক্ষার্থীর চীনের অ্যাকাউন্টে ¥৫,৬০০ পাঠিয়েছে: খরচ ৳১,০৭,০৩২ (BRAC Bank)। পৌঁছাবে ২০২৭-০১-১৪। এখন কেন: ২০২৭-০১-১৬ তারিখে হাতে ৫ দিনের কম …” |
-| 16 | 2027-02-21 | Prove: receipts | 6 payments: 2 approved by people (EXECUTE), 4 by the autopilot under the signed mandate (MANDATE, proposal hash e40b5cf1031a…) |
-| 17 | 2027-02-21 | Prove: payment passport | 6 payments, on time 1/1; verify → True; tampered copy → False |
+| 4 | 2026-10-12 | Plan: stress test | 200 messy years (seed 2026): stuck days median 30.0 → 0.0, mean 30.1 → 0.9, worst 52 → 10; years with none 0.0% → 64.0%. What if (today→Sathi): taka_weakens_10 20→0; spending_plus_30 38→0; transfers_3_days_late 23→0; holidays_2_days_later 20→0; all_at_once 45→0 |
+| 5 | 2026-10-12 | Plan: cost truth (real payment) | BRAC rate 18.35 vs market avg 18.31 → markup ৳1448.14 (0.22%); fixed charge ৳8000.00 = 5.52× the rate markup |
+| 6 | 2026-10-12 | Act: mandate from the parent's words | Bengali instruction → up to ৳120000.00 per calendar month, student's own account only, until 2027-04-10; signers ['parent', 'student'] (two-person rule); parser=rules |
+| 7 | 2026-10-12 | Act: signatures → autopilot | wrong hash → HTTP 403; agent signs → HTTP 403; parent + student signed; autopilot sent ¥6100 at once (lands 2026-10-19) |
+| 8 | 2026-10-12 | Security: injected instruction | proposal status=needs_changes: This text contains scam or prompt-injection signals (prompt injection), so Sathi will not … |
+| 9 | 2026-10-12 | T4 scam blocked | draft draft-0005 status=blocked; failed checks: payee_allowlisted, origin_message_safe |
+| 10 | 2026-10-12 | T1 tuition | best BRAC Bank ৳653435.64; read aloud before signing: “আপনি Demo University Finance Office (Sandbox Bank of China ****6021)-ক…”; agent execute → HTTP 403; approved by parent, student; sent |
+| 11 | 2026-10-12 | Card controls | agent (fallback) froze card via ['check_message', 'freeze_card']; agent unfreeze → HTTP 403; student unfroze with fingerprint/PIN |
+| 12 | 2026-10-12 | T3 renewal from abroad | renewal needs the student in person → plan: check Chinese account by 2026-12-12, living money by transfer by 2026-12-19 (done: mandate signed), renew on the next visit home |
+| 13 | 2026-10-19 | Tuition arrived | university account ¥35200.00 (deadline 2026-11-15) |
+| 14 | 2027-01-22 | Card stopped abroad (31 Dec) | card usable=False; living money kept arriving by transfer; stuck days so far = 0 |
+| 15 | 2027-02-21 | Spring Festival passed | stuck days in the live sandbox = 0; autopilot payments = 4 (all to the student's own account, inside the mandate); family approvals when the cap was not enough: ¥4200.00 on 2027-01-28 |
+| 16 | 2027-02-21 | Prove: family feed (Bengali) | “সাথী শিক্ষার্থীর চীনের অ্যাকাউন্টে ¥৫,৬০০ পাঠিয়েছে: খরচ ৳১,০৭,০৩২ (BRAC Bank)। পৌঁছাবে ২০২৭-০১-১৪। এখন কেন: ২০২৭-০১-১৬ তারিখে হাতে ৫ দিনের কম …” |
+| 17 | 2027-02-21 | Prove: receipts | 6 payments: 2 approved by people (EXECUTE), 4 by the autopilot under the signed mandate (MANDATE, proposal hash e40b5cf1031a…) |
+| 18 | 2027-02-21 | Prove: payment passport | 6 payments, on time 1/1; verify → True; tampered copy → False |
 
-**Audit log:** 187 entries, hash chain valid = **True** (file: `sandbox_operation_log.jsonl`).
+**Audit log:** 188 entries, hash chain valid = **True** (file: `sandbox_operation_log.jsonl`).
 
-Permission levels in the log: DRAFT ×15, EXECUTE ×8, MANDATE ×9, READ ×16, SYSTEM ×139
+Permission levels in the log: DRAFT ×15, EXECUTE ×8, MANDATE ×9, READ ×17, SYSTEM ×139
 
-Events: agent_chat ×1, autopilot_escalated ×1, card_active ×1, card_frozen ×1, clock_advanced ×132, draft_approved ×3, draft_created ×7, mandate_created ×1, mandate_proposed ×2, mandate_sign_denied ×1, mandate_signed ×2, message_checked ×1, message_dropped ×1, message_ingested ×11, passport_issued ×1, permission_denied ×3, plan_tuition ×1, renewal_planned ×1, renewal_step ×2, sandbox_seeded ×1, transfer_arrived ×6, transfer_sent ×6, year_planned ×1
+Events: agent_chat ×1, autopilot_escalated ×1, card_active ×1, card_frozen ×1, clock_advanced ×132, draft_approved ×3, draft_created ×7, mandate_created ×1, mandate_proposed ×2, mandate_sign_denied ×1, mandate_signed ×2, message_checked ×1, message_dropped ×1, message_ingested ×11, passport_issued ×1, permission_denied ×3, plan_tuition ×1, renewal_planned ×1, renewal_step ×2, sandbox_seeded ×1, stress_tested ×1, transfer_arrived ×6, transfer_sent ×6, year_planned ×1

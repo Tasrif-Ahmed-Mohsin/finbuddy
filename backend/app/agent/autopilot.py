@@ -50,7 +50,7 @@ class Autopilot:
     def tick(self) -> list[dict]:
         app = self.app
         today: date = app.now.date()
-        policy, cal = app.policy, app.calendar
+        policy, cal = app.planning_policy, app.calendar
         bal, transit = app.student_money()
         m = self.active_mandate()
         if today > app.profile["student_file_expiry"]:

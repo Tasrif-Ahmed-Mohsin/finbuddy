@@ -81,6 +81,7 @@ class SandboxBank:
     calendar: BankCalendar | None = None
     daily_spend_cny: Decimal = Decimal(0)  # simulated living spending in China (0 = off)
     stuck_days: list[str] = field(default_factory=list)
+    spend_log: list[Decimal] = field(default_factory=list)  # what the student needed each day
     _seq: int = 0
     _cny_per_usd: Decimal = Decimal("6.95")  # set from market data at seed time
 
@@ -181,6 +182,7 @@ class SandboxBank:
         need = self.daily_spend_cny
         if need <= 0:
             return Decimal(0), False
+        self.spend_log = (self.spend_log + [need])[-30:]
         spent = Decimal(0)
         for acct_id in ("student_cash", "student_cn"):
             acct = self.accounts[acct_id]

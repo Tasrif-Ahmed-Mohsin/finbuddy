@@ -400,6 +400,10 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     def year_plan(s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return guard(s.year_plan, who)
 
+    @app.get("/plan/stress")
+    def stress(runs: int = 200, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.stress_test, who, max(20, min(runs, 500)))
+
     @app.get("/feed")
     def feed(lang: str = "en", s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return s.family_feed(user_only(who), lang)

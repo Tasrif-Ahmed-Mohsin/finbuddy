@@ -187,6 +187,47 @@ With real published fees (৳3,680 per transfer at EBL), a transfer is fee-heavy
 
 Each stuck spell lists its reason ("The card stopped working abroad when the endorsement ended on 2026-12-31 (renewing it needs the student at the bank in Bangladesh)"; "Banks were closed for Eid-ul-Fitr, which delayed the transfer").
 
+#### Stress test and "what if" (`engines/stress.py`, `GET /plan/stress`)
+**Question:** is "0 stuck days" robust, or one lucky simulation? The plan assumes exact spending, 7-day transfers and the estimated holiday dates. We re-run the same year **200 times** (seeded, reproducible) with real-life mess:
+
+- **spending:** each month 70–130% of the plan, plus 1–4 surprise bills a year (¥300–1,500);
+- **transfers:** each one 0–3 days later than planned;
+- **holidays:** the estimated (lunar) dates moved by −2…+2 days. The planner still believes the estimates.
+
+The planner never sees the future. It reacts to the real balance and the real **spending pace**, exactly like the live autopilot. Both strategies face the same messy year in each run.
+
+| 200 messy years | Today's habits | Sathi |
+|---|---|---|
+| Years with no stuck day | **0%** | **64%** |
+| Typical year (median) | 30 days | **0 days** |
+| Mean / 90th percentile | 30.1 / 40 days | **0.9 / 3 days** |
+| Worst year | 52 days | 10 days |
+
+What made it robust (both rules are shared with the live autopilot):
+1. **Spending pace** (`spending_pace`): the planner uses the plan, or the last 14 days of spending if the student spends faster (the single biggest day is ignored, so one deposit does not inflate every later transfer).
+2. **Late margin** (`transfer_late_margin_days` = 3): waiting is safe only if the money lasts even when the next transfer is 3 days late. The 5-day cushion already covers ordinary delays, so this matters only when a late transfer would run into a Chinese closure. The normal year plan is unchanged (same 10 transfers, same cost).
+
+| Sathi, 200 messy years | Years with none | Median | Mean | 90th pct | Worst |
+|---|---|---|---|---|---|
+| Plain look-ahead rule | 35.5% | 2 | 2.7 | 8 | 12 |
+| + late margin only | 41% | 1 | 1.9 | 5 | 10 |
+| + spending pace only | 53% | 0 | 1.4 | 5 | 10 |
+| **+ both (shipped)** | **64%** | **0** | **0.9** | **3** | **10** |
+
+**Remaining risk, said plainly:** the worst years have a late transfer running into a moved holiday (e.g. Labour Day) after the card has stopped, so there is no fast cash channel. That is the job of the emergency plan, not of better scheduling.
+
+**What if (single scenarios, same year):**
+
+| Scenario | Stuck days: today → Sathi | Family pays |
+|---|---|---|
+| The taka weakens 10% | 20 → **0** | +৳1.00 lakh for the year (the same yuan cost more taka) |
+| The student spends 30% more | 38 → **0** | +৳3.14 lakh (more money sent; Sathi notices within 1–2 weeks) |
+| Every transfer is 3 days late | 23 → **0** | same |
+| Eid and Spring Festival fall 2 days later | 20 → **0** | same |
+| All of these at once | 45 → **0** (2 cash bridges while the card works) | +৳4.48 lakh |
+
+For the exchange-rate scenario both sides use the banks' markups over the market rate, because a published sheet is a fixed taka number for one day and would hide the move.
+
 ### 4.2 The look-ahead top-up rule (`topup_decision`)
 Shared by the year plan and the live autopilot, so **what the plan promises is what the agent does**.
 
@@ -196,9 +237,11 @@ On a Bangladeshi bank day `d`, with balance `b` and transfers on the way:
 2. **Waiting is safe** if, without a new transfer, the money never runs out before `wait_lands` **and** at least `safety_days` (5) of money are left the day before it lands. Then do nothing.
 3. Otherwise **send today**. It lands on `lands = arrival(d)`, sized so that after it lands the student has `target + safety` days (30 + 5) of money: `amount = ceil₁₀₀(daily × 35 − max(balance_at_landing, 0))`, at least ¥1,000 (each transfer pays a fixed fee).
 4. If the money runs out even before `lands`, the shortfall is a **cash bridge**. Sathi tells the student to withdraw it; it never withdraws cash itself.
-5. The decision carries its reason: the closures that make waiting unsafe (e.g. Eid closes BD branches 8–13 Mar, so a transfer sent on 14 Mar would land on 22 Mar), or the day the money drops below the cushion.
+5. **Late margin:** the "waiting is safe" check also requires that the money lasts if the transfer sent on `next` arrives 3 days late (`transfer_late_margin_days`). Normally the cushion covers this; near a Chinese closure it makes Sathi send a few days earlier.
+6. **Spending pace:** `daily` is the plan, or the student's real pace over the last 14 days if that is faster (`spending_pace`).
+7. The decision carries its reason: the closures that make waiting unsafe (e.g. Eid closes BD branches 8–13 Mar, so a transfer sent on 14 Mar would land on 22 Mar), or the day the money drops below the cushion.
 
-Unit tests cover waiting, sending before Eid with the right reason, the bridge, and no sending on a bank holiday.
+Unit tests cover waiting, sending before Eid with the right reason, the bridge, no sending on a bank holiday, the spending pace and the stress hooks.
 
 ### 4.3 Family mandate compiler (`agent/mandate_compiler.py`)
 The parent's words become a strict rule:
@@ -372,6 +415,8 @@ Full details, the permission-tier implementation and the known-risk list are in 
 | Metric | Value | How measured |
 |---|---|---|
 | Days without money (year) | **20 → 0** | year plan, same banks and rate (§4.1) |
+| Days without money (stress test) | **0** in the typical year, **0.9** mean, **64%** of 200 messy years with none (today's habits: 30 typical, 0% with none) | stress test (§4.1) |
+| What if | 0 stuck days with the taka 10% weaker, 30% more spending, every transfer 3 days late, holidays moved, or all at once | stress test (§4.1) |
 | Days without money (live) | **0** over 12 Oct 2026 → 21 Feb 2027, through the card stop and Spring Festival | `demo_scenario.py` in the live sandbox |
 | Overhead for the year | **4.39% → 3.88%** (৳5,126 saved for the same money), with published fees | year plan |
 | Where money is lost | fees are **89%** of today's loss; the real payment's charge was **5.5×** its rate markup | cost truth (§4.5) |
@@ -386,7 +431,7 @@ Full details, the permission-tier implementation and the known-risk list are in 
 
 | Area | Endpoints |
 |---|---|
-| **Loop** | `GET /plan/year`, `GET /runway`, `GET /feed?lang=`, `GET /receipts`, `POST /sandbox/advance` (day by day, autopilot runs) |
+| **Loop** | `GET /plan/year`, `GET /plan/stress?runs=`, `GET /runway`, `GET /feed?lang=`, `GET /receipts`, `POST /sandbox/advance` (day by day, autopilot runs) |
 | **Family mandate** | `POST /mandates/proposals`, `GET /mandates/proposals/{id}`, `POST /mandates/proposals/{id}/sign` (`proposal_hash`), `GET /mandates`, `DELETE /mandates/{id}` |
 | Rates and plans | `GET /market`, `POST /market/quotes`, `GET /fx`, `GET /fx/history`, `POST /plan/tuition`, `POST /plan/living` |
 | Drafts and execution | `POST /drafts`, `GET /drafts[/{id}]`, `POST /drafts/{id}/approve`, `POST /drafts/{id}/execute`, `POST /drafts/{id}/execute-under-mandate/{m}`, `POST /mandates` (raw, parent only) |
@@ -466,6 +511,7 @@ cd mobile && npm install && npx expo start
   - collect real debit advices from students;
   - anonymous, consented "true-cost" contributions from students' parsed bank alerts, shown only when at least k students have contributed.
 - **Lunar holiday dates are estimates** until the governments publish them. China's make-up working Saturdays are not modelled.
-- **The demo persona's spending is constant** (¥200/day). Real spending varies, so the cushion would adapt to the real alerts.
+- **Spending in the live sandbox is constant** (¥200/day); the planner already follows a faster real pace (`spending_pace`), and the stress test varies spending, delays and holiday dates. In production the pace would come from the student's parsed bank alerts.
+- **Stress-test ranges are assumptions** (70–130% spending, 0–3 days late, ±2 days for lunar holidays), chosen to be pessimistic; they are not measured from data yet.
 - **On-chain anchoring is not used yet.** The hash chain is ready: anchoring daily chain heads on a permissioned chain such as FISCO BCOS would let a bank verify the receipts without trusting our server.
 - **Production hardening** (real authentication, device-bound keys, KMS, TLS, rate limits): see the security report.

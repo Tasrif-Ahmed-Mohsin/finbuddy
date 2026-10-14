@@ -5,7 +5,7 @@ import { DataBanner } from '@/components/data-banner';
 import { ThemedText } from '@/components/themed-text';
 import { Badge, Button, Card, ErrorBox, H2, Muted, Row, styles } from '@/components/ui';
 import { Tone } from '@/constants/theme';
-import type { YearEvent, YearPlan } from '@/lib/api';
+import type { StressTest, YearEvent, YearPlan } from '@/lib/api';
 import { bdt, cny, localDigits, num, shortDate } from '@/lib/format';
 import type { Lang } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
@@ -106,6 +106,8 @@ export function YearPlanView() {
         )}
       </Card>
 
+      <StressCard />
+
       <Card>
         <H2>{t('planTimeline')}</H2>
         {shown.map((e, i) => (
@@ -128,6 +130,68 @@ export function YearPlanView() {
         <Muted>{yp.method}</Muted>
       </Card>
     </>
+  );
+}
+
+/** Stress test: the same year re-run with messy spending, late transfers and moved holidays. */
+function StressCard() {
+  const { t, lang, call } = useSession();
+  const { data: st } = useLoad(useCallback(() => call<StressTest>('/plan/stress'), [call]));
+  if (!st) return null;
+  const { today, sathi } = st.stuck_days;
+  const days = (n: number) => `${num(n, lang)} ${t('daysShort')}`;
+  const rows: [string, string, string][] = [
+    [t('stressZero'), localDigits(`${Math.round(today.zero_share_pct)}%`, lang), localDigits(`${Math.round(sathi.zero_share_pct)}%`, lang)],
+    [t('stressMedian'), days(today.median), days(sathi.median)],
+    [t('stressWorst'), days(today.worst), days(sathi.worst)],
+  ];
+  return (
+    <Card>
+      <H2>{t('stressTitle')}</H2>
+      <Muted>
+        {num(st.runs, lang)} {t('stressRuns')}. {t('stressExplain')}
+      </Muted>
+      <Row style={styles.between}>
+        <Muted style={{ flex: 1 }}>{t('stuckDaysHead')}</Muted>
+        <ThemedText type="smallBold" style={{ width: 96, textAlign: 'right', color: Tone.block.fg }}>
+          {t('stuckToday')}
+        </ThemedText>
+        <ThemedText type="smallBold" style={{ width: 96, textAlign: 'right', color: Tone.ok.fg }}>
+          {t('stuckSathi')}
+        </ThemedText>
+      </Row>
+      {rows.map(([label, a, b]) => (
+        <Row key={label} style={{ ...styles.between, flexWrap: 'nowrap' }}>
+          <ThemedText type="small" style={{ flex: 1 }}>
+            {label}
+          </ThemedText>
+          <ThemedText type="small" style={{ width: 96, textAlign: 'right' }}>
+            {a}
+          </ThemedText>
+          <ThemedText type="smallBold" style={{ width: 96, textAlign: 'right' }}>
+            {b}
+          </ThemedText>
+        </Row>
+      ))}
+      <H2>{t('whatIfTitle')}</H2>
+      {st.what_if.map((w) => {
+        const more = Number(w.change_bdt);
+        return (
+          <View key={w.key} style={{ gap: 2 }}>
+            <ThemedText type="smallBold">{t(`wi_${w.key}`)}</ThemedText>
+            <Row style={{ gap: 6 }}>
+              <Badge tone={w.stuck_days_sathi === 0 ? 'ok' : 'warn'}>
+                {t('stuckSathi')}: {days(w.stuck_days_sathi)}
+              </Badge>
+              <Badge tone="block">
+                {t('stuckToday')}: {days(w.stuck_days_today)}
+              </Badge>
+              <Muted>{more > 0 ? `+${bdt(more, lang)} ${t('wiMoreForYear')}` : t('wiSameCost')}</Muted>
+            </Row>
+          </View>
+        );
+      })}
+    </Card>
   );
 }
 

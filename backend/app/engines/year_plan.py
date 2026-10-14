@@ -21,7 +21,7 @@ Both strategies use the cheapest bank for each transfer and today's exchange rat
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from decimal import ROUND_FLOOR, Decimal
 from pathlib import Path
@@ -106,11 +106,30 @@ class Policy:
     safety_days: int  # money left when a transfer lands: a cushion for delays
     target_days: int  # each transfer covers about this many days (one fixed fee per cycle)
     min_transfer_cny: Decimal
+    late_margin_days: int = 0  # waiting must stay safe even if the next transfer is this many days late
 
     @classmethod
     def from_corridor(cls, corridor: Corridor, monthly_living_cny: Decimal) -> "Policy":
         return cls(q2(D(monthly_living_cny) / 30), corridor.i("bd_tt_transfer_days"), corridor.i("living_safety_days"),
-                   corridor.i("living_target_days"), corridor.v("min_living_transfer_cny"))
+                   corridor.i("living_target_days"), corridor.v("min_living_transfer_cny"),
+                   corridor.i("transfer_late_margin_days"))
+
+
+PACE_WINDOW_DAYS = 14
+PACE_MIN_DAYS = 7
+
+
+def spending_pace(plan_daily: Decimal, recent: list[Decimal]) -> Decimal:
+    """How fast the money really goes: the plan, or the last two weeks if the student spends faster.
+
+    The single biggest day is left out, so one deposit or doctor's bill does not inflate every later transfer.
+    Never below the plan: spending less than planned only means the next transfer comes a little later.
+    """
+    xs = list(recent)[-PACE_WINDOW_DAYS:]
+    if len(xs) < PACE_MIN_DAYS:
+        return plan_daily
+    xs.remove(max(xs))
+    return max(plan_daily, q2(sum(xs, Decimal(0)) / len(xs)))
 
 
 def project(balance: Decimal, in_transit: list[tuple[date, Decimal]], today: date, day: date, daily: Decimal) -> Decimal:
@@ -161,7 +180,10 @@ def topup_decision(today: date, balance: Decimal, in_transit: list[tuple[date, D
     daily = policy.daily_spend_cny
     nxt = cal.next_open("BD", today + ONE_DAY)
     wait_lands = cal.arrival(nxt, policy.transfer_days)
-    window = [today + timedelta(days=k) for k in range((wait_lands - today).days)]
+    # If that transfer were a few days late it could run into a Chinese closure and land a week later:
+    # waiting is safe only if the money lasts until then too (the cushion covers ordinary delays).
+    late_lands = cal.next_open("CN", wait_lands + timedelta(days=policy.late_margin_days))
+    window = [today + timedelta(days=k) for k in range((late_lands - today).days)]
     low = daily * policy.safety_days
     if all(project(balance, in_transit, today, d, daily) >= 0 for d in window) and \
             project(balance, in_transit, today, wait_lands - ONE_DAY, daily) >= low:
@@ -231,9 +253,16 @@ def _per_withdrawal_cap(corridor: Corridor, cny_per_usd: Decimal) -> tuple[Decim
 
 
 def simulate(strategy: str, sit: Situation, policy: Policy, cal: BankCalendar, corridor: Corridor,
-             market: Market) -> StrategyResult:
+             market: Market, spend=None, delay=None, reality: BankCalendar | None = None) -> StrategyResult:
+    """Simulate one year. Optional stress hooks (engines/stress.py):
+      spend(day) -> Decimal   what the student really spends that day (the planner still assumes `policy`)
+      delay() -> int          extra days a transfer takes beyond the plan
+      reality                 the real bank calendar (e.g. Eid two days later than estimated); `cal` is what the
+                              planner believes. The planner only learns about a delay when money fails to arrive.
+    """
     if strategy not in ("today", "sathi"):
         raise ValueError(f"unknown strategy '{strategy}'")
+    real_cal = reality or cal
     mid, cny_per_usd = market.mid.bdt_per_cny, market.mid.cny_per_usd
     daily = policy.daily_spend_cny
     per_wd, _ = _per_withdrawal_cap(corridor, cny_per_usd)
@@ -243,7 +272,13 @@ def simulate(strategy: str, sit: Situation, policy: Policy, cal: BankCalendar, c
     reorder, low_cash = corridor.i("baseline_reorder_days"), corridor.i("atm_low_cash_days")
 
     res = StrategyResult(strategy)
-    bal, transit = D(sit.balance_cny), sorted(sit.in_transit)
+    bal = D(sit.balance_cny)
+    spent_log: list[Decimal] = []  # what the student needed each day (for the spending pace)
+    # (actual landing day, expected landing day, amount): money lands on the actual day; plans use the expected one.
+    pipe: list[tuple[date, date, Decimal]] = sorted((d0, d0, a0) for d0, a0 in sit.in_transit)
+
+    def planned(today: date) -> list[tuple[date, Decimal]]:
+        return sorted((max(exp, today + ONE_DAY), amt) for act, exp, amt in pipe)
     month: dict[str, dict] = {sit.start.strftime("%Y-%m"): {"tx": sit.card_tx_used, "bdt": D(sit.card_bdt_used),
                                                            "atm": Decimal(0), "living": Decimal(0)}}
     asked_on: date | None = None  # today strategy: the day the family noticed money was needed
@@ -257,9 +292,12 @@ def simulate(strategy: str, sit: Situation, policy: Policy, cal: BankCalendar, c
         if amount < policy.min_transfer_cny:
             return
         quote, cost = best_quote_for(amount, market)
-        lands = cal.arrival(d, policy.transfer_days)
-        transit.append((lands, amount))
-        transit.sort()
+        expected = cal.arrival(d, policy.transfer_days)
+        lands = real_cal.arrival(d, policy.transfer_days)
+        if delay is not None:
+            lands = real_cal.next_open("CN", lands + timedelta(days=delay()))
+        pipe.append((lands, expected, amount))
+        pipe.sort()
         u["living"] += amount
         res.costs.append(cost)
         res.transfers.append({"send_on": d.isoformat(), "lands": lands.isoformat(), "amount_cny": str(q2(amount)),
@@ -280,18 +318,22 @@ def simulate(strategy: str, sit: Situation, policy: Policy, cal: BankCalendar, c
 
     d = sit.start
     while d <= sit.end:
-        bal += sum((amt for ad, amt in transit if ad == d), Decimal(0))
-        transit = [t for t in transit if t[0] > d]
+        bal += sum((amt for act, _, amt in pipe if act == d), Decimal(0))
+        pipe = [t for t in pipe if t[0] > d]
+        transit = planned(d)
         card_ok = sit.card_active and sit.card_valid_until is not None and d <= sit.card_valid_until
         file_ok = d <= sit.student_file_valid_until
 
         if strategy == "sathi":
-            dec = topup_decision(d, bal, transit, policy, cal) if file_ok else None
+            pace = spending_pace(daily, spent_log) if spend is not None else daily
+            pol = policy if pace == daily else replace(policy, daily_spend_cny=pace)
+            dec = topup_decision(d, bal, transit, pol, cal) if file_ok else None
             if dec:
                 send(d, dec.amount_cny, dec.reason, dec.closures)
+                transit = planned(d)
             if card_ok:  # bridge with cash only until the next transfer can land
                 until = transit[0][0] if transit else cal.arrival(cal.next_open("BD", d), policy.transfer_days)
-                worst = min((project(bal, transit, d, d + timedelta(days=k), daily) for k in range((until - d).days)),
+                worst = min((project(bal, transit, d, d + timedelta(days=k), pace) for k in range((until - d).days)),
                             default=Decimal(0))
                 if worst < 0:
                     bal += withdraw(d, ATM_NOTE * ceil_div(-worst, ATM_NOTE))
@@ -301,15 +343,17 @@ def simulate(strategy: str, sit: Situation, policy: Policy, cal: BankCalendar, c
                     bal += withdraw(d, per_wd)
             elif file_ok and not transit and bal < daily * reorder:
                 asked_on = asked_on or d
-                if cal.is_open("BD", d):
+                if real_cal.is_open("BD", d):
                     lands = cal.arrival(d, policy.transfer_days)
                     closures = list(dict.fromkeys(cal.holidays_between("BD", asked_on, d)
                                                   + cal.holidays_between("CN", d + timedelta(days=policy.transfer_days), lands)))
                     send(d, daily * policy.target_days, "The student asked for money", closures)
                     asked_on = None
 
-        if bal >= daily:
-            bal -= daily
+        need = spend(d) if spend is not None else daily
+        spent_log.append(need)
+        if bal >= need:
+            bal -= need
         else:
             res.stuck.append(d)
             bal = Decimal(0)

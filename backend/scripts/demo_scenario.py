@@ -94,6 +94,13 @@ def main() -> int:
     step("Plan: year plan", f"today's habits → {h['stuck_days_today']} stuck days ({reasons}); Sathi plan → "
                             f"{h['stuck_days_sathi']}; overhead {h['overhead_today_pct']}% → {h['overhead_sathi_pct']}% "
                             f"(saves ৳{h['saved_bdt']}); fees are {h['fees_share_today_pct']}% of today's loss")
+    st = c.get("/plan/stress", headers=H["parent"]).json()
+    sd = st["stuck_days"]
+    wi = "; ".join(f"{w['key']} {w['stuck_days_today']}→{w['stuck_days_sathi']}" for w in st["what_if"])
+    step("Plan: stress test", f"{st['runs']} messy years (seed {st['seed']}): stuck days median {sd['today']['median']} → "
+                              f"{sd['sathi']['median']}, mean {sd['today']['mean']} → {sd['sathi']['mean']}, worst "
+                              f"{sd['today']['worst']} → {sd['sathi']['worst']}; years with none {sd['today']['zero_share_pct']}% → "
+                              f"{sd['sathi']['zero_share_pct']}%. What if (today→Sathi): {wi}")
     step("Plan: cost truth (real payment)", f"BRAC rate {ct['bdt_per_cny_paid']} vs market avg {ct['mid_avg']} → markup "
                                             f"৳{ct['rate_markup_bdt']} ({ct['rate_markup_pct']}%); fixed charge ৳{ct['fee_bdt']} = "
                                             f"{ct['fee_vs_rate']}× the rate markup")

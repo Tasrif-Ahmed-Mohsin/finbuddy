@@ -123,6 +123,11 @@ params:
     confidence: assumption
     source: "Product choice: when a transfer lands, keep at least 5 days of money as a cushion for delays"
 
+  transfer_late_margin_days:
+    value: 3
+    confidence: assumption
+    source: "Product choice: plan as if the next transfer could be up to 3 days late (correspondent banks, compliance checks). With the 5-day cushion this matters only when a late arrival would run into a Chinese bank closure"
+
   living_target_days:
     value: 30
     confidence: assumption

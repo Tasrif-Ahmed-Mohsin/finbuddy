@@ -9,7 +9,7 @@ from __future__ import annotations
 import hmac
 import os
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, time, timedelta
 from decimal import ROUND_FLOOR, Decimal
 from pathlib import Path
@@ -24,7 +24,9 @@ from app.config import Settings, load_settings
 from app.corridors.loader import load_corridor
 from app.engines.cost import atm_cost, tt_cost
 from app.engines.cost_truth import field_payment_truth
-from app.engines.year_plan import Policy, Situation, load_calendar, plan_year, runs_out_on, topup_decision
+from app.engines.stress import stress_test, what_if
+from app.engines.year_plan import (Policy, Situation, load_calendar, plan_year, runs_out_on, spending_pace,
+                                   topup_decision)
 from app.engines.living_planner import LivingRequest, plan_living
 from app.documents import read_document as read_document_photo
 from app.engines.tuition_planner import TuitionRequest, plan_tuition
@@ -75,6 +77,7 @@ class AppState:
         self.quote_cfg = load_quote_config()
         self.bank_rates = BankRateStore()  # banks' own published daily rate sheets (saved + live)
         self.real_quotes: list[BankQuote] = []
+        self._stress_cache: tuple | None = None
         self.audit = AuditLog(audit_path)
         # The audit file persists across restarts but sandbox state (drafts, ids) does not:
         # anything that interprets the log (e.g. the payment passport) only reads this session.
@@ -186,6 +189,13 @@ class AppState:
     @property
     def policy(self) -> Policy:
         return Policy.from_corridor(self.corridor, self.profile["monthly_living_cny"])
+
+    @property
+    def planning_policy(self) -> Policy:
+        """The plan, at the student's real spending pace when that is faster (same rule as the year plan)."""
+        pol = self.policy
+        pace = spending_pace(pol.daily_spend_cny, self.bank.spend_log)
+        return pol if pace == pol.daily_spend_cny else replace(pol, daily_spend_cny=pace)
 
     def card_usable(self, d: date) -> bool:
         """The Bangladeshi card works abroad only while it is active AND the endorsement is valid."""
@@ -519,16 +529,38 @@ class AppState:
         return {**prop.to_dict(), "mandate": self._mandate_view(m), "autopilot": actions}
 
     # ---- year plan, runway, feed, receipts ---------------------------------------------------
-    def year_plan(self, actor: Actor) -> dict:
-        self._require(actor, "plan_year")
+    def _year_situation(self) -> Situation:
         p, today = self.profile, self.now.date()
         bal, transit = self.student_money()
         send_by = p["tuition_deadline"] - timedelta(days=self.corridor.i("bd_tt_transfer_days") + self.corridor.i("tuition_buffer_days"))
         end = min(p["student_file_expiry"], today + timedelta(days=260))
         usage = self.bank.card_usage()
-        sit = Situation(today, end, bal, transit, p["endorsement_expiry"], self.student_card.status == "active",
-                        p["student_file_expiry"], usage.tx_count, usage.bdt_charged,
-                        (send_by, p["tuition_deadline"], p["tuition_invoice_cny"]))
+        return Situation(today, end, bal, transit, p["endorsement_expiry"], self.student_card.status == "active",
+                         p["student_file_expiry"], usage.tx_count, usage.bdt_charged,
+                         (send_by, p["tuition_deadline"], p["tuition_invoice_cny"]))
+
+    def stress_test(self, actor: Actor, runs: int = 200) -> dict:
+        """Is the year plan robust? The same year re-run with messy spending, late transfers and moved holidays."""
+        self._require(actor, "plan_year")
+        sit, market = self._year_situation(), self.market
+        key = (sit.start, sit.balance_cny, tuple(sit.in_transit), sit.card_active, market.mid.as_of,
+               self.profile["monthly_living_cny"], runs)
+        if self._stress_cache is None or self._stress_cache[0] != key:
+            out = stress_test(sit, self.policy, self.calendar, self.corridor, market, runs=runs)
+            out["what_if"] = what_if(sit, self.policy, self.calendar, self.corridor, market,
+                                     lambda mid: build_market(mid, self.quote_cfg, self.real_quotes, self.bank_rates))
+            out["period"] = {"from": sit.start.isoformat(), "to": sit.end.isoformat()}
+            self._stress_cache = (key, out)
+        out = self._stress_cache[1]
+        self._log("stress_tested", actor, "plan_year", {"runs": runs, "median_stuck_sathi": str(out["stuck_days"]["sathi"]["median"]),
+                                                         "worst_stuck_sathi": out["stuck_days"]["sathi"]["worst"]})
+        return out
+
+    def year_plan(self, actor: Actor) -> dict:
+        self._require(actor, "plan_year")
+        p, today = self.profile, self.now.date()
+        sit = self._year_situation()
+        end = sit.end
         plan = plan_year(sit, self.policy, self.calendar, self.corridor, self.market)
         plan["cost_truth"] = [field_payment_truth(fp, self.fx.history, self.bank_rates.rates)
                               for fp in self.quote_cfg.get("field_payments", [])]
@@ -547,7 +579,7 @@ class AppState:
         return plan
 
     def runway(self) -> dict:
-        pol, today = self.policy, self.now.date()
+        pol, today = self.planning_policy, self.now.date()
         bal, transit = self.student_money()
         m = self.autopilot.active_mandate()
         dec = topup_decision(today, bal, transit, pol, self.calendar)
