@@ -7,7 +7,9 @@ import { DataBanner } from '@/components/data-banner';
 import { NeedCard, NoteCard } from '@/components/note-card';
 import { RunwayCard } from '@/components/runway-card';
 import { InsightCard } from '@/components/sathi-updates';
+import { ThemedText } from '@/components/themed-text';
 import { Card, ErrorBox, H1, H2, Muted, Row, Screen, Segmented, styles } from '@/components/ui';
+import { Tone } from '@/constants/theme';
 import type { Feed, Insight, Role, Timeline } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { useLoad } from '@/lib/use-load';
@@ -34,9 +36,21 @@ export default function TodayScreen() {
     <Screen refreshing={loading} onRefresh={reload}>
       <Row style={styles.between}>
         <H1>{t('appName')}</H1>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('settingsLink')} onPress={() => router.push('/settings')} hitSlop={12}>
-          <Ionicons name="settings-outline" size={24} color={theme.text} />
-        </Pressable>
+        <Row style={{ gap: 14 }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('emergencyLink')}
+            onPress={() => router.push('/emergency')}
+            hitSlop={8}
+            style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: Tone.block.bg }}>
+            <ThemedText type="smallBold" style={{ color: Tone.block.fg }}>
+              🆘 {t('emergencyLink')}
+            </ThemedText>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('settingsLink')} onPress={() => router.push('/settings')} hitSlop={12}>
+            <Ionicons name="settings-outline" size={24} color={theme.text} />
+          </Pressable>
+        </Row>
       </Row>
       <Muted>{t('loopTagline')}</Muted>
       <Card>
@@ -59,7 +73,7 @@ export default function TodayScreen() {
             <>
               <H2>{t('needsYou')}</H2>
               {needs.map((n) => (
-                <NeedCard key={n.type === 'sign_mandate' ? n.proposal_id : n.draft_id} need={n} />
+                <NeedCard key={n.type === 'sign_mandate' ? n.proposal_id : n.type === 'confirm_safe' ? n.check_id : n.draft_id} need={n} />
               ))}
             </>
           )}

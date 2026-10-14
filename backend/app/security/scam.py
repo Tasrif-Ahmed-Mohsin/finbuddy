@@ -20,6 +20,11 @@ PATTERNS: dict[str, list[str]] = {
     "impersonation": [
         "supervisory account", "safe account", "your id was used", "your passport was used", "police case",
         "安全账户", "监管账户", "公安局", "涉嫌洗钱", "পুলিশ কেস",
+        "parcel contains", "illegal items in your parcel", "arrest warrant", "包裹里有", "逮捕令", "গ্রেপ্তারি পরোয়ানা",
+    ],
+    "fake_emergency": [
+        "has been arrested", "been kidnapped", "kidnapped", "ransom", "in police custody", "accident and needs money",
+        "অপহরণ", "অপহৃত", "গ্রেপ্তার হয়েছে", "মুক্তিপণ", "绑架", "赎金", "被拘留", "被警察抓",
     ],
     "money_mule": [
         "rent your bank card", "lend your card", "use your account", "easy money", "receive money for me",
@@ -43,6 +48,7 @@ SEVERITY = {
     "crypto": "high",
     "discount_agent": "high",
     "impersonation": "high",
+    "fake_emergency": "high",
     "money_mule": "high",
     "secrecy_pressure": "medium",
     "phishing": "high",
@@ -53,7 +59,8 @@ ADVICE = {
     "informal_channel": "Hundi is illegal and unprotected, and it forfeits Bangladesh's 2.5% formal-channel incentive. Use a bank transfer.",
     "crypto": "Crypto transfers are restricted in both Bangladesh and China, and the words alone can freeze a bank account.",
     "discount_agent": "'Discount tuition' agents often pay with stolen cards; the payment bounces and you still owe the full fee. Pay only the university's official account.",
-    "impersonation": "Real police, banks and embassies never ask you to move money to a 'safe' or 'supervisory' account. Hang up; in China report to 12110.",
+    "impersonation": "Real police, banks and embassies never ask you to move money to a 'safe' or 'supervisory' account. Hang up and check yourself: in China call 110 or the anti-fraud line 96110. See Emergency in the app.",
+    "fake_emergency": "Scammers tell families a student was arrested, kidnapped or hurt and demand money fast. Do not pay. Call the student directly and use 'Are you safe?' in the app's Emergency screen.",
     "money_mule": "Letting others use your card or account is a crime and gets your account frozen by police.",
     "secrecy_pressure": "Pressure to act fast or in secret is a classic scam sign. Talk to your family or the international office first.",
     "prompt_injection": "This content tries to give instructions to the assistant. Documents are treated as data only; nothing was executed.",

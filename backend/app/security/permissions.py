@@ -53,6 +53,12 @@ ACTION_LEVELS: dict[str, Level] = {
     "sign_mandate": Level.MANDATE,  # a user signs the exact proposal hash: the user only
     # Protective and reversible, moves no money: low friction, the agent may do it in an emergency.
     "freeze_card": Level.DRAFT,
+    "emergency_plan": Level.READ,  # the fastest ways money can reach the student, with dates
+    "ask_family_for_money": Level.DRAFT,  # an urgent transfer DRAFT for the parent to approve + an alert
+    "ask_safety_check": Level.DRAFT,  # the parent asks "are you safe?" (user only)
+    # The student's own answer to "are you safe?": the user only. If the agent could answer, a scammer who
+    # took over the chat could too.
+    "confirm_safe": Level.EXECUTE,
     # Re-enables spending or is irreversible: the user only, with fingerprint/PIN on the phone.
     "unfreeze_card": Level.EXECUTE,
     "report_card_lost": Level.EXECUTE,
@@ -63,7 +69,8 @@ ACTION_LEVELS: dict[str, Level] = {
 # The agent's ceiling. It can never EXECUTE on its own; only MANDATE within user-set caps.
 # Asymmetric by design: making things SAFER is easy, making them riskier needs a human.
 AGENT_ALLOWED = {"get_rates", "compare_tuition", "plan_living", "explain", "check_message", "create_draft", "cancel_draft",
-                 "set_reminder", "plan_renewal", "freeze_card", "execute_under_mandate", "plan_year", "propose_mandate"}
+                 "set_reminder", "plan_renewal", "freeze_card", "execute_under_mandate", "plan_year", "propose_mandate",
+                 "emergency_plan", "ask_family_for_money"}
 
 
 @dataclass

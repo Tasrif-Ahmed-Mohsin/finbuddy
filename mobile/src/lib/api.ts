@@ -352,7 +352,7 @@ export type DocumentResult = {
 
 // ---- the loop: Sense → Plan → Act → Prove ----------------------------------------------------
 export type NoteRef = {
-  screen?: 'draft' | 'topup' | 'family' | 'renewal' | 'proof' | 'plan';
+  screen?: 'draft' | 'topup' | 'family' | 'renewal' | 'proof' | 'plan' | 'emergency';
   draft_id?: string;
   amount_cny?: string;
   item?: 'endorsement_expiry' | 'student_file_expiry';
@@ -422,7 +422,18 @@ export type Runway = {
 
 export type NeedItem =
   | { type: 'approve_draft' | 'send_draft'; draft_id: string; kind: Draft['kind']; amount_cny: string; total_bdt: string; payee_name: string }
-  | { type: 'sign_mandate'; proposal_id: string; summary: string };
+  | { type: 'sign_mandate'; proposal_id: string; summary: string }
+  | { type: 'confirm_safe'; check_id: string; asked_at: string };
+
+export type SafetyCheck = { id: string; asked_by: Role; asked_at: string; status: 'open' | 'safe'; answered_at: string | null };
+export type EmergencyGuide = { title: string; steps: string[] };
+export type EmergencyView = {
+  plan: { today: string; balance_cny: string; days_left: number | null; card_usable: boolean; bridge_needed_cny: string; urgent_lands_on: string };
+  text: { headline: string; options: { kind: 'card_atm' | 'on_the_way' | 'urgent_transfer' | 'local_bridge'; text: string }[] };
+  guides: { scam_call: EmergencyGuide; family_call: EmergencyGuide; card_lost: EmergencyGuide };
+  card: { last4: string; status: string };
+  safety_checks: SafetyCheck[];
+};
 
 export type Feed = { now: string; runway: Runway; needs_you: NeedItem[]; notes: Note[] };
 

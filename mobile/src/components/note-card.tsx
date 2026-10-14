@@ -46,6 +46,7 @@ export function NoteCard({ note }: { note: Note }) {
         <Button title={t('open')} variant="secondary" onPress={() => router.push({ pathname: '/draft/[id]', params: { id: r.draft_id! } })} />
       )}
       {r.screen === 'family' && note.kind !== 'info' && <Button title={t('tabFamily')} variant="secondary" onPress={() => router.push('/family')} />}
+      {r.screen === 'emergency' && <Button title={t('emergencyLink')} variant="secondary" onPress={() => router.push('/emergency')} />}
       {r.screen === 'renewal' && r.item && (
         <Button title={t('openRenewal')} variant="secondary" onPress={() => router.push({ pathname: '/renewal/[item]', params: { item: r.item! } })} />
       )}
@@ -57,6 +58,14 @@ export function NoteCard({ note }: { note: Note }) {
 /** Something waiting for THIS person: approve or send a payment, or co-sign the family mandate. */
 export function NeedCard({ need }: { need: NeedItem }) {
   const { t, lang } = useSession();
+  if (need.type === 'confirm_safe') {
+    return (
+      <Card tone="warn">
+        <ThemedText type="smallBold">🙋 {t('safeCheckNeed')}</ThemedText>
+        <Button title={t('emImSafe')} onPress={() => router.push('/emergency')} />
+      </Card>
+    );
+  }
   if (need.type === 'sign_mandate') {
     return (
       <Card tone="warn">

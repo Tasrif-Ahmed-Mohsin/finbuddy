@@ -24,11 +24,12 @@ from app.config import Settings, load_settings
 from app.corridors.loader import load_corridor
 from app.engines.cost import atm_cost, tt_cost
 from app.engines.cost_truth import field_payment_truth
+from app.emergency import SafetyCheck, fastest_money, guide, render_plan
 from app.engines.rate_watch import rate_watch
 from app.engines.stress import stress_test, what_if
-from app.engines.year_plan import (Policy, Situation, load_calendar, plan_year, runs_out_on, spending_pace,
-                                   topup_decision)
-from app.engines.living_planner import LivingRequest, plan_living
+from app.engines.year_plan import (Policy, Situation, _per_withdrawal_cap, load_calendar, plan_year, project, runs_out_on,
+                                   spending_pace, topup_decision)
+from app.engines.living_planner import ATM_NOTE, LivingRequest, plan_living
 from app.documents import read_document as read_document_photo
 from app.engines.tuition_planner import TuitionRequest, plan_tuition
 from app.inbox.service import Inbox
@@ -36,7 +37,7 @@ from app.integrations.whatsapp import WhatsAppNotifier, mask, normalise_number
 from app.fx import FxProvider
 from app.bank_rates import BankRateStore
 from app.market import BankQuote, Market, build_market, load_quote_config, student_file_fees
-from app.money import D, q2
+from app.money import D, ceil_div, q2
 from app.notify import Feed, draft_summaries, role_name
 from app.passport import issue as issue_passport_doc
 from app.passport import verify as verify_passport_doc
@@ -118,6 +119,7 @@ class AppState:
         self.proposals: dict[str, MandateProposal] = {}
         self.execution_auth: dict[str, dict] = {}  # draft id -> who/what authorised the payment (receipts)
         self.feed = Feed()
+        self.safety_checks: dict[str, SafetyCheck] = {}
         # WhatsApp alerts for the family: notifications only, to the family's own number, mode set by the server env.
         self.whatsapp = WhatsAppNotifier.from_settings(self.settings)
         self.profile["parent_whatsapp"] = None
@@ -608,6 +610,9 @@ class AppState:
                 needs.append({"type": "approve_draft", **item})
             elif d.status == "approved" and who == d.payer.value:
                 needs.append({"type": "send_draft", **item})
+        if who == "student":
+            needs += [{"type": "confirm_safe", "check_id": c.id, "asked_at": c.asked_at.isoformat()}
+                      for c in self.safety_checks.values() if c.status == "open"]
         for prop in reversed(list(self.proposals.values())):
             if prop.status == "proposed" and prop.signatures and who in prop.required_signers and who not in prop.signatures:
                 needs.append({"type": "sign_mandate", "proposal_id": prop.id, "summary": prop.summary().get(lang, "")})
@@ -630,8 +635,101 @@ class AppState:
                         "landed": {k: landed[k] for k in ("seq", "hash", "sim_time")} if landed else None})
         return list(reversed(out))
 
+    # ---- emergency mode ----------------------------------------------------------------------
+    def _fastest(self) -> dict:
+        today = self.now.date()
+        bal, transit = self.student_money()
+        per_wd, _ = _per_withdrawal_cap(self.corridor, self.market.mid.cny_per_usd)
+        return fastest_money(today, bal, transit, self.planning_policy, self.calendar, self.card_usable(today), per_wd)
+
+    def emergency(self, actor: Actor, lang: str = "en") -> dict:
+        self._require(actor, "emergency_plan")
+        plan = self._fastest()
+        return {"plan": plan, "text": render_plan(plan, lang, self.calendar.names()),
+                "guides": {k: guide(k, lang) for k in ("scam_call", "family_call", "card_lost")},
+                "card": {"last4": self.profile["student_card_last4"], "status": self.student_card.status},
+                "safety_checks": [c.to_dict() for c in reversed(list(self.safety_checks.values()))][:5]}
+
+    def emergency_no_money(self, actor: Actor, lang: str = "en") -> dict:
+        """The student is (almost) out of money: act inside the mandate if it allows, else prepare an urgent
+        transfer for the parent to approve and alert the family. Never more than that."""
+        self._require(actor, "ask_family_for_money")
+        sent = self.autopilot.tick()  # the mandate may already allow it (same rule as every day)
+        plan = self._fastest()
+        today, pol = self.now.date(), self.planning_policy
+        lands = date.fromisoformat(plan["urgent_lands_on"])
+        bal, transit = self.student_money()
+        at_landing = project(bal, transit, today, lands - timedelta(days=1), pol.daily_spend_cny)
+        amount = max(pol.min_transfer_cny, ATM_NOTE * ceil_div(
+            pol.daily_spend_cny * (pol.target_days + pol.safety_days) - max(at_landing, Decimal(0)), ATM_NOTE))
+        draft = None
+        if not any(a.get("type") in ("autopilot_sent", "sent") for a in sent) and not transit:
+            open_living = next((d for d in self.drafts.values() if d.kind == "tt_living" and d.status in ("draft", "approved")
+                                and self.now <= d.expires_at), None)
+            draft = self.draft_view(open_living.id) if open_living else self.create_draft(
+                actor, "tt_living", amount, "student_own_cn", memo="Emergency: urgent living money")
+            texts = {lg: next((o["text"] for o in render_plan(plan, lg, self.calendar.names())["options"]
+                               if o["kind"] in ("card_atm", "local_bridge")), "") for lg in ("en", "bn", "zh")}
+            self.feed.add(self.now, "both", "needs_you", "emergency_no_money",
+                          {"balance_cny": str(q2(bal)), "amount_cny": draft["amount_cny"], "lands_date": plan["urgent_lands_on"],
+                           "bridge_en": texts["en"], "bridge_bn": texts["bn"], "bridge_zh": texts["zh"]},
+                          {"screen": "draft", "draft_id": draft["id"]}, once=f"emergency:{today.isoformat()}")
+        self._log("emergency_no_money", actor, "ask_family_for_money",
+                  {"balance_cny": plan["balance_cny"], "draft_id": draft["id"] if draft else None,
+                   "autopilot": [a.get("type") for a in sent]})
+        return {**self.emergency(actor, lang), "draft": draft, "autopilot": sent}
+
+    def emergency_card_lost(self, actor: Actor, lang: str = "en") -> dict:
+        last4 = self.profile["student_card_last4"]
+        if self.student_card.status == "active":
+            self.freeze_card(actor, last4, "emergency: card lost or stolen")
+        self._log("emergency_card_lost", actor, "freeze_card", {"card": last4, "status": self.student_card.status})
+        return self.emergency(actor, lang)
+
+    def ask_safety_check(self, actor: Actor) -> dict:
+        self._require(actor, "ask_safety_check")
+        if actor != Actor.PARENT:
+            raise PermissionError("only the parent asks the student whether they are safe")
+        check = next((c for c in self.safety_checks.values() if c.status == "open"), None)
+        if check is None:
+            check = SafetyCheck(self._id("safe"), actor.value, self.now)
+            self.safety_checks[check.id] = check
+            self.feed.add(self.now, "student", "needs_you", "safety_check_asked", {}, {"screen": "emergency"})
+        self._log("safety_check_asked", actor, "ask_safety_check", {"check_id": check.id})
+        return check.to_dict()
+
+    def confirm_safe(self, actor: Actor, check_id: str | None = None) -> dict:
+        """The student says they are safe: answers the parent's open check, or tells the family first (for example
+        right after a fake-police call, before the scammers phone the parents)."""
+        self._require(actor, "confirm_safe")
+        if actor != Actor.STUDENT:
+            raise PermissionError("only the student can say they are safe")
+        if check_id is None:
+            check = next((c for c in self.safety_checks.values() if c.status == "open"), None)
+            if check is None:
+                check = SafetyCheck(self._id("safe"), actor.value, self.now)
+                self.safety_checks[check.id] = check
+        else:
+            check = self.safety_checks[check_id]
+        if check.status != "open":
+            raise ValueError("this check was already answered")
+        check.status, check.answered_at = "safe", self.now
+        self.feed.add(self.now, "parent", "info", "safety_confirmed", {"time": self.now.strftime("%Y-%m-%d %H:%M")},
+                      {"screen": "emergency"})
+        self._log("safety_confirmed", actor, "confirm_safe", {"check_id": check.id})
+        return check.to_dict()
+
+    def surprise_expense(self, actor: Actor, amount_cny: Decimal, memo: str) -> dict:
+        if actor != Actor.STUDENT:
+            raise PermissionError("only the student spends the student's money")
+        amount = D(amount_cny)
+        if not Decimal(0) < amount <= Decimal(20000):
+            raise ValueError("amount must be between ¥0 and ¥20,000")
+        return self.bank.surprise_expense(amount, memo, actor.value)
+
     # ---- WhatsApp alerts ----------------------------------------------------------------------
     WA_KINDS = ("did", "needs_you", "warning")
+    WA_ALWAYS = ("safety_confirmed",)
     WA_FOOTER = {"bn": "অনুমোদন শুধু সাথী অ্যাপে, আঙুলের ছাপ দিয়ে। এই মেসেজের উত্তরে কিছু অনুমোদন হয় না, আর সাথী কখনো কোড বা পিন চায় না।",
                  "en": "Approvals happen only in the Sathi app, with your fingerprint. Replying here approves nothing, and Sathi never asks for codes or PINs.",
                  "zh": "只能在 Sathi 应用中用指纹批准。回复此消息不会批准任何操作，Sathi 也从不索要验证码或密码。"}
@@ -639,7 +737,7 @@ class AppState:
     def _on_note(self, note) -> None:
         if not self.whatsapp.enabled or not self.profile.get("parent_whatsapp"):
             return
-        if note.audience not in ("parent", "both") or note.kind not in self.WA_KINDS:
+        if note.audience not in ("parent", "both") or (note.kind not in self.WA_KINDS and note.key not in self.WA_ALWAYS):
             return
         if self._wa_batch is not None:
             self._wa_batch.append(note)

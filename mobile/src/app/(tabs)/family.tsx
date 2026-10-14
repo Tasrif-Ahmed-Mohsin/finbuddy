@@ -5,7 +5,7 @@ import { ActiveMandateCard, MandateComposer, ProposalCard } from '@/components/m
 import { NeedCard } from '@/components/note-card';
 import { TimelineCard } from '@/components/timeline-card';
 import { Banner, ErrorBox, H1, H2, Muted, Screen } from '@/components/ui';
-import type { Feed, MandateView, Proposal, Timeline } from '@/lib/api';
+import type { Feed, MandateView, Proposal, Timeline, NeedItem } from '@/lib/api';
 import { cny } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useLoad } from '@/lib/use-load';
@@ -31,7 +31,8 @@ export default function FamilyScreen() {
 
   const active = data?.mandates.find((m) => m.active && m.auto_topup);
   const shown = proposal ?? data?.pending ?? null;
-  const payments = data?.feed.needs_you.filter((n) => n.type !== 'sign_mandate') ?? [];
+  const payments =
+    data?.feed.needs_you.filter((n): n is Extract<NeedItem, { draft_id: string }> => n.type === 'approve_draft' || n.type === 'send_draft') ?? [];
 
   function onSigned(p: Proposal) {
     if (p.status === 'active') {

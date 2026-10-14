@@ -15,6 +15,7 @@ export default function RootLayout() {
           <Stack.Screen name="renewal/[item]" options={{ headerShown: true, title: 'Renewal', presentation: 'modal' }} />
           <Stack.Screen name="passport" options={{ headerShown: true, title: 'Passport', presentation: 'modal' }} />
           <Stack.Screen name="settings" options={{ headerShown: true, title: 'Settings', presentation: 'modal' }} />
+          <Stack.Screen name="emergency" options={{ headerShown: true, title: 'Emergency · জরুরি · 紧急', presentation: 'modal' }} />
         </Stack>
       </ThemeProvider>
     </SessionProvider>

@@ -74,6 +74,11 @@ class AdvanceIn(BaseModel):
     days: int = Field(ge=0, le=365)
 
 
+class ExpenseIn(BaseModel):
+    amount_cny: Decimal = Field(gt=0, le=20000)
+    memo: str = Field(default="", max_length=80)
+
+
 class ProposalIn(BaseModel):
     text: str = Field(min_length=3, max_length=1000)
     lang: str = "en"
@@ -429,6 +434,34 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     @app.get("/receipts")
     def receipts(s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return s.receipts()
+
+    @app.get("/emergency")
+    def emergency(lang: str = "en", s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.emergency, who, lang)
+
+    @app.post("/emergency/no-money")
+    def emergency_no_money(lang: str = "en", s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.emergency_no_money, who, lang)
+
+    @app.post("/emergency/card-lost")
+    def emergency_card_lost(lang: str = "en", s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.emergency_card_lost, user_only(who), lang)
+
+    @app.post("/emergency/safety-checks")
+    def ask_safety_check(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.ask_safety_check, user_only(who))
+
+    @app.post("/emergency/safe")
+    def i_am_safe(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.confirm_safe, user_only(who))
+
+    @app.post("/emergency/safety-checks/{check_id}/safe")
+    def confirm_safe(check_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.confirm_safe, user_only(who), check_id)
+
+    @app.post("/sandbox/expense")
+    def surprise_expense(body: ExpenseIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.surprise_expense, user_only(who), body.amount_cny, body.memo)
 
     @app.post("/sandbox/advance")
     def advance(body: AdvanceIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):

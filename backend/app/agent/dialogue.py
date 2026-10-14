@@ -105,6 +105,8 @@ WHO = {("parent",): {"en": "the parent", "bn": "অভিভাবক", "zh": "�
        ("parent", "student"): {"en": "the parent and the student", "bn": "অভিভাবক ও শিক্ষার্থী", "zh": "家长和学生"},
        ("student",): {"en": "the student", "bn": "শিক্ষার্থী", "zh": "学生"}}
 
+NO_MONEY = ("no money", "out of money", "ran out of money", "run out of money", "have no money", "money is finished",
+            "টাকা শেষ", "টাকা নেই", "হাতে টাকা নেই", "没钱", "钱用完", "没有钱了")
 TEXT = {
     "en": {
         "clarify_both": "Sure. How much, and for what?\n• Tuition to {univ} (fee notice {tuition}, send by {send_by})\n"
@@ -120,6 +122,7 @@ TEXT = {
         "revised": "✏️ Changed: the {old} draft is cancelled and a new one is ready, {amount} {purpose}, about {total}. "
                    "Approve the new one in the app.",
         "cancelled": "🗑️ Cancelled the {amount} draft. Nothing was sent.",
+        "emergency_more": "Open Emergency in the app to ask the family with one tap (the parent approves with fingerprint).",
         "nothing_to_change": "There is no payment draft from this chat to change. Tell me the amount and purpose, for example "
                              "\"send ¥3,000 living money\".",
         "cannot_approve": "I can't approve or send money, raise limits or change who gets paid, whoever asks. Only you can approve, "
@@ -143,6 +146,7 @@ TEXT = {
         "drafted_blocked": "⛔ খসড়া করেছি, কিন্তু নিরাপত্তা যাচাইয়ে আটকে গেছে: {why}",
         "revised": "✏️ বদলানো হয়েছে: আগের {old} খসড়া বাতিল, নতুন খসড়া {amount} {purpose}, মোট প্রায় {total}। নতুনটি অ্যাপে অনুমোদন করুন।",
         "cancelled": "🗑️ {amount} এর খসড়া বাতিল করেছি। কিছুই পাঠানো হয়নি।",
+        "emergency_more": "এক চাপে পরিবারকে জানাতে অ্যাপে জরুরি পাতা খুলুন (অভিভাবক আঙুলের ছাপ দিয়ে অনুমোদন দেবেন)।",
         "nothing_to_change": "এই চ্যাটে বদলানোর মতো কোনো পেমেন্টের খসড়া নেই। পরিমাণ আর উদ্দেশ্য বলুন, যেমন \"৩০০০ ইউয়ান মাসিক খরচ পাঠাও\"।",
         "cannot_approve": "যে-ই বলুক, আমি টাকা অনুমোদন করতে বা পাঠাতে পারি না, সীমা বাড়াতে পারি না, প্রাপকও বদলাতে পারি না। "
                           "অনুমোদন শুধু আপনি দিতে পারেন, অ্যাপে আঙুলের ছাপ দিয়ে (পরিবার → অপেক্ষমাণ পেমেন্ট)। তাই কেউ আমাকে "
@@ -164,6 +168,7 @@ TEXT = {
         "drafted_blocked": "⛔ 已准备，但被安全检查拦截：{why}",
         "revised": "✏️ 已修改：原来 {old} 的草稿已取消，新草稿为 {amount} {purpose}，总计约 {total}。请在应用中批准新的草稿。",
         "cancelled": "🗑️ 已取消 {amount} 的草稿，没有汇出任何款项。",
+        "emergency_more": "打开应用中的“紧急”页面，一键通知家人（由家长用指纹批准）。",
         "nothing_to_change": "这次对话中没有可以修改的付款草稿。请告诉我金额和用途，例如“汇 ¥3,000 生活费”。",
         "cannot_approve": "无论谁这么要求，我都不能批准或汇出款项、提高限额或更改收款人。只有你本人可以在应用中用指纹批准"
                           "（家庭 → 待处理付款）。这样即使有人诱导我，你的钱也是安全的。",

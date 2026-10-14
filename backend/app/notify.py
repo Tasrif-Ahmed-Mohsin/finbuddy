@@ -123,6 +123,29 @@ TEMPLATES: dict[str, dict[str, tuple[str, str]]] = {
                "এরপর সাথী নিজে থেকে মাসিক খরচ পাঠাবে না। চালু রাখতে পরিবার পাতায় নতুন নির্দেশনা লিখুন।"),
         "zh": ("家庭授权将于 {end_date} 到期", "到期后 Sathi 将不再自行汇生活费。如需继续，请在“家庭”页面写下新的指示。"),
     },
+    "emergency_no_money": {
+        "en": ("The student needs money urgently",
+               "Money left: {balance_cny}. An urgent transfer of {amount_cny} is ready for your approval in the app; "
+               "if approved today it lands on {lands_date}. Until then: {bridge_en}"),
+        "bn": ("শিক্ষার্থীর জরুরি টাকা দরকার",
+               "হাতে আছে {balance_cny}। {amount_cny} এর একটি জরুরি ট্রান্সফার অ্যাপে আপনার অনুমোদনের অপেক্ষায়; "
+               "আজ অনুমোদন দিলে পৌঁছাবে {lands_date}। ততদিন: {bridge_bn}"),
+        "zh": ("学生急需用钱", "剩余 {balance_cny}。一笔 {amount_cny} 的加急汇款已在应用中等待你批准；今天批准则 {lands_date} 到账。在此之前：{bridge_zh}"),
+    },
+    "safety_check_asked": {
+        "en": ("Your family asks: are you safe?",
+               "Someone may have called them saying you are in trouble. Open Emergency and tap \"I'm safe\"."),
+        "bn": ("পরিবার জানতে চাইছে: তুমি নিরাপদ?",
+               "কেউ হয়তো তাদের ফোন করে বলেছে তুমি বিপদে আছ। জরুরি পাতা খুলে \"আমি নিরাপদ\" চাপো।"),
+        "zh": ("家人在问：你安全吗？", "可能有人打电话给他们说你遇到了麻烦。请打开“紧急”页面，点击“我很安全”。"),
+    },
+    "safety_confirmed": {
+        "en": ("The student says they are safe",
+               "Confirmed in the Sathi app at {time}. Whoever called you was not telling the truth: do not pay them."),
+        "bn": ("শিক্ষার্থী জানিয়েছে সে নিরাপদ",
+               "{time} সময়ে সাথী অ্যাপে নিশ্চিত করেছে। যে ফোন করেছিল সে সত্য বলেনি: তাকে কোনো টাকা দেবেন না।"),
+        "zh": ("学生说自己很安全", "已于 {time} 在 Sathi 应用中确认。给你打电话的人说的不是真话：不要付钱。"),
+    },
     "card_stops": {
         "en": ("The card stops working abroad on {card_date}",
                "Renewing the endorsement needs the student in person at the bank in Bangladesh. {plan_en}"),

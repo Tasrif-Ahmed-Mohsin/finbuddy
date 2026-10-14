@@ -177,6 +177,20 @@ class SandboxBank:
     def student_cny(self) -> Decimal:
         return self.accounts["student_cash"].balance + self.accounts["student_cn"].balance
 
+    def surprise_expense(self, amount: Decimal, memo: str, actor: str) -> dict:
+        """A one-off bill paid from the student's money in China (sandbox only), e.g. a doctor or a deposit."""
+        paid = Decimal(0)
+        for acct_id in ("student_cash", "student_cn"):
+            acct = self.accounts[acct_id]
+            take = min(acct.balance, amount - paid)
+            acct.balance -= take
+            paid += take
+        if self.spend_log:
+            self.spend_log[-1] += amount
+        self.log("surprise_expense", actor, "SANDBOX", {"amount_cny": str(amount), "paid_cny": str(paid), "memo": memo[:80]})
+        return {"amount_cny": str(amount), "paid_cny": str(paid), "unpaid_cny": str(amount - paid),
+                "balance_cny": str(self.student_cny())}
+
     def spend_day(self) -> tuple[Decimal, bool]:
         """End of the current day: the student spends today's living money. Returns (spent, stuck)."""
         need = self.daily_spend_cny
