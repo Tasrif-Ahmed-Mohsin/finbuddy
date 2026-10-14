@@ -480,27 +480,45 @@ cd mobile && npm install && npx expo start
 | `SATHI_INGEST_TOKEN` | webhook secret for SMS forwarders |
 | `SATHI_PASSPORT_SECRET` | passport signing key (random per process if unset) |
 | `SATHI_IMAP_HOST / _USER / _PASSWORD` | optional read-only bank-alert mailbox (app password) |
-| `EXPO_PUBLIC_API_URL` (mobile) | backend address for a deployed server |
+| `EXPO_PUBLIC_API_URL` (mobile) | backend address for a deployed server (`/api` when served together) |
+| `SATHI_LLM_DAILY_CALLS` | daily budget of AI calls on a public server (0 = no limit); past it the agent answers with its rules |
+| `WHATSAPP_MODE` | `off` · `dry_run` (log only) · `live`; the public demo uses `off` |
+
+**Public deployment (one address, `Dockerfile` + `render.yaml`).** The image builds the Expo web app and serves it together with the API (`app/web.py`, API under `/api`). The app's routes such as `/emergency` get the web app; only files inside the build folder are served (path traversal tested). Because anyone can open a public demo and AI calls cost money:
+- per-address rate limits: AI-backed writes (chat, documents, mandate proposals, inbox) 20 per 10 minutes, other writes 120 per 10 minutes; reads are not limited;
+- a daily AI budget (`SATHI_LLM_DAILY_CALLS`, 600 in the image); past it, every answer still works through the rule-based fallback;
+- WhatsApp is off; secrets come only from the host's environment settings (`.env` files are excluded from the image);
+- "Start the demo again" in Settings (`POST /sandbox/reset`, users only) gives a clean sandbox from 12 Oct 2026.
+
+```bash
+docker build -t sathi . && docker run -p 8000:8000 -e DEEPSEEK_API_KEY=... sathi   # then open http://localhost:8000
+```
+On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEPSEEK_API_KEY` in the dashboard. The free plan sleeps after inactivity (the first request then takes about a minute).
 
 **Final-day network plan (Shenzhen):** DeepSeek is reachable from mainland China. If the network fails anyway, FX switches to the saved history, mandates compile with the rules parser and the agent uses its rule-based fallback, so every task still completes.
 
 ## 10. Testing and execution evidence
 
-- `cd backend && .venv/Scripts/python -m pytest -q` runs **203 test cases** (156 test functions, some parameterised), all passing:
+- `cd backend && .venv/Scripts/python -m pytest -q` runs **288 test cases** (219 test functions, some parameterised), all passing:
 
   | Area | Test cases |
   |---|---|
   | Living optimiser (incl. 30-combination limit check) | 36 |
-  | **Bank prices: published sheets, fee schedules, labels** | **21** |
+  | **Dialogue: clarification, correction, refusal (EN/BN/ZH)** | **31** |
   | **Family mandate, signatures and autopilot** | **26** |
+  | **Bank prices: published sheets, fee schedules, rate watch** | **23** |
+  | **Emergency mode, fake emergencies, "Are you safe?"** | **22** |
   | Security and permissions | 20 |
   | Inbox and privacy | 17 |
   | FX and card controls | 16 |
   | End-to-end API scenarios | 13 |
   | **Year plan, bank calendar, cost truth** | **12** |
+  | **Stress test, what-if, spending pace, late margin** | **11** |
   | Payment passport | 10 |
   | Renewals (incl. endorsement from abroad) | 10 |
+  | WhatsApp alerts (dry run, template fallback) | 10 |
   | Agent | 9 |
+  | **Public deployment: routing, path traversal, rate limits, AI budget, reset** | **8** |
   | Documents | 5 |
   | Tuition and FX method | 5 |
   | Cost engine | 4 |

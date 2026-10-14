@@ -1,0 +1,19 @@
+# Render blueprint: one web service from the Dockerfile (sandbox demo; no real money moves).
+# In the Render dashboard: New → Blueprint → this repository. Then set DEEPSEEK_API_KEY under Environment.
+services:
+  - type: web
+    name: sathi
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DEEPSEEK_API_KEY
+        sync: false  # entered in the dashboard, never committed
+      - key: SATHI_FX_MODE
+        value: live
+      - key: WHATSAPP_MODE
+        value: "off"  # family alerts stay off on the public demo
+      - key: SATHI_LLM_DAILY_CALLS
+        value: "600"

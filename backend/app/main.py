@@ -159,7 +159,8 @@ def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO) -> FastAPI:
                   description="Cross-border student finance agent (sandbox). No real money moves.")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
     settings = load_settings()
-    app.state.svc = AppState(audit_path=audit_path, llm=make_llm(settings) if llm is _AUTO else llm, settings=settings)
+    the_llm = make_llm(settings) if llm is _AUTO else llm
+    app.state.svc = AppState(audit_path=audit_path, llm=the_llm, settings=settings)
 
     def svc() -> AppState:
         return app.state.svc
@@ -462,6 +463,13 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     @app.post("/sandbox/expense")
     def surprise_expense(body: ExpenseIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return guard(s.surprise_expense, user_only(who), body.amount_cny, body.memo)
+
+    @app.post("/sandbox/reset")
+    def reset_sandbox(who: Actor = Depends(actor)):
+        """Start the demo again from 12 Oct 2026 (sandbox only). The previous session's log stays on disk."""
+        user_only(who)
+        app.state.svc = AppState(audit_path=audit_path, llm=the_llm, settings=settings)
+        return {"reset": True, "now": app.state.svc.now.isoformat()}
 
     @app.post("/sandbox/advance")
     def advance(body: AdvanceIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):

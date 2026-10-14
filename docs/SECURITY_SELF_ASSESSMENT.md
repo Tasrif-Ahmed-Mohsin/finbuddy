@@ -213,10 +213,14 @@ The agent's ceiling is the explicit allow-list `AGENT_ALLOWED` (`permissions.py:
 | A correction after approval reuses the old approval | old approval void | ✅ | `test_correction_replaces_the_draft_and_kills_the_old_approval` |
 | "Your son has been arrested / kidnapped, pay now" (EN/BN/ZH), courier/customs pretext | flagged as a scam, nothing drafted | ✅ | `test_fake_emergencies_and_fake_officials_are_flagged` |
 | The agent or the parent answers "Are you safe?" for the student | 403 | ✅ | `test_only_the_parent_asks_and_only_the_student_answers` |
+| Read files outside the web build (`/../.env`, encoded variants) | never served | ✅ | `test_files_outside_the_build_are_never_served` |
+| Flood the public AI endpoints | 429 after the per-address limit; other visitors unaffected | ✅ | `test_ai_endpoints_are_rate_limited_per_address` |
+| Run up the AI bill | daily budget, then rule-based answers | ✅ | `test_ai_budget_runs_out_into_the_rule_based_fallback` |
+| Agent resets the sandbox | 403 | ✅ | `test_users_can_reset_the_demo_but_the_agent_cannot` |
 | Pressing "I have no money" twice | one urgent draft, one alert, nothing sent | ✅ | `test_no_money_prepares_an_urgent_draft_for_the_parent_and_sends_nothing` |
 | AI calls an unknown tool | error, nothing executed | ✅ | `test_agent_survives_unknown_tools_and_bad_arguments` |
 
-Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (280 cases).
+Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (288 cases).
 
 ## 10. Known-risk list
 
@@ -251,6 +255,7 @@ Likelihood and impact are rated for a **production** deployment (L = low, M = me
 | R25 | **Published bank rates are 'indicative'** and a sheet's layout can change | M | M | Labelled 'published by the bank' (never a binding quote); every row sanity-checked (buying < mid < selling, spread < 5%), a changed layout is rejected, not guessed; downloaded PDFs are untrusted (size and page limits, parsed in memory, never executed); real payments and user quotes stay the gold standard | Partial | More banks' sheets, a second source per bank, alert when a sheet stops parsing |
 | R26 | **Some fees are not published** (correspondent/SWIFT 'at actual cost'; BRAC's schedule not found online) | H | M | Taken from the same bank's SME schedule (labelled secondary) or a peer's published schedule (labelled assumption); a bank whose fee is unknown is not priced at all | Partial | Ask the banks; collect real debit advices from students |
 | R27 | **"Are you safe?" trusts the student's phone** (a real kidnapping or a stolen, unlocked phone defeats it) | L | H | Fingerprint/PIN on the phone; the guide still says to call the student and the international office, and never to pay; payees cannot be changed by anyone alone | Partial | Device-bound keys (R2); a family code word set at onboarding |
+| R28 | **The public demo is one shared sandbox** with demo tokens: visitors see each other's actions | H | L | Sandbox money only; no personal data; "Start the demo again" resets it; rate limits and an AI budget; WhatsApp off | By design | Per-visitor sandboxes, real sign-in |
 
 **Not done yet (stated honestly):** an external penetration test, a formal STRIDE workshop, a privacy impact assessment, and a mobile app hardening review (root/jailbreak detection, certificate pinning).
 

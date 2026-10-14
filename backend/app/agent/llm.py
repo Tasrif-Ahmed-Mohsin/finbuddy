@@ -9,7 +9,9 @@ Choices:
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
+from datetime import date
 
 import httpx
 
@@ -38,11 +40,13 @@ class LLMReply:
 
 class DeepSeekClient:
     def __init__(self, api_key: str, base_url: str = "https://api.deepseek.com", model: str = "deepseek-flash",
-                 timeout: float = 30.0, transport: httpx.BaseTransport | None = None):
+                 timeout: float = 30.0, transport: httpx.BaseTransport | None = None, daily_calls: int = 0):
         self._key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
         self._http = httpx.Client(timeout=timeout, transport=transport)
+        self.daily_calls = daily_calls  # 0 = no limit; on a public demo server, a budget (SATHI_LLM_DAILY_CALLS)
+        self._used: tuple[str, int] = ("", 0)
 
     def chat(self, messages: list[dict], tools: list[dict] | None = None, json_mode: bool = False,
              max_tokens: int = 1200, temperature: float = 0.2) -> LLMReply:
@@ -58,6 +62,12 @@ class DeepSeekClient:
             body["tool_choice"] = "auto"
         if json_mode:
             body["response_format"] = {"type": "json_object"}
+        if self.daily_calls:
+            today = date.today().isoformat()
+            used = self._used[1] if self._used[0] == today else 0
+            if used >= self.daily_calls:
+                raise LLMUnavailable("daily AI budget reached")  # callers fall back to the rule-based answers
+            self._used = (today, used + 1)
         try:
             r = self._http.post(f"{self.base_url}/chat/completions", json=body,
                                 headers={"Authorization": f"Bearer {self._key}", "Content-Type": "application/json"})
@@ -89,4 +99,5 @@ class DeepSeekClient:
 def make_llm(settings: Settings) -> DeepSeekClient | None:
     if not settings.llm_enabled or not settings.deepseek_api_key:
         return None
-    return DeepSeekClient(settings.deepseek_api_key, settings.deepseek_base_url, settings.deepseek_model)
+    return DeepSeekClient(settings.deepseek_api_key, settings.deepseek_base_url, settings.deepseek_model,
+                          daily_calls=int(os.environ.get("SATHI_LLM_DAILY_CALLS", "0") or 0))

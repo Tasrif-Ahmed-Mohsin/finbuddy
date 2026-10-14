@@ -1,0 +1,23 @@
+# Never put secrets or personal documents into the image.
+**/.env
+**/.env.*
+credentials*
+*.credentials
+registration/
+*passport*.jpg
+*passport*.jpeg
+*passport*.png
+*passport*.pdf
+
+# Build and local state
+.git
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+backend/var
+mobile/dist
+mobile/.expo
+.claude
+docs

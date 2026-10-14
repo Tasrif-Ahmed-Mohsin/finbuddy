@@ -51,6 +51,16 @@ export default function SettingsScreen() {
     }
   }
 
+  async function resetDemo() {
+    setError(null);
+    try {
+      await call('/sandbox/reset', post({}));
+      reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   async function advance(days: number) {
     setError(null);
     try {
@@ -120,6 +130,8 @@ export default function SettingsScreen() {
             <Button key={d} title={`+${d}d`} variant="secondary" onPress={() => advance(d)} />
           ))}
         </Row>
+        <Button title={t('resetDemo')} variant="secondary" onPress={resetDemo} />
+        <Muted>{t('resetDemoHint')}</Muted>
       </Card>
 
       {data && (
