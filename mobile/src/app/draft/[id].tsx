@@ -37,6 +37,21 @@ export default function DraftScreen() {
     }
   }
 
+  async function cancel() {
+    if (!d) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await call(`/drafts/${d.id}/cancel`, { method: 'POST' });
+      setDone(t('cancelledPayment'));
+      reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function execute() {
     if (!d) return;
     setBusy(true);
@@ -139,6 +154,9 @@ export default function DraftScreen() {
           </Banner>
         )}
         {d.status === 'approved' && <Button title={t('execute')} onPress={execute} loading={busy} />}
+        {(d.status === 'draft' || d.status === 'approved') && (
+          <Button title={t('cancelPayment')} variant="secondary" onPress={cancel} disabled={busy} />
+        )}
       </Card>
     </Screen>
   );

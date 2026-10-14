@@ -41,6 +41,7 @@ ACTION_LEVELS: dict[str, Level] = {
     "explain": Level.READ,
     "check_message": Level.READ,
     "create_draft": Level.DRAFT,
+    "cancel_draft": Level.DRAFT,  # dropping a prepared payment only makes things safer
     "set_reminder": Level.DRAFT,
     "plan_renewal": Level.DRAFT,  # make a renewal plan + draft messages (nothing is sent)
     "update_renewal": Level.DRAFT,  # tick steps / confirm the new expiry: the user only
@@ -61,7 +62,7 @@ ACTION_LEVELS: dict[str, Level] = {
 
 # The agent's ceiling. It can never EXECUTE on its own; only MANDATE within user-set caps.
 # Asymmetric by design: making things SAFER is easy, making them riskier needs a human.
-AGENT_ALLOWED = {"get_rates", "compare_tuition", "plan_living", "explain", "check_message", "create_draft",
+AGENT_ALLOWED = {"get_rates", "compare_tuition", "plan_living", "explain", "check_message", "create_draft", "cancel_draft",
                  "set_reminder", "plan_renewal", "freeze_card", "execute_under_mandate", "plan_year", "propose_mandate"}
 
 
@@ -79,7 +80,7 @@ class Draft:
     created_at: datetime
     expires_at: datetime
     created_by: Actor
-    status: str = "draft"  # draft | blocked | approved | executed | expired
+    status: str = "draft"  # draft | blocked | approved | executed | expired | cancelled
     checks: list[dict] = field(default_factory=list)
 
     def binding_fields(self) -> dict:

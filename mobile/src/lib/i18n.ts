@@ -285,6 +285,8 @@ const en = {
   waLive: "Live: messages are really sent",
   waDryRun: "Test mode: messages are only logged",
   waOff: "Off",
+  cancelPayment: "Cancel this payment",
+  cancelledPayment: "Cancelled. Nothing was sent.",
 };
 
 type Dict = typeof en;
@@ -573,6 +575,8 @@ const bn: Dict = {
   waLive: "চালু: মেসেজ সত্যিই যাবে",
   waDryRun: "টেস্ট মোড: মেসেজ শুধু লগ হয়",
   waOff: "বন্ধ",
+  cancelPayment: "এই পেমেন্ট বাতিল করুন",
+  cancelledPayment: "বাতিল হয়েছে। কিছুই পাঠানো হয়নি।",
 };
 
 const zh: Dict = {
@@ -859,6 +863,8 @@ const zh: Dict = {
   waLive: "已开启：会真实发送",
   waDryRun: "测试模式：只记录不发送",
   waOff: "关闭",
+  cancelPayment: "取消这笔付款",
+  cancelledPayment: "已取消，没有汇出任何款项。",
 };
 
 export const STRINGS: Record<Lang, Dict> = { en, bn, zh };

@@ -357,6 +357,10 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     def approve(draft_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return guard(s.approve, who, draft_id)
 
+    @app.post("/drafts/{draft_id}/cancel")
+    def cancel_draft(draft_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.cancel_draft, who, draft_id, "cancelled in the app")
+
     @app.post("/drafts/{draft_id}/execute")
     def execute(draft_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return guard(s.execute, who, draft_id)

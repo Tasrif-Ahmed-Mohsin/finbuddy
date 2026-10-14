@@ -306,6 +306,19 @@ class AppState:
         })
         return self.draft_view(draft.id)
 
+    def cancel_draft(self, actor: Actor, draft_id: str, reason: str = "") -> dict:
+        """Drop a prepared payment. Its approvals stop working at once (their nonces are consumed)."""
+        self._require(actor, "cancel_draft")
+        d = self.drafts[draft_id]
+        if d.status == "executed":
+            raise ValueError("this payment was already sent; it cannot be cancelled here")
+        if d.status != "cancelled":
+            d.status = "cancelled"
+            self.approvals.consume(self.tokens[draft_id])
+            self.tokens[draft_id] = []
+            self._log("draft_cancelled", actor, "cancel_draft", {"draft_id": draft_id, "reason": reason[:80]})
+        return self.draft_view(draft_id)
+
     def draft_view(self, draft_id: str) -> dict:
         d = self.drafts[draft_id]
         needed = required_approvers(d, self.corridor.v("two_person_threshold_bdt"))
@@ -325,7 +338,7 @@ class AppState:
             self._log("permission_denied", actor, "execute_draft", {"draft_id": draft_id, "reason": "agent cannot approve"})
             raise PermissionError("the agent can never approve a payment")
         d = self.drafts[draft_id]
-        if d.status in ("blocked", "executed"):
+        if d.status in ("blocked", "executed", "cancelled"):
             raise ValueError(f"draft is {d.status} and cannot be approved")
         token = self.approvals.issue(d, actor, self.now)
         self.tokens[draft_id] = [t for t in self.tokens[draft_id] if t["approver"] != actor.value] + [token]
@@ -342,8 +355,8 @@ class AppState:
         self._require(actor, "execute_draft")
         d = self.drafts[draft_id]
         spec = self.specs[draft_id]
-        if d.status == "executed":
-            raise ValueError("draft already executed")
+        if d.status in ("executed", "cancelled"):
+            raise ValueError(f"draft is {d.status}")
         checks = run_draft_checks(d, self._ctx(spec.origin_message))  # re-check at execution time
         if is_blocked(checks):
             d.status, d.checks = "blocked", [c.to_dict() for c in checks]
@@ -399,8 +412,9 @@ class AppState:
         d, spec, m = self.drafts[draft_id], self.specs[draft_id], self.mandates[mandate_id]
         checks = run_draft_checks(d, self._ctx(spec.origin_message))
         decision = check_mandate(m, d, self.now)
-        if is_blocked(checks) or not decision.allowed or d.status == "executed":
-            reason = decision.reason if not decision.allowed else ("already executed" if d.status == "executed" else "blocked by compliance checks")
+        if is_blocked(checks) or not decision.allowed or d.status in ("executed", "cancelled"):
+            reason = decision.reason if not decision.allowed else (
+                f"draft is {d.status}" if d.status in ("executed", "cancelled") else "blocked by compliance checks")
             self._log("mandate_execution_denied", actor, "execute_under_mandate", {"draft_id": draft_id, "mandate_id": mandate_id, "reason": reason})
             raise PermissionError(reason)
         result = self._run(d, spec, actor.value, Level.MANDATE.name)

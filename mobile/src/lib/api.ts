@@ -46,7 +46,7 @@ export type Draft = {
   rate_bdt_per_cny: string | null;
   memo: string;
   expires_at: string;
-  status: 'draft' | 'blocked' | 'approved' | 'executed' | 'expired';
+  status: 'draft' | 'blocked' | 'approved' | 'executed' | 'expired' | 'cancelled';
   checks: Check[];
   created_by: string;
   required_approvers: Role[];
