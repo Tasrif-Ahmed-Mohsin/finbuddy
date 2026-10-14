@@ -166,6 +166,17 @@ export type StudentFileFee = {
   url: string;
 };
 
+export type RateWatch = {
+  bank_id: string;
+  sheets: number;
+  from: string;
+  to: string;
+  series: { date: string; market: number; bank: number; markup_pct: number }[];
+  markup: { median: number; p25: number; p75: number; low: number; high: number };
+  latest: { date: string; markup_pct: number; position: 'high' | 'usual' | 'low'; share_of_days_cheaper_pct: number };
+  timing_backtest: { rule: string; cases: number; cheaper_cases: number; mean_saving_pct: number | null; saving_per_lakh_bdt: number | null };
+};
+
 export type BankPrices = {
   quotes: {
     quote_id: string;
@@ -180,6 +191,7 @@ export type BankPrices = {
   }[];
   student_file_fees: StudentFileFee[];
   published_history: { date: string; bank_id: string; cny_tt_selling: string; cny_bank_mid: string }[];
+  rate_watch: RateWatch | null;
   quality: DataQuality['bank_quotes'];
   fees_reviewed: string | null;
 };

@@ -310,9 +310,15 @@ There are no unnamed estimates any more. A bank whose fees are not published at 
 | Fixed charge | **৳8,000** |
 | Charge vs markup | **5.5×** |
 | Eastern Bank's published rate, same weeks | ৳18.49 average over 30 sheets (৳18.33–18.55): BRAC's ৳18.35 was 0.74% below that average |
+| Paid in total | ৳6,53,920 |
 
 The ৳8,000 matches the banks' published one-time **Student File opening fees** (৳6,900–৳8,625 incl. VAT), so it was most likely not a per-transfer charge (to confirm with the interviewee).
-| Paid in total | ৳6,53,920 |
+
+**Rate watch: does timing the bank pay? (`engines/rate_watch.py`, in `GET /market/prices`, card in Plan → Tuition).** Families ask "should we wait for a better rate?". We answer from Eastern Bank's 138 published sheets (Mar–Oct 2026) against the market rate on the same days:
+- markup over the market: median **0.97%**, middle half 0.86–1.09%, range 0.28–1.52%; the latest sheet is labelled low / usual / high against that history;
+- backtest of the usual rule, "today looks expensive (top-quarter markup), so wait up to 3 sheets and take the cheapest": in 35 cases it lowered the taka price 20 times, by **0.02% on average (৳21 per ৳1 lakh)**. One ৳1 lakh transfer pays **৳3,565** in fees.
+
+The markup swings are mostly the market moving under a smooth bank price (day-to-day correlation of the markup: 0.09), not the bank being expensive. So Sathi does **not** time the market: it avoids extra transfers (fees) and days without money. This is shown to families as a finding, not hidden.
 
 ### 4.6 Living-money constrained optimiser (`engines/living_planner.py`)
 Exact grid search over the transfer amount `t` (¥100 steps). The rest is split into ATM withdrawals of maximum size, in whole ¥100 notes, to minimise fixed fees.
@@ -420,6 +426,7 @@ Full details, the permission-tier implementation and the known-risk list are in 
 | Days without money (live) | **0** over 12 Oct 2026 → 21 Feb 2027, through the card stop and Spring Festival | `demo_scenario.py` in the live sandbox |
 | Overhead for the year | **4.39% → 3.88%** (৳5,126 saved for the same money), with published fees | year plan |
 | Where money is lost | fees are **89%** of today's loss; the real payment's charge was **5.5×** its rate markup | cost truth (§4.5) |
+| Timing the bank | waiting up to 3 sheets after an "expensive" day saved **0.02%** (৳21 per lakh) on average, vs ৳3,565 fees per transfer | rate watch backtest, 35 cases |
 | Bank rate markup (published) | Eastern Bank's CNY TT selling averaged **+0.96%** over the market (median 0.97%, range 0.28–1.52%, 138 days) | 139 published sheets |
 | Living money ¥6,000/month | ৳3,001 saved per month vs ATM-only | optimiser |
 | Limits | 0 breaches in 30 tested combinations; autopilot never above a mandate or the living cap (tested) | automated tests |

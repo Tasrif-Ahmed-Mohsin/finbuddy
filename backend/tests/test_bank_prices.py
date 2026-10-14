@@ -174,3 +174,38 @@ def test_tuition_options_carry_their_basis(client):
     assert {o["basis"] for o in p["options"]} == {"published", "real_payment"}
     assert all(any(line["label"] == "Correspondent bank charge" for line in o["lines"]) for o in p["options"])
     assert date.fromisoformat(next(o for o in p["options"] if o["basis"] == "published")["rate_date"]) >= date(2026, 3, 1)
+
+
+# ---- rate watch: the bank's price vs the market, and whether timing it pays ---------------------------
+def _sheet(day: str, tt: str) -> PublishedRate:
+    return PublishedRate(day, "ebl", D(tt), D(tt), D(tt), D(tt), D("122"), "test")
+
+
+def test_rate_watch_on_the_saved_sheets():
+    from app.bank_rates import load_rates
+    from app.engines.rate_watch import rate_watch
+    rw = rate_watch(load_rates(), load_history(), "ebl", date(2026, 10, 12))
+    assert rw["sheets"] >= 130 and 0.5 < rw["markup"]["median"] < 1.5 and rw["markup"]["p25"] <= rw["markup"]["p75"]
+    assert rw["latest"]["date"] <= "2026-10-12" and rw["latest"]["position"] in {"high", "usual", "low"}
+    bt = rw["timing_backtest"]
+    # the honest finding: waiting for a "better day" saves next to nothing compared with a transfer's fees
+    assert bt["cases"] > 20 and abs(bt["saving_per_lakh_bdt"]) < 200
+
+
+def test_rate_watch_backtest_counts_real_savings():
+    from app.engines.rate_watch import rate_watch
+    from app.fx import FxPoint
+    days = [f"2026-05-{d:02d}" for d in range(1, 21)]
+    fx = [FxPoint(d, 120.0, 6.0) for d in days]  # market: ৳20.00 every day
+    tts = ["20.2", "20.2", "20.4", "20.1", "20.2", "20.2", "20.2", "20.2", "20.4", "20.4", "20.4", "20.4",
+           "20.2", "20.2", "20.2", "20.2", "20.2", "20.2", "20.2", "20.2"]
+    rw = rate_watch([_sheet(d, t) for d, t in zip(days, tts)], fx, "ebl")
+    bt = rw["timing_backtest"]
+    assert rw["markup"]["median"] == 1.0 and bt["cases"] == 5  # every 2.0% day is in the top quarter
+    assert bt["cheaper_cases"] == 4  # only after day 9 are the next three sheets all still at 20.4
+    assert rate_watch([_sheet(d, t) for d, t in zip(days[:5], tts)], fx, "ebl") is None  # too few sheets: no claims
+
+
+def test_prices_endpoint_includes_the_rate_watch(client):
+    rw = client.get("/market/prices", headers={"Authorization": "Bearer demo-parent"}).json()["rate_watch"]
+    assert rw["bank_id"] == "ebl" and len(rw["series"]) == rw["sheets"]

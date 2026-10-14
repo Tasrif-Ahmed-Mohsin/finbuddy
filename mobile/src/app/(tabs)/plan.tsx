@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { DataBanner } from '@/components/data-banner';
 import { FxChart } from '@/components/fx-chart';
+import { RateWatchCard } from '@/components/rate-watch';
 import { YearPlanView } from '@/components/year-plan';
 import { ThemedText } from '@/components/themed-text';
 import { Badge, Button, Card, ErrorBox, H1, H2, Meter, Muted, Row, Screen, Segmented, Field, styles } from '@/components/ui';
@@ -218,6 +219,7 @@ function TuitionPlanner() {
       </Card>
       <ErrorBox error={error} />
       <FxCard />
+      <RateWatchCard />
       {plan && (
         <>
           <DataBanner dq={plan.data_quality} />

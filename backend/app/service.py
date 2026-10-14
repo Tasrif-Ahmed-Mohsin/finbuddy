@@ -24,6 +24,7 @@ from app.config import Settings, load_settings
 from app.corridors.loader import load_corridor
 from app.engines.cost import atm_cost, tt_cost
 from app.engines.cost_truth import field_payment_truth
+from app.engines.rate_watch import rate_watch
 from app.engines.stress import stress_test, what_if
 from app.engines.year_plan import (Policy, Situation, load_calendar, plan_year, runs_out_on, spending_pace,
                                    topup_decision)
@@ -177,6 +178,7 @@ class AppState:
             "student_file_fees": student_file_fees(self.quote_cfg.get("fees", {})),
             "published_history": [{"date": r.date, "bank_id": r.bank_id, "cny_tt_selling": str(r.cny_tt_selling),
                                    "cny_bank_mid": str(r.cny_bank_mid)} for r in self.bank_rates.history("ebl", 400)],
+            "rate_watch": rate_watch(self.bank_rates.rates, self.fx.history, "ebl", self.now.date()),
             "notes": m.notes,
             "quality": m.quality,
             "fees_reviewed": self.quote_cfg.get("fees", {}).get("reviewed"),

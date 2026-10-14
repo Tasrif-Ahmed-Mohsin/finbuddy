@@ -38,7 +38,7 @@ costs families most: a real BRAC tuition payment was only 0.22% above the market
 
 **Results** (saved real rates):
 - **Year plan:** stuck days **20 → 0**; fees + markup **4.39% → 3.88%** (৳5,126 saved for the same money). **89%** of what families lose today is fees, not the exchange rate.
-- **Published data:** Eastern Bank's CNY transfer rate averaged **+0.96%** above the market (138 days). Its fees on a ৳1 lakh transfer are **৳3,565**, more than the rate markup.
+- **Published data:** Eastern Bank's CNY transfer rate averaged **+0.96%** above the market (138 days). Its fees on a ৳1 lakh transfer are **৳3,565**, more than the rate markup. Waiting for a "better day" saved **৳21 per lakh** on average in a backtest, so Sathi does not try to time the market.
 - **Stress test:** the same year re-run 200 times with messy spending, late transfers and moved holidays. Typical year: **30 → 0** stuck days; **64%** of messy years with none (today: 0%). What if the taka weakens 10%, spending rises 30%, every transfer is 3 days late, or all at once: still **0** stuck days.
 - **Live sandbox run:** 12 Oct 2026 → 21 Feb 2027, through the card stop and Spring Festival: **0 stuck days**.
 - See [docs/evidence/scenario_summary.md](docs/evidence/scenario_summary.md).
