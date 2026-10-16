@@ -34,6 +34,9 @@ CREDIT = ["credited", "received", "deposited", "refund", "refunded", "收入", "
 KINDS = [
     ("atm", ["atm", "cash withdrawal", "取款", "取现", "এটিএম"]),
     ("fee", ["fee charged", "charge for", "手续费", "annual fee"]),
+    # The student's own money (Earn & Save): pay or a stipend landing in their account.
+    ("income", ["salary", "stipend", "scholarship", "wage", "payroll", "工资", "奖学金", "助学金", "劳务费", "বেতন", "বৃত্তি",
+                "স্টাইপেন্ড"]),
     ("transfer", ["transfer", "remittance", "swift", "tt ", "汇款", "转账", "রেমিট্যান্স", "ট্রান্সফার"]),
     ("refund", ["refund", "退款"]),
     ("pos", ["pos", "purchase", "merchant", "spent", "消费", "支付宝", "alipay", "wechat"]),

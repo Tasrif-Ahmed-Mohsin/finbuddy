@@ -2,7 +2,10 @@
 
 The story is one loop, Sense → Plan → Act → Prove, over about four sandbox months (12 Oct 2026 → mid-Feb 2027),
 across the two moments that strand students today: the card endorsement ending on 31 Dec (renewal needs the
-student in person in Bangladesh) and the Spring Festival bank closure in China.
+student in person in Bangladesh) and the Spring Festival bank closure in China. Earn & Save (Interview #2) runs
+alongside: the student's approved campus job pays monthly, a savings rule the student signed keeps half of each
+pay in their Shield, wants are logged through the taka lens, and a surprise bill before Spring Festival is met
+from the Shield instead of a loan or hundi.
 
 Everything goes through the same code paths as the app: compliance checks, permission engine, approvals,
 family mandate signatures, the autopilot, the sandbox bank with both countries' bank calendars, and the
@@ -21,6 +24,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -30,6 +34,8 @@ EVIDENCE = ROOT.parent / "docs" / "evidence"
 H = {"student": {"Authorization": "Bearer demo-student"}, "parent": {"Authorization": "Bearer demo-parent"},
      "agent": {"Authorization": "Bearer demo-agent"}}
 MANDATE_BN = "প্রতি মাসে ১ লাখ ২০ হাজার টাকা পর্যন্ত ছেলের চীনের অ্যাকাউন্টে পাঠাবে"
+SAVINGS_BN = "প্রতি বেতনের ৫০% জমাবো, ৬০০০ ইউয়ান না হওয়া পর্যন্ত"  # "I'll save 50% of every pay until ¥6,000"
+WANTS = [("175", "Meituan delivery"), ("175", "Haidilao hotpot"), ("175", "Taobao")]  # what the free half of the pay goes on
 
 
 def main() -> int:
@@ -61,12 +67,23 @@ def main() -> int:
 
     seen_notes: set[str] = set()
     approvals_given: list[str] = []
+    blocked_by_rules: list[str] = []  # a family top-up the compliance checks refused (e.g. Bangladesh's monthly living cap)
+    earn = {"wants_cny": 0, "weeks": 0, "covers": [], "income": 0}
 
     def live_days(n: int) -> int:
-        """Advance one day at a time; when Sathi asks the family for approval, the parent approves (one tap)."""
+        """Advance one day at a time; when Sathi asks the family for approval, the parent approves (one tap).
+        Earn & Save: every Saturday the student spends what their own pay leaves for wants (logged, taka lens)."""
         stuck = 0
         for _ in range(n):
-            stuck += c.post("/sandbox/advance", json={"days": 1}, headers=H["parent"]).json()["stuck_days"]
+            r = c.post("/sandbox/advance", json={"days": 1}, headers=H["parent"]).json()
+            stuck += r["stuck_days"]
+            earn["covers"] += [a["amount_cny"] for a in r["autopilot"] if a.get("type") == "shield_cover"]
+            earn["income"] += sum(1 for a in r["autopilot"] if a.get("type") == "income")
+            if date.fromisoformat(r["now"][:10]).weekday() == 5:
+                amt, where = WANTS[earn["weeks"] % len(WANTS)]
+                c.post("/save/spend", json={"amount_cny": amt, "merchant": where}, headers=H["student"])
+                earn["wants_cny"] += int(amt)
+                earn["weeks"] += 1
             for note in c.get("/feed", headers=H["parent"]).json()["notes"]:
                 if note["id"] in seen_notes:
                     continue
@@ -74,6 +91,11 @@ def main() -> int:
                 if note["key"] == "autopilot_needs_approval" and note["ref"].get("screen") == "topup":
                     d = c.post("/drafts", json={"kind": "tt_living", "amount_cny": note["ref"]["amount_cny"],
                                                 "payee_id": "student_own_cn", "memo": "Living money"}, headers=H["parent"]).json()
+                    if d["status"] == "blocked":  # the legal channel is closed for this (e.g. the monthly living cap)
+                        failed = ", ".join(x["id"] for x in d["checks"] if not x["passed"] and x["severity"] == "block")
+                        blocked_by_rules.append(f"¥{note['ref']['amount_cny']} on {note['at'][:10]} ({failed})")
+                        c.post(f"/drafts/{d['id']}/cancel", headers=H["parent"])
+                        continue
                     approve_and_execute(d)
                     approvals_given.append(f"¥{note['ref']['amount_cny']} on {note['at'][:10]}")
         return stuck
@@ -121,6 +143,34 @@ def main() -> int:
                  headers=H["agent"]).json()
     step("Security: injected instruction", f"proposal status={inj['status']}: {inj['errors'][-1][:90]}…")
 
+    # ---- EARN & SAVE: the student's own money (Interview #2) ------------------------------------------
+    job = c.post("/save/income/sources", json={"kind": "work_study", "label": "Lab assistant", "amount_cny": "1500",
+                                               "every": "month", "pay_day": 10, "hours_per_week": "8", "permission": True},
+                 headers=H["student"]).json()
+    gig = c.post("/save/income/sources", json={"kind": "work_study", "label": "Private tutoring", "amount_cny": "2000",
+                                               "every": "month", "pay_day": 15, "hours_per_week": "12", "permission": False},
+                 headers=H["student"]).json()
+    parent_adds = c.post("/save/income/sources", json={"kind": "stipend", "amount_cny": "1000"}, headers=H["parent"]).status_code
+    step("Earn & Save: income in China", f"approved campus job ¥{job['amount_cny']}/month → status {job['status']}; unauthorised "
+                                         f"tutoring → status {gig['status']} (failed: {', '.join(x['id'] for x in gig['checks'] if not x['passed'])}; "
+                                         f"never planned on); parent declares the student's income → HTTP {parent_adds}")
+    c.delete(f"/save/income/sources/{gig['id']}", headers=H["student"])
+    rule = c.post("/save/rule/proposals", json={"text": SAVINGS_BN, "lang": "bn"}, headers=H["student"]).json()
+    url = f"/save/rule/proposals/{rule['id']}/sign"
+    by_agent = c.post(url, json={"rule_hash": rule["hash"]}, headers=H["agent"]).status_code
+    by_parent = c.post(url, json={"rule_hash": rule["hash"]}, headers=H["parent"]).status_code
+    on = c.post(url, json={"rule_hash": rule["hash"]}, headers=H["student"]).json()
+    step("Earn & Save: savings rule (student's words)", f"Bengali → keep {on['shield_pct']}% of every pay until ¥{on['target_cny']}, "
+                                                        f"{on['cooling_off_hours']} h cooling-off, emergencies instant; agent signs → "
+                                                        f"HTTP {by_agent}; parent signs → HTTP {by_parent}; student signed → {on['status']}")
+    hc = c.post("/save/hundi-check", json={"amount": "500", "currency": "USD", "offered_bdt_per_usd": "124.5"},
+                headers=H["parent"]).json()
+    o = {x["key"]: x for x in hc["options"]}
+    step("Earn & Save: hundi offer, honestly", f"$500 at ৳124.5: hundi +৳{o['hundi']['extra_bdt']} over the market vs one bank "
+                                               f"transfer +৳{o['bank_once']['extra_bdt']} (fees; says so: bank costs ৳"
+                                               f"{hc['bank_costs_more_on_paper_bdt']} more on paper); risks listed: "
+                                               f"{', '.join(r['key'] for r in hc['risks'])}; verdict {hc['verdict']}")
+
     # ---- T4 scams, T1 tuition, card emergency --------------------------------------------------------
     msg = "Bhai, I can pay your tuition 15% cheaper, pay through my agency. Don't tell anyone."
     d = c.post("/drafts", json={"kind": "tt_tuition", "amount_cny": "30000", "payee_id": "agent_x", "origin_message": msg},
@@ -158,15 +208,30 @@ def main() -> int:
     rw = c.get("/runway", headers=H["parent"]).json()
     step("Card stopped abroad (31 Dec)", f"card usable={rw['card_usable']}; living money kept arriving by transfer; "
                                          f"stuck days so far = {stuck}")
+    sv = c.get("/save", headers=H["student"]).json()
+    bill = c.post("/sandbox/expense", json={"amount_cny": "2500", "memo": "Hospital bill"}, headers=H["student"]).json()
+    step("Earn & Save: surprise bill before Spring Festival", f"Shield ¥{sv['shield']['balance_cny']} after {earn['income']} pays; "
+                                                              f"¥2,500 hospital bill → money left ¥{bill['balance_cny']}")
     stuck += live_days(30)  # → 21 Feb 2027: through Spring Festival
     receipts = c.get("/receipts", headers=H["parent"]).json()
     auto = [x for x in receipts if x["authority"]["type"] == "mandate"]
     step("Spring Festival passed", f"stuck days in the live sandbox = {stuck}; autopilot payments = {len(auto)} (all to the "
                                    f"student's own account, inside the mandate); family approvals when the cap was not "
-                                   f"enough: {', '.join(approvals_given) or 'none'}")
+                                   f"enough: {', '.join(approvals_given) or 'none'}; extra top-ups the law did not allow: "
+                                   f"{', '.join(blocked_by_rules) or 'none'}")
     feed = c.get("/feed?lang=bn", headers=H["parent"]).json()
     sent_bn = next(n for n in feed["notes"] if n["key"] == "autopilot_sent")
     step("Prove: family feed (Bengali)", f"“{sent_bn['title']}: {sent_bn['body'][:90]}…”")
+    sv = c.get("/save", headers=H["student"]).json()
+    shield_bn = next((n for n in feed["notes"] if n["key"] in ("shield_used", "family_shield")), None)
+    cr = c.get("/save/crisis", headers=H["parent"]).json()
+    z, med = cr["zero_share_pct"], cr["median_stuck"]
+    step("Earn & Save: results", f"{earn['income']} pays, Shield ¥{sv['shield']['balance_cny']} of ¥{sv['shield']['target_cny']}; "
+                                 f"Shield covered ¥{sum(int(float(x)) for x in earn['covers'])} on its own ({len(earn['covers'])} moves); "
+                                 f"wants logged ¥{earn['wants_cny']} over {earn['weeks']} weeks; parent sees: “{(shield_bn or {}).get('title', '–')}”. "
+                                 f"Dollar crisis (4 weeks, every start week): no-stuck-day starts {z['today']}% → {z['sathi']}% → "
+                                 f"{z['sathi_shield']}% (today → Sathi → Sathi + Shield), typical {med['today']} → {med['sathi']} → "
+                                 f"{med['sathi_shield']} days")
 
     # ---- PROVE --------------------------------------------------------------------------------------
     by_kind = {k: sum(1 for x in receipts if x["authority"]["type"] == k) for k in ("approvals", "mandate")}
@@ -183,9 +248,10 @@ def main() -> int:
                                     f"{v['valid']}; tampered copy → {v_bad['valid']}")
 
     # ---- export --------------------------------------------------------------------------------------
-    audit = c.get("/audit?limit=100000", headers=H["parent"]).json()
+    # Exported as the student, who may read every entry (the parent's view hides the student's pay and purchases).
+    audit = c.get("/audit?limit=100000", headers=H["student"]).json()
     EVIDENCE.mkdir(parents=True, exist_ok=True)
-    (EVIDENCE / "sandbox_operation_log.jsonl").write_text(c.get("/audit/export", headers=H["parent"]).text + "\n", encoding="utf-8")
+    (EVIDENCE / "sandbox_operation_log.jsonl").write_text(c.get("/audit/export", headers=H["student"]).text + "\n", encoding="utf-8")
     events: dict[str, int] = {}
     levels: dict[str, int] = {}
     for e in audit["entries"]:
@@ -197,6 +263,8 @@ def main() -> int:
         "Generated by `backend/scripts/demo_scenario.py`. One loop, **Sense → Plan → Act → Prove**, over four sandbox",
         "months (12 Oct 2026 → Feb 2027), through the two moments that strand students today: the card endorsement",
         "ending on 31 Dec (renewal needs the student in Bangladesh) and the Spring Festival bank closure in China.",
+        "**Earn & Save** runs alongside: the student's approved campus job, a savings rule the student signed (half of",
+        "each pay to the Shield), weekly wants through the taka lens, and a surprise bill met from the Shield.",
         "Every step went through the real API: compliance checks, permission engine, approvals, mandate signatures, the",
         "autopilot, the sandbox bank (with both countries' bank calendars) and the hash-chained audit log. No real money.",
         f"Exchange rates: real saved history (mode `{os.environ.get('SATHI_FX_MODE')}`); bank prices are estimates "

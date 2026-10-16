@@ -146,6 +146,101 @@ TEMPLATES: dict[str, dict[str, tuple[str, str]]] = {
                "{time} সময়ে সাথী অ্যাপে নিশ্চিত করেছে। যে ফোন করেছিল সে সত্য বলেনি: তাকে কোনো টাকা দেবেন না।"),
         "zh": ("学生说自己很安全", "已于 {time} 在 Sathi 应用中确认。给你打电话的人说的不是真话：不要付钱。"),
     },
+    # ---- Earn & Save: the student's own money (the Shield) -----------------------------------------
+    "income_saved": {
+        "en": ("Sathi kept {saved_cny} of your {amount_cny} pay in your Shield",
+               "Shield: {shield_cny} of {target_cny}. The rest, {free_cny}, is yours to spend: about {week_cny} a week for wants."),
+        "bn": ("সাথী আপনার {amount_cny} আয় থেকে {saved_cny} সুরক্ষা তহবিলে রেখেছে",
+               "তহবিল: {target_cny} এর মধ্যে {shield_cny}। বাকি {free_cny} আপনার খরচের জন্য: শখের জন্য সপ্তাহে প্রায় {week_cny}।"),
+        "zh": ("Sathi 已把你 {amount_cny} 收入中的 {saved_cny} 存入应急储备",
+               "储备：{shield_cny} / {target_cny}。其余 {free_cny} 由你支配：每周约 {week_cny} 可用于想要的东西。"),
+    },
+    "family_shield": {
+        "en": ("The student saved {saved_cny} from their own pay",
+               "Their Shield now holds {shield_cny} of {target_cny}. It stays in the student's own Chinese account for days when "
+               "money from home cannot arrive (bank holidays, a dollar shortage), so nobody needs hundi."),
+        "bn": ("শিক্ষার্থী নিজের আয় থেকে {saved_cny} জমিয়েছে",
+               "তার সুরক্ষা তহবিলে এখন {target_cny} এর মধ্যে {shield_cny}। দেশ থেকে টাকা আসতে না পারলে (ব্যাংক ছুটি, ডলার সংকট) "
+               "এই টাকা শিক্ষার্থীর নিজের চীনা অ্যাকাউন্টেই কাজে লাগে, তাই কাউকে হুন্ডির দিকে যেতে হয় না।"),
+        "zh": ("学生从自己的收入中存了 {saved_cny}",
+               "应急储备现有 {shield_cny} / {target_cny}。这笔钱留在学生本人的中国账户里，用于家里的钱到不了的日子（银行假期、美元短缺），"
+               "这样谁都不需要地下汇款。"),
+    },
+    "shield_full": {
+        "en": ("The Shield is full: {target_cny}",
+               "That is about {days_n} days of living money that does not depend on banks in Bangladesh. From now on all of the "
+               "pay stays spendable."),
+        "bn": ("সুরক্ষা তহবিল পূর্ণ: {target_cny}",
+               "এটি প্রায় {days_n} দিনের খরচ, যা বাংলাদেশের ব্যাংকের ওপর নির্ভর করে না। এখন থেকে পুরো আয়ই খরচ করা যাবে।"),
+        "zh": ("应急储备已满：{target_cny}", "这大约是 {days_n} 天的生活费，不依赖孟加拉国的银行。从现在起，全部收入都可以自由支配。"),
+    },
+    "shield_used": {
+        "en": ("Sathi used {amount_cny} from the Shield",
+               "The money in China could not cover the coming days. Shield left: {shield_cny}. Nobody had to borrow or use hundi."),
+        "bn": ("সাথী সুরক্ষা তহবিল থেকে {amount_cny} ব্যবহার করেছে",
+               "চীনে থাকা টাকায় সামনের দিনগুলো চলত না। তহবিলে বাকি: {shield_cny}। কাউকে ধার করতে বা হুন্ডি করতে হয়নি।"),
+        "zh": ("Sathi 动用了应急储备 {amount_cny}", "在中国的钱不够接下来几天的开销。储备剩余：{shield_cny}。不用借钱，也不用地下汇款。"),
+    },
+    "shield_release_waiting": {
+        "en": ("{amount_cny} leaves the Shield on {available_date}",
+               "{wait_en} You can cancel any time before then. If you have no money at all, use Emergency instead: that is instant."),
+        "bn": ("{amount_cny} তহবিল থেকে বের হবে {available_date} তারিখে",
+               "{wait_bn} তার আগে যেকোনো সময় বাতিল করতে পারবেন। হাতে একদম টাকা না থাকলে জরুরি পাতা ব্যবহার করুন: সেটি সঙ্গে সঙ্গে হয়।"),
+        "zh": ("{amount_cny} 将于 {available_date} 从储备转出",
+               "{wait_zh}在此之前可随时取消。如果完全没钱了，请使用“紧急”：那是即时的。"),
+    },
+    "shield_release_needs_family": {
+        "en": ("The student asks to take {amount_cny} from their Shield",
+               "They chose to lock their savings with your approval. The money only moves to their own Chinese account. "
+               "Approve in the Save tab if you agree."),
+        "bn": ("শিক্ষার্থী তহবিল থেকে {amount_cny} তুলতে চায়",
+               "সে নিজেই সঞ্চয়ে আপনার অনুমোদনের তালা দিয়েছে। টাকা শুধু তার নিজের চীনা অ্যাকাউন্টে যাবে। রাজি থাকলে 'সঞ্চয়' পাতায় "
+               "অনুমোদন দিন।"),
+        "zh": ("学生申请从应急储备取出 {amount_cny}",
+               "学生自己选择了取出储备需要你批准。钱只会转到学生本人的中国账户。如果同意，请在“储蓄”页面批准。"),
+    },
+    "shield_released": {
+        "en": ("{amount_cny} moved from the Shield to the spending account", "Shield left: {shield_cny}."),
+        "bn": ("{amount_cny} তহবিল থেকে খরচের অ্যাকাউন্টে গেছে", "তহবিলে বাকি: {shield_cny}।"),
+        "zh": ("{amount_cny} 已从储备转入日常账户", "储备剩余：{shield_cny}。"),
+    },
+    "savings_rule_active": {
+        "en": ("Savings rule is on", "{summary_en}"),
+        "bn": ("সঞ্চয়ের নিয়ম চালু", "{summary_bn}"),
+        "zh": ("储蓄规则已生效", "{summary_zh}"),
+    },
+    "savings_rule_revoked": {
+        "en": ("Savings rule stopped",
+               "Sathi will not move pay to the Shield any more. Money already saved stays under the terms that were signed."),
+        "bn": ("সঞ্চয়ের নিয়ম বন্ধ", "সাথী আর আয় থেকে তহবিলে টাকা রাখবে না। যা জমেছে তা সই করা শর্তেই থাকবে।"),
+        "zh": ("储蓄规则已停止", "Sathi 不再把收入存入储备。已存的钱仍按签署的条款保管。"),
+    },
+    "week_summary": {
+        "en": ("Last week: wants {wants_cny}, about {wants_bdt} at home",
+               "That is {days_n} days of living money. Saved {saved_cny}; Shield {shield_cny} of {target_cny}.{over_en}"),
+        "bn": ("গত সপ্তাহে শখের খরচ {wants_cny}, দেশের হিসেবে প্রায় {wants_bdt}",
+               "এটি {days_n} দিনের খরচের সমান। জমেছে {saved_cny}; তহবিল {target_cny} এর মধ্যে {shield_cny}।{over_bn}"),
+        "zh": ("上周想要的开销 {wants_cny}，折合家里约 {wants_bdt}",
+               "相当于 {days_n} 天的生活费。存了 {saved_cny}；储备 {shield_cny} / {target_cny}。{over_zh}"),
+    },
+    "family_week": {
+        "en": ("This week the student saved {saved_cny}", "Shield: {shield_cny} of {target_cny}."),
+        "bn": ("এই সপ্তাহে শিক্ষার্থী {saved_cny} জমিয়েছে", "তহবিল: {target_cny} এর মধ্যে {shield_cny}।"),
+        "zh": ("本周学生存了 {saved_cny}", "储备：{shield_cny} / {target_cny}。"),
+    },
+    "work_permission": {
+        "en": ("This job needs permission first",
+               "Working without your university's approval and a work-study annotation on your residence permit is illegal "
+               "work in China: a fine of {lo_cny}–{hi_cny}, detention in serious cases, and the visa can be cancelled. Ask "
+               "your international student office to apply first. Until then Sathi leaves this income out of every plan."),
+        "bn": ("এই কাজের আগে অনুমতি লাগবে",
+               "বিশ্ববিদ্যালয়ের অনুমোদন আর রেসিডেন্স পারমিটে ওয়ার্ক-স্টাডি এনোটেশন ছাড়া চীনে কাজ করা অবৈধ: {lo_cny}–{hi_cny} জরিমানা, "
+               "গুরুতর হলে আটক, আর ভিসা বাতিল হতে পারে। আগে আন্তর্জাতিক শিক্ষার্থী অফিসে আবেদন করুন। ততদিন সাথী এই আয় কোনো "
+               "পরিকল্পনায় ধরবে না।"),
+        "zh": ("这份工作需要先获得许可",
+               "没有学校批准和居留许可上的勤工助学标注就在中国工作属于非法就业：罚款 {lo_cny}–{hi_cny}，情节严重的拘留，签证可能被取消。"
+               "请先通过国际学生办公室申请。在此之前，Sathi 不会把这笔收入计入任何计划。"),
+    },
     "card_stops": {
         "en": ("The card stops working abroad on {card_date}",
                "Renewing the endorsement needs the student in person at the bank in Bangladesh. {plan_en}"),

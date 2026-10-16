@@ -88,7 +88,9 @@ def test_stress_endpoint(client):
     r = client.get("/plan/stress?runs=30", headers=H["parent"])
     assert r.status_code == 200
     body = r.json()
-    assert body["runs"] == 30 and {"today", "sathi"} <= set(body["stuck_days"]) and len(body["what_if"]) == 5
+    assert body["runs"] == 30 and {"today", "sathi"} <= set(body["stuck_days"]) and len(body["what_if"]) == 6
+    crisis = next(w for w in body["what_if"] if w["key"] == "dollar_crisis")  # Earn & Save: a 4-week dollar shortage
+    assert crisis["weeks"] == 4 and crisis["stuck_days_today"] >= crisis["stuck_days_sathi"] and body["crisis"]["starts_tested"] > 20
     assert client.get("/plan/stress").status_code == 401
     events = [e for e in client.get("/audit", headers=H["parent"]).json()["entries"] if e["event"] == "stress_tested"]
     assert events and events[-1]["actor"] == "parent"

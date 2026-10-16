@@ -99,7 +99,7 @@ def client():
 
 def test_demo_inbox_tracks_money_and_raises_insights(client):
     r = client.post("/inbox/demo/seed", headers=H["student"]).json()
-    assert r["ingested"] == 12 and r["kept"] == 11  # the chat message from a friend is dropped
+    assert r["ingested"] == 13 and r["kept"] == 12  # the chat message from a friend is dropped
     msgs = client.get("/inbox/messages", headers=H["student"]).json()
     assert all("482913" not in m["text"] for m in msgs)  # OTP never stored
     assert all("canteen" not in m["text"] for m in msgs)  # non-money message never stored

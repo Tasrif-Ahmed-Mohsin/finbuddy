@@ -54,6 +54,13 @@ Rules:
     the family asked, call ask_family_for_money (it prepares a draft for the parent; nothing is sent).
 16. If someone claims to be police, a court, the embassy, a courier or customs, or tells the parent the student was
     arrested or kidnapped: call check_message, tell them not to pay, and point to Emergency in the app ("Are you safe?").
+17. The student's own money abroad (a stipend or an approved campus job) never has to cross the border. When they talk
+    about their pay, saving, the Shield, or spending too much on wants, call get_savings. To set up saving, call
+    propose_savings_rule with the student's exact words; only the student can sign it in the app, never you.
+18. If anyone mentions hundi or an informal rate, call check_hundi_offer and give the legal options it returns,
+    including the honest note when one bank transfer costs more on paper. Never recommend hundi.
+19. In China a student may work only with university approval and a work-study annotation on the residence permit.
+    Never suggest unauthorised work, extra hours or cash jobs.
 Sandbox date today: {today}."""
 
 TOOLS = [
@@ -134,6 +141,26 @@ TOOLS = [
         "name": "cancel_payment_draft",
         "description": "Cancel the payment draft prepared earlier in THIS chat (the user does not want to send it).",
         "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {
+        "name": "get_savings",
+        "description": ("The student's own money abroad: income (stipend / approved campus job), the Shield (savings kept in "
+                        "their own Chinese account for days money from home cannot come), the savings rule, and this week's "
+                        "wants in taka (what they cost the family)."),
+        "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {
+        "name": "propose_savings_rule",
+        "description": ("Turn the STUDENT's own words (e.g. 'keep 50% of every pay until ¥6,000') into a savings rule "
+                        "PROPOSAL for their Shield. Nothing moves until the student signs it in the app."),
+        "parameters": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}},
+    {"type": "function", "function": {
+        "name": "check_hundi_offer",
+        "description": ("Compare a hundi / informal offer with the legal ways for the same money: one bank transfer (real "
+                        "fees, landing day), the student's Shield, the planned transfer; plus the risks hundi leaves out."),
+        "parameters": {"type": "object", "properties": {
+            "amount": {"type": "number", "description": "Amount the family needs to get to China"},
+            "currency": {"type": "string", "enum": ["USD", "CNY", "BDT"]},
+            "offered_bdt_per_usd": {"type": "number", "description": "The hundi rate offered, taka per dollar, if known"}},
+            "required": ["amount", "currency"]}}},
     {"type": "function", "function": {
         "name": "create_payment_draft",
         "description": "Prepare (NOT send) a payment draft. The user must approve it in the app. Safety checks run automatically.",
@@ -233,6 +260,46 @@ class ChatAgent:
                     "max_bdt_per_payment": prop["max_bdt_per_payment"], "max_bdt_per_period": prop["max_bdt_per_period"],
                     "valid_until": prop["valid_until"], "required_signers": prop["required_signers"],
                     "next_step": "The family reads the summary in the Family tab and signs with fingerprint/PIN."}
+        if name == "get_savings":
+            if self._actor == "parent":  # the parent may see the Shield level (if the student shares it), never pay or purchases
+                v = a.savings_view(Actor.PARENT, self._lang)
+                return {"shield": v["shield"], "shared_with_family": v["shared_with_family"],
+                        "privacy": "The student's income and purchases are private to the student.",
+                        "releases_waiting_for_you": len(v["releases"])}
+            v = a.savings_view(A, self._lang)
+            w = v["wants"]
+            return {"shield": v["shield"], "rule": ({k: v["rule"][k] for k in ("shield_pct", "target_cny", "cooling_off_hours",
+                                                                           "family_lock", "share_with_family")}
+                                                    if v["rule"] else None),
+                    "income_per_month_cny": v["income"]["monthly_cny"], "next_pay": v["income"]["next_pay"],
+                    "at_risk_income": [x["label"] for x in v["income"]["sources"] if x["status"] == "at_risk"],
+                    "wants_this_week_cny": w["wants_cny"], "wants_in_taka_bdt": w["lens"]["bdt"],
+                    "wants_days_of_living": w["lens"]["days_of_living"], "over_own_pay_cny": w["over_cny"],
+                    "suggested_rule": ({"pct": v["suggested"]["pct"], "target_cny": v["suggested"]["target_cny"],
+                                        "reaches_target_on": v["suggested"]["projection"]["reaches_target_on"]}
+                                       if v["suggested"] else None),
+                    "next_step": "The student opens Save in the app to set or sign the savings rule."}
+        if name == "propose_savings_rule":
+            if self._actor == "parent":
+                return {"error": "a savings rule is the student's own choice: only the student writes and signs it. "
+                                 "The parent can suggest it to the student."}
+            r = a.propose_savings_rule(A, str(args.get("text", ""))[:500], self._lang)
+            actions.append({"type": "savings_rule", "rule_id": r["id"], "status": r["status"]})
+            return {"rule_id": r["id"], "status": r["status"], "errors": r["errors"], "notes": r["notes"],
+                    "shield_pct": r["shield_pct"], "target_cny": r["target_cny"], "cooling_off_hours": r["cooling_off_hours"],
+                    "reaches_target_on": (r.get("projection") or {}).get("reaches_target_on"),
+                    "has_income": any(x.status == "ok" for x in a.income_sources.values()),
+                    "next_step": "Only the student can sign it, in Save, with fingerprint/PIN."}
+        if name == "check_hundi_offer":
+            r = a.hundi_check(A, _num(args.get("amount")) or Decimal(0), str(args.get("currency") or "USD"),
+                              _num(args.get("offered_bdt_per_usd")), None, self._lang)
+            opts = {o["key"]: o for o in r["options"]}
+            return {"hundi_total_bdt": opts["hundi"]["total_bdt"], "hundi_extra_bdt": opts["hundi"]["extra_bdt"],
+                    "bank_once": {k: opts["bank_once"][k] for k in ("bank", "total_bdt", "extra_bdt", "lands")},
+                    "shield_cny": opts["shield"]["amount_cny"] if "shield" in opts else "0",
+                    "planned_transfer": opts.get("planned"), "verdict": r["verdict"],
+                    "bank_costs_more_on_paper_bdt": r["bank_costs_more_on_paper_bdt"], "honest_note": r["honest_note"],
+                    "risks": [x["text"] for x in r["risks"][:3]], "data_is_sample": r["data_is_sample"]}
         if name == "create_payment_draft":
             kind, amount = args.get("kind"), _num(args.get("amount_cny"))
             if kind not in ("tt_tuition", "tt_living") or amount is None or amount <= 0:
@@ -329,7 +396,24 @@ class ChatAgent:
         flags = self.app.check_message(Actor.AGENT, message)
         tools_used.append("check_message")
         if flags["high_risk"]:
-            return T["scam"].format(advice=flags["flags"][0]["advice"])
+            reply = T["scam"].format(advice=flags["flags"][0]["advice"])
+            if flags["flags"][0]["category"] == "informal_channel":  # hundi: say what to do instead, with numbers
+                amount, currency, rate = dlg.find_hundi_terms(message)
+                tools_used.append("check_hundi_offer")
+                args = {"amount": str(amount or self.app.profile["monthly_living_cny"]),
+                        "currency": (currency or "CNY") if amount else "CNY"}
+                if rate is not None:
+                    args["offered_bdt_per_usd"] = str(rate)
+                h = self.run_tool("check_hundi_offer", args, actions)
+                lines = [reply]
+                if Decimal(h["shield_cny"]) > 0:
+                    lines.append(T["hundi_shield"].format(shield=_cny(h["shield_cny"])))
+                b = h["bank_once"]
+                lines.append(T["hundi_bank"].format(bank=b["bank"], total=_bdt(b["total_bdt"]), lands=b["lands"],
+                                                    hundi=_bdt(h["hundi_extra_bdt"]), fees=_bdt(b["extra_bdt"])))
+                lines.append(T["hundi_fix"])
+                reply = "\n".join(lines)
+            return reply
         D = dlg.TEXT[lang]
         if dlg.asks_for_secrets(message):  # data extraction
             return D["no_secrets"]
@@ -370,6 +454,37 @@ class ChatAgent:
                 return T["frozen"]
             except ValueError:
                 return T["frozen"]  # already frozen or reported lost
+        if dlg.has_any(message, dlg.SAVE_WORDS) and not dlg.is_send_intent(message) and self._actor == "parent":
+            tools_used.append("get_savings")
+            v = self.run_tool("get_savings", {}, actions)
+            if not v["shared_with_family"] or v["shield"] is None:
+                return T["savings_private"]
+            return T["savings_parent"].format(shield=_cny(v["shield"]["balance_cny"]), target=_cny(v["shield"]["target_cny"]))
+        if dlg.has_any(message, dlg.SAVE_WORDS) and not dlg.is_send_intent(message):  # the student's own money
+            if re.search(r"\d+\s*(%|％|percent|শতাংশ|পার্সেন্ট)|百分之|half|অর্ধেক|一半", dlg.normalise(message), re.IGNORECASE):
+                tools_used.append("propose_savings_rule")
+                r = self.run_tool("propose_savings_rule", {"text": message}, actions)
+                if r["errors"]:
+                    return T["savings_bad"].format(why=r["errors"][0])
+                return T["savings_proposed"].format(pct=r["shield_pct"], target=_cny(r["target_cny"]),
+                                                    hours=r["cooling_off_hours"],
+                                                    when=r["reaches_target_on"] or (T["savings_slow"] if r["has_income"]
+                                                                                    else T["savings_no_income"]))
+            tools_used.append("get_savings")
+            v = self.run_tool("get_savings", {}, actions)
+            sh = v["shield"]
+            if v["rule"]:
+                head = T["savings_status"].format(shield=_cny(sh["balance_cny"]), target=_cny(sh["target_cny"]),
+                                                  pct=v["rule"]["shield_pct"])
+            else:
+                sug = v["suggested_rule"]
+                head = T["savings_none"].format(pct=sug["pct"], target=_cny(sug["target_cny"]),
+                                                when=sug["reaches_target_on"] or (T["savings_slow"] if
+                                                     Decimal(v["income_per_month_cny"]) > 0 else T["savings_no_income"]))
+            if Decimal(v["wants_this_week_cny"]) <= 0:
+                return head
+            return head + "\n" + T["savings_wants"].format(wants=_cny(v["wants_this_week_cny"]),
+                                                           bdt=_bdt(v["wants_in_taka_bdt"]), days=v["wants_days_of_living"])
         if dlg.has_any(message, dlg.NO_MONEY):
             tools_used.append("get_emergency_plan")
             e = self.run_tool("get_emergency_plan", {}, actions)
@@ -489,6 +604,18 @@ FALLBACK = {
         "mandate": "📝 I wrote it as a family mandate: up to {cap} per calendar month, only to the student's own Chinese account, until {until}. Open Family to read it and sign with your fingerprint. Nothing happens until you sign.",
         "mandate_bad": "I could not turn that into a mandate: {why}",
         "year": "📅 With today's habits the student would be without money for {today} days this year (the card stopping after the endorsement, and bank closures for Eid and Spring Festival). With Sathi's plan: {sathi} days, and about {saved} less in fees. See Plan → Year.",
+        "hundi_shield": "• Legal and free: {shield} is already in your Shield in China. Use it today.",
+        "hundi_bank": "• One bank transfer ({bank}): {total} in total, lands {lands}. Honest note: its fees ({fees} above the market rate) are more than this hundi's {hundi}.",
+        "hundi_fix": "• The legal fix for that gap is fewer, larger planned transfers and your own Shield, never hundi. Open Save → Hundi check.",
+        "savings_none": "🛡️ No savings rule yet. Sathi suggests keeping {pct}% of every pay in a Shield until {target} (about a month of living money): reached around {when}. It stays in your own Chinese account for days money from home cannot come. Set it up in Save.",
+        "savings_status": "🛡️ Your Shield: {shield} of {target}. Sathi keeps {pct}% of every pay there.",
+        "savings_wants": "This week's wants: {wants}, about {bdt} at home ({days} days of living money).",
+        "savings_proposed": "📝 Savings rule ready to sign: keep {pct}% of every pay until the Shield holds {target}; taking money out waits {hours} hours except in an emergency. At this pace it is full around {when}. Open Save to read it and sign with your fingerprint. Nothing moves until you sign.",
+        "savings_bad": "I could not turn that into a savings rule: {why}",
+        "savings_no_income": "the first pay you add",
+        "savings_parent": "🛡️ The student's Shield: {shield} of {target}. It stays in their own Chinese account for days money from home cannot arrive. Their pay and purchases are private to them.",
+        "savings_private": "🛡️ The student keeps their savings private. If they share their Shield in Save, you will see its level here (never their purchases).",
+        "savings_slow": "in more than a year (a bigger share fills it sooner)",
     },
     "bn": {
         "scam": "⚠️ এটি প্রতারণা মনে হচ্ছে। {advice}",
@@ -503,6 +630,18 @@ FALLBACK = {
         "mandate": "📝 এটি পারিবারিক ম্যান্ডেট হিসেবে লিখেছি: প্রতি ক্যালেন্ডার মাসে সর্বোচ্চ {cap}, শুধু শিক্ষার্থীর নিজের চীনের অ্যাকাউন্টে, {until} পর্যন্ত। 'পরিবার' পাতা খুলে পড়ুন এবং আঙুলের ছাপ দিয়ে সই করুন। সই না করা পর্যন্ত কিছুই হবে না।",
         "mandate_bad": "এটি ম্যান্ডেট হিসেবে লেখা গেল না: {why}",
         "year": "📅 এখনকার নিয়মে চললে এই বছর শিক্ষার্থী {today} দিন টাকা ছাড়া থাকত (এনডোর্সমেন্ট শেষে কার্ড বন্ধ, আর ঈদ ও চীনা নববর্ষে ব্যাংক বন্ধ)। সাথীর পরিকল্পনায়: {sathi} দিন, আর ফি প্রায় {saved} কম। পরিকল্পনা → বছর দেখুন।",
+        "hundi_shield": "• বৈধ ও বিনা খরচে: চীনে আপনার সুরক্ষা তহবিলে আগেই {shield} আছে। আজই ব্যবহার করুন।",
+        "hundi_bank": "• একটি ব্যাংক ট্রান্সফার ({bank}): মোট {total}, পৌঁছাবে {lands}। সত্যি কথা: এর ফি (বাজার দরের চেয়ে {fees} বেশি) এই হুন্ডির {hundi} এর চেয়ে বেশি।",
+        "hundi_fix": "• এই ফারাক মেটানোর বৈধ উপায় হলো কম সংখ্যায়, বড় অঙ্কে, পরিকল্পিত ট্রান্সফার আর আপনার নিজের সুরক্ষা তহবিল, কখনো হুন্ডি নয়। সঞ্চয় → হুন্ডি যাচাই খুলুন।",
+        "savings_none": "🛡️ এখনো সঞ্চয়ের নিয়ম নেই। সাথীর পরামর্শ: প্রতিটি আয়ের {pct}% সুরক্ষা তহবিলে রাখুন, {target} (প্রায় এক মাসের খরচ) না হওয়া পর্যন্ত: আনুমানিক {when} নাগাদ পূর্ণ হবে। দেশ থেকে টাকা আসতে না পারলে এটি আপনার নিজের চীনা অ্যাকাউন্টেই কাজে লাগবে। 'সঞ্চয়' পাতায় চালু করুন।",
+        "savings_status": "🛡️ আপনার সুরক্ষা তহবিল: {target} এর মধ্যে {shield}। সাথী প্রতিটি আয়ের {pct}% এখানে রাখে।",
+        "savings_wants": "এই সপ্তাহে শখের খরচ: {wants}, দেশের হিসেবে প্রায় {bdt} ({days} দিনের খরচ)।",
+        "savings_proposed": "📝 সঞ্চয়ের নিয়ম সইয়ের জন্য তৈরি: প্রতিটি আয়ের {pct}% রাখা হবে, যতক্ষণ না তহবিলে {target} হয়; জরুরি অবস্থা ছাড়া টাকা তুলতে {hours} ঘণ্টা অপেক্ষা। এই হারে আনুমানিক {when} নাগাদ পূর্ণ হবে। 'সঞ্চয়' পাতা খুলে পড়ুন এবং আঙুলের ছাপ দিয়ে সই করুন। সই না করা পর্যন্ত কিছুই হবে না।",
+        "savings_bad": "এটি সঞ্চয়ের নিয়ম হিসেবে লেখা গেল না: {why}",
+        "savings_no_income": "আপনার প্রথম আয় যোগ করার পর",
+        "savings_parent": "🛡️ শিক্ষার্থীর সুরক্ষা তহবিল: {target} এর মধ্যে {shield}। দেশ থেকে টাকা যেতে না পারার দিনগুলোর জন্য এটি তার নিজের চীনা অ্যাকাউন্টেই থাকে। তার আয় ও কেনাকাটা শুধু তার নিজের জন্য।",
+        "savings_private": "🛡️ শিক্ষার্থী তার সঞ্চয় গোপন রেখেছে। সে 'সঞ্চয়' পাতায় তহবিল শেয়ার করলে আপনি এখানে পরিমাণ দেখবেন (কেনাকাটা কখনো নয়)।",
+        "savings_slow": "এক বছরেরও বেশি সময়ে (বেশি অংশ রাখলে আগে পূর্ণ হবে)",
     },
     "zh": {
         "scam": "⚠️ 这看起来像诈骗。{advice}",
@@ -517,5 +656,17 @@ FALLBACK = {
         "mandate": "📝 我已把它写成家庭授权：每个自然月最多 {cap}，只汇到学生本人的中国账户，有效期至 {until}。请打开“家庭”页面阅读，并用指纹签署。签署之前什么都不会发生。",
         "mandate_bad": "无法把这句话写成授权：{why}",
         "year": "📅 按现在的做法，今年学生会有 {today} 天没钱用（签注到期后卡停用，以及开斋节和春节银行休息）。按 Sathi 的计划：{sathi} 天，手续费约少 {saved}。见 规划 → 全年。",
+        "hundi_shield": "• 合法且免费：你在中国的应急储备里已经有 {shield}。今天就能用。",
+        "hundi_bank": "• 一笔银行汇款（{bank}）：总计 {total}，{lands} 到账。说实话：它的费用（比市场价多 {fees}）高于这笔地下汇款的 {hundi}。",
+        "hundi_fix": "• 弥补这个差距的合法办法是减少汇款次数、每次汇得多一些、提前规划，再加上你自己的应急储备，绝不是地下汇款。打开 储蓄 → 地下汇款对比。",
+        "savings_none": "🛡️ 还没有储蓄规则。Sathi 建议每次收入存 {pct}% 到应急储备，直到 {target}（约一个月生活费）：大约 {when} 存满。家里的钱到不了时，它就在你本人的中国账户里。请在“储蓄”页面设置。",
+        "savings_status": "🛡️ 你的应急储备：{shield} / {target}。Sathi 会把每次收入的 {pct}% 存进去。",
+        "savings_wants": "本周想要的开销：{wants}，折合家里约 {bdt}（{days} 天的生活费）。",
+        "savings_proposed": "📝 储蓄规则已准备好签署：每次收入存 {pct}%，直到储备达到 {target}；除紧急情况外，取出需等待 {hours} 小时。按这个速度大约 {when} 存满。请打开“储蓄”页面阅读并用指纹签署。签署之前什么都不会发生。",
+        "savings_bad": "无法把这句话写成储蓄规则：{why}",
+        "savings_no_income": "你添加第一笔收入之后",
+        "savings_parent": "🛡️ 学生的应急储备：{shield} / {target}。它留在学生本人的中国账户里，用于家里的钱到不了的日子。学生的收入和消费只有学生自己能看到。",
+        "savings_private": "🛡️ 学生选择不公开储蓄。如果学生在“储蓄”页面分享储备，你会在这里看到金额（永远看不到消费）。",
+        "savings_slow": "一年以上（存的比例越高，存满越快）",
     },
 }

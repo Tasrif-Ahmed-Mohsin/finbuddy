@@ -169,9 +169,14 @@ class Inbox:
     def insights(self) -> list[dict]:
         usage = self.app.bank.card_usage()
         executed = [d.amount_cny for d in self.app.drafts.values() if d.status == "executed"]
+        rule = self.app._savings_rule()
         ctx = InsightContext(self.app.corridor, self.app.market, self.app.now, self.app.profile, self.txns,
                              self.messages, usage.tx_count, usage.bdt_charged, executed, self.app.student_card.status,
-                             [c.to_dict(self.app.now.date()) for c in self.app.renewals.values()])
+                             [c.to_dict(self.app.now.date()) for c in self.app.renewals.values()],
+                             savings_pct=rule.shield_pct if rule else None,
+                             shield_target_cny=rule.target_cny if rule else None,
+                             family_bdt_per_cny=self.app.family_bdt_per_cny(),
+                             daily_living_cny=self.app.policy.daily_spend_cny)
         return [i.to_dict() for i in generate(ctx)]
 
     def summary(self) -> dict:

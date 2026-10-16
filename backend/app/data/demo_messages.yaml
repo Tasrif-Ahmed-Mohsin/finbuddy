@@ -25,6 +25,10 @@ messages:
     minutes_ago: 2880
     text: "【工商银行】您尾号3317的借记卡10月10日14:03收入(跨境汇款)5,000.00元，余额5,500.00元。"
   - source: sms
+    sender: "95588"
+    minutes_ago: 1500
+    text: "【工商银行】您尾号3317的借记卡10月11日09:15收入(工资)1,500.00元，余额6,860.00元。"
+  - source: sms
     sender: "BD Bank Alert"
     minutes_ago: 1442
     text: "Your Card ending 4821 was used for purchase of CNY 45.00 at MEITUAN DELIVERY on 11-Oct-26. Avl Bal BDT 1,25,850.00"

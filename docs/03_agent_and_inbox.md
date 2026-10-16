@@ -55,6 +55,11 @@ message ─► financial filter ─► redaction ─► scam/phishing/injection 
 - A fee notice suggestion (amount + deadline) is applied only after the user confirms it (`POST /documents/apply`). From then on it backs the invoice check, so paying more than the notice is blocked.
 - Live test: the friend's real residence-permit checklist (Chinese/English) gave all 11 items and a Bengali summary in 3.6 s. One translation slip ("介绍信" rendered as "ID card" in Bengali) shows why confirmation matters.
 
+## Earn & Save in the inbox and the chat (16 Oct)
+- **Inbox:** a credit with pay words (salary, stipend, 工资, 奖学金, বেতন, বৃত্তি) to the student's Chinese account is an `income` transaction → insight "Your pay arrived" (with the savings rule's share, or a suggestion). Debits whose text matches a "want" (Meituan, Taobao, hotpot, cinema…) in the last 7 days → insight "Wants in the last 7 days, in taka". Reading alerts never moves money: in the sandbox, pay days are credited by the sandbox bank; in production a bank API would move the Shield share.
+- **Chat tools:** `get_savings` (Shield, rule, income, this week's wants in taka), `propose_savings_rule` (the student's own words → a proposal only the student can sign), `check_hundi_offer` (the legal options with real costs and the honest note). System rules 17–19: talk about pay/saving → `get_savings`; hundi → `check_hundi_offer`, never recommend it; never suggest unauthorised work.
+- **Offline router:** savings words in English, Bengali, Banglish ("joma", "noshto", "luxury") and Chinese; a share like "50%" / "অর্ধেক" / "百分之30" makes a proposal. A hundi message is flagged as before, and the reply now adds the legal options with numbers (amount and offered rate read from text such as "$500 lagbe, 124 taka per dollar").
+
 ## Tests
 `backend/tests/test_inbox.py` (privacy, parsing, grounding, insights, webhook, injection) and `backend/tests/test_agent.py` (tool calling with a fake DeepSeek, no-execute guarantee, bad tools, outage fallback, 3 languages). The suite never calls the real API.
 

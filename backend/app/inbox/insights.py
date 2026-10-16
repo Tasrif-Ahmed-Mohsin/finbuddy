@@ -50,6 +50,11 @@ class InsightContext:
     executed_amounts_cny: list[Decimal]
     card_status: str = "active"
     renewals: list = field(default_factory=list)  # open renewal cases (dicts)
+    # Earn & Save (optional): the student's savings rule and the taka lens.
+    savings_pct: int | None = None  # the active savings rule's share of each pay, if any
+    shield_target_cny: Decimal | None = None
+    family_bdt_per_cny: Decimal | None = None  # what ¥1 costs the family to send (cheapest legal bank, fees included)
+    daily_living_cny: Decimal | None = None
 
 
 def fmt_bdt(x: Decimal) -> str:
@@ -189,6 +194,42 @@ def generate(ctx: InsightContext) -> list[Insight]:
                                    f"On {fmt_cny(t.amount)} you were charged {fmt_bdt(t.home_bdt)}: about {q2(markup)}% "
                                    f"({fmt_bdt(extra)}) above the market rate. For large amounts, compare banks first.",
                                    q2(extra), {"screen": "plan", "mode": "tuition"}, [t.id]))
+
+    # 10. Earn & Save: the student's own pay landed (a bank alert says so). Sathi suggests or confirms the Shield share.
+    cn_last4 = ctx.profile.get("student_cn_last4")
+    for t in mine:
+        if t.kind == "income" and t.direction == "credit" and t.account_last4 == cn_last4 and t.currency == "CNY":
+            if ctx.savings_pct:
+                keep = (t.amount * ctx.savings_pct / 100).quantize(Decimal(1))
+                body = (f"{fmt_cny(t.amount)} of your own pay arrived. Your savings rule keeps {ctx.savings_pct}% "
+                        f"({fmt_cny(keep)}) in your Shield: money that is already in China when money from home cannot come.")
+            else:
+                keep = (t.amount / 2).quantize(Decimal(1))
+                body = (f"{fmt_cny(t.amount)} of your own pay arrived. Keeping half of it ({fmt_cny(keep)}) in a Shield builds "
+                        "money that is already in China for the days money from home cannot come (bank holidays, a dollar "
+                        "shortage), so nobody needs hundi. Set it up once in Save.")
+            out.append(Insight(f"income:{t.id}", "income_received", "info", "Your pay arrived", body,
+                               action={"screen": "save"}, txn_ids=[t.id]))
+
+    # 11. Earn & Save: wants in this week's bank alerts, through the taka lens (prices in yuan look small).
+    if ctx.family_bdt_per_cny and ctx.daily_living_cny:
+        from app.engines.earnings import categorize  # local import: earnings → notify, scam (no cycle, kept light)
+
+        texts = {m.id: m.text for m in ctx.messages}
+        since = ctx.now - timedelta(days=7)
+        wants = [t for t in ctx.txns if t.direction == "debit" and t.currency == "CNY" and t.received_at >= since
+                 and t.owner in ("student_card", "student_cn")
+                 and (categorize(texts.get(t.message_id, "") + " " + (t.counterparty or "")) or ("", ""))[1] == "want"]
+        if wants:
+            total = sum((t.amount for t in wants), Decimal(0))
+            bdt_home = total * ctx.family_bdt_per_cny
+            days = (total / ctx.daily_living_cny).quantize(Decimal("0.1"))
+            out.append(Insight(f"wants_7d:{ctx.now.date().isoformat()}", "wants_from_alerts", "info",
+                               "Wants in the last 7 days, in taka",
+                               f"Your bank alerts show {fmt_cny(total)} on wants in the last 7 days ({len(wants)} payments). At home "
+                               f"that is about {fmt_bdt(bdt_home)}, or {days} days of living money. Prices in yuan look "
+                               "small; this is what they cost your family.",
+                               action={"screen": "save"}, txn_ids=[t.id for t in wants]))
 
     order = {"alert": 0, "warn": 1, "info": 2}
     return sorted(out, key=lambda i: order[i.severity])

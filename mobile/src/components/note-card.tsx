@@ -47,6 +47,7 @@ export function NoteCard({ note }: { note: Note }) {
       )}
       {r.screen === 'family' && note.kind !== 'info' && <Button title={t('tabFamily')} variant="secondary" onPress={() => router.push('/family')} />}
       {r.screen === 'emergency' && <Button title={t('emergencyLink')} variant="secondary" onPress={() => router.push('/emergency')} />}
+      {r.screen === 'save' && note.kind !== 'info' && <Button title={t('openSave')} variant="secondary" onPress={() => router.push('/save')} />}
       {r.screen === 'renewal' && r.item && (
         <Button title={t('openRenewal')} variant="secondary" onPress={() => router.push({ pathname: '/renewal/[item]', params: { item: r.item! } })} />
       )}
@@ -63,6 +64,19 @@ export function NeedCard({ need }: { need: NeedItem }) {
       <Card tone="warn">
         <ThemedText type="smallBold">🙋 {t('safeCheckNeed')}</ThemedText>
         <Button title={t('emImSafe')} onPress={() => router.push('/emergency')} />
+      </Card>
+    );
+  }
+  if (need.type === 'approve_release') {
+    return (
+      <Card tone="warn">
+        <Row style={styles.between}>
+          <ThemedText type="smallBold" style={{ flex: 1 }}>
+            🛡️ {t('releaseNeedsYou')}
+          </ThemedText>
+          <Badge tone="warn">{cny(need.amount_cny, lang)}</Badge>
+        </Row>
+        <Button title={t('openSave')} onPress={() => router.push('/save')} />
       </Card>
     );
   }

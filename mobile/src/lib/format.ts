@@ -49,3 +49,8 @@ export function shortDate(iso: string | undefined, lang: Lang): string {
   if (!iso) return '';
   return localDigits(iso.slice(0, 10), lang);
 }
+
+/** Fill a translated template: fill('Keeps {pct}% here', { pct: '৫০' }). Values are formatted by the caller. */
+export function fill(template: string, values: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (m, k: string) => values[k] ?? m);
+}

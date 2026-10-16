@@ -7,6 +7,9 @@ Rules of the sandbox:
     that can be fast-forwarded for demos.
   * Each simulated day the student spends their daily living money in China (cash first, then the
     Chinese account). A day they cannot cover is recorded as a "stuck day".
+  * The student's own income (stipend or approved campus job) lands in the Chinese account; the Shield is a
+    separate savings pocket of the same account. It is NOT counted as money to spend: it is kept for the days
+    money from home cannot arrive (Earn & Save).
   * Every operation writes to the hash-chained audit log: this is the execution evidence.
 """
 from __future__ import annotations
@@ -82,6 +85,9 @@ class SandboxBank:
     daily_spend_cny: Decimal = Decimal(0)  # simulated living spending in China (0 = off)
     stuck_days: list[str] = field(default_factory=list)
     spend_log: list[Decimal] = field(default_factory=list)  # what the student needed each day
+    # (when, amount, category, need|want): purchases the student logged. Kept apart from spend_log on purpose: wants paid
+    # from the student's own pay must not look like faster LIVING spending, or the autopilot would send more from home.
+    wants_log: list[tuple] = field(default_factory=list)
     _seq: int = 0
     _cny_per_usd: Decimal = Decimal("6.95")  # set from market data at seed time
 
@@ -191,6 +197,45 @@ class SandboxBank:
         return {"amount_cny": str(amount), "paid_cny": str(paid), "unpaid_cny": str(amount - paid),
                 "balance_cny": str(self.student_cny())}
 
+    # ---- the student's own money (Earn & Save) ---------------------------------------
+    def credit_income(self, source_id: str | None, kind: str, amount: Decimal, actor: str) -> dict:
+        """Pay or a stipend lands in the student's own Chinese account (sandbox: the employer or university pays)."""
+        self.accounts["student_cn"].balance += amount
+        return self.log("income_received", actor, "SANDBOX", {"source_id": source_id, "kind": kind,
+                        "amount_cny": str(q2(amount)), "balance_cny": str(q2(self.student_cny()))})
+
+    def move_cny(self, from_id: str, to_id: str, amount: Decimal, actor: str, level: str, event: str, data: dict) -> dict:
+        """Move yuan between the student's OWN pockets (spending account ↔ Shield). Nothing leaves the student."""
+        own = {"student_cn", "student_cash", "student_shield"}
+        if from_id not in own or to_id not in own:
+            raise ValueError("the Shield only moves between the student's own accounts")
+        src = self.accounts[from_id]
+        if amount <= 0 or src.balance < amount:
+            raise ValueError(f"not enough money in {src.label}: ¥{q2(src.balance)} available")
+        src.balance -= amount
+        self.accounts[to_id].balance += amount
+        return self.log(event, actor, level, {**data, "from": from_id, "to": to_id, "amount_cny": str(q2(amount)),
+                        "shield_cny": str(q2(self.accounts["student_shield"].balance))})
+
+    def take_from_spending(self, amount: Decimal) -> Decimal:
+        """Pay from cash first, then the Chinese account. Returns what was actually paid."""
+        paid = Decimal(0)
+        for acct_id in ("student_cash", "student_cn"):
+            acct = self.accounts[acct_id]
+            take = min(acct.balance, amount - paid)
+            acct.balance -= take
+            paid += take
+        return paid
+
+    def spend_logged(self, amount: Decimal, category: str, kind: str, actor: str) -> dict:
+        """A purchase the student logged (or a bank alert showed). The merchant text is never logged, only the category."""
+        paid = self.take_from_spending(amount)
+        self.wants_log.append((self.clock, amount, category, kind))
+        self.log("spending_logged", actor, "SANDBOX", {"amount_cny": str(q2(amount)), "paid_cny": str(q2(paid)),
+                 "category": category, "kind": kind})
+        return {"amount_cny": str(q2(amount)), "paid_cny": str(q2(paid)), "unpaid_cny": str(q2(amount - paid)),
+                "balance_cny": str(q2(self.student_cny()))}
+
     def spend_day(self) -> tuple[Decimal, bool]:
         """End of the current day: the student spends today's living money. Returns (spent, stuck)."""
         need = self.daily_spend_cny
@@ -244,6 +289,8 @@ def seed_demo_bank(corridor: Corridor, audit: AuditLog, start: datetime, cny_per
         Account("student_bd_card", "student", "Student File card account (Bangladesh) [sandbox]", "BDT", Decimal("300000")),
         Account("student_cn", "student", "Student's own Chinese bank account [sandbox]", "CNY", Decimal("500")),
         Account("student_cash", "student", "Cash wallet (CNY), from the airport exchange", "CNY", Decimal("1800")),
+        Account("student_shield", "student", "Shield: savings pocket of the student's own Chinese account [sandbox]", "CNY",
+                Decimal("0")),
         Account("university", "university", "Demo University finance office [sandbox]", "CNY", Decimal("0")),
     ):
         bank.accounts[acct.id] = acct

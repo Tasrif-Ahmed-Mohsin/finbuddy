@@ -27,6 +27,11 @@ With today's habits our demo student is **without money for 20 days a year**. An
 costs families most: a real BRAC tuition payment was only 0.22% above the market rate, while its ৳8,000 charge was
 **5.5× that markup**. When the legal channel breaks, families are pushed to hundi. **Sathi makes the legal way easier than hundi.**
 
+A second student told us the other half of the story (Interview #2): *"Because of the dollar crisis, money can't come
+from home, so sometimes it comes by hundi and we lose 1–2 taka per dollar. Students here earn from jobs, but spend it on
+luxury, when we could have had savings by now."* Their own pay abroad is money that **never has to cross the border**,
+so Sathi turns part of it into a **Shield** for the days the legal channel from home is closed (**Earn & Save**).
+
 ## One loop: Sense → Plan → Act → Prove
 
 | | What happens | App |
@@ -36,19 +41,23 @@ costs families most: a real BRAC tuition payment was only 0.22% above the market
 | **Emergency** | 🆘 on Today: "I have no money" gives every way money can reach the student, with real dates and the exact bridge amount, and prepares one urgent transfer for the parent's fingerprint. "Card lost" freezes first. Fake police / embassy / courier calls get a fixed guide, and the parent can ask **"Are you safe?"**, which only the student can answer | **Emergency** |
 | **Act** | The parent writes a **family mandate in their own words** ("প্রতি মাসে ১ লাখ ২০ হাজার টাকা পর্যন্ত…", up to 1.2 lakh taka a month) → a strict proposal → read aloud → signed with fingerprint (both people for large caps). The **autopilot** then sends living money to the student's own account **before** it runs out, counting Eid, Spring Festival and weekends, and **asks** whenever a limit would be exceeded. Card freeze, renewal plan for a student abroad, scam blocking | **Family** |
 | **Prove** | A receipt for every payment: approved by people (EXECUTE) or by the autopilot under the signed mandate (MANDATE, with the proposal hash). Hash-chained log, payment passport | **Proof** |
+| **Earn & Save** | The student's own money abroad: a stipend or an **approved** campus job (China's work rules checked; unauthorised work is flagged and never planned on). A **savings rule the student signs** ("প্রতি বেতনের ৫০% জমাবো…", keep 50% of every pay until ¥6,000) fills the **Shield** on each pay day; when the money in China runs out it is used at once; anything else waits a cooling-off the student chose. The **taka lens** shows every "want" as what it costs the family to send. An **honest hundi check** shows the legal options, and says so when one bank transfer costs more on paper. The parent sees the Shield level only if the student shares it | **Save** |
 
 **Results** (saved real rates):
 - **Year plan:** stuck days **20 → 0**; fees + markup **4.39% → 3.88%** (৳5,126 saved for the same money). **89%** of what families lose today is fees, not the exchange rate.
 - **Published data:** Eastern Bank's CNY transfer rate averaged **+0.96%** above the market (138 days). Its fees on a ৳1 lakh transfer are **৳3,565**, more than the rate markup. Waiting for a "better day" saved **৳21 per lakh** on average in a backtest, so Sathi does not try to time the market.
 - **Stress test:** the same year re-run 200 times with messy spending, late transfers and moved holidays. Typical year: **30 → 0** stuck days; **64%** of messy years with none (today: 0%). What if the taka weakens 10%, spending rises 30%, every transfer is 3 days late, or all at once: still **0** stuck days.
 - **Live sandbox run:** 12 Oct 2026 → 21 Feb 2027, through the card stop and Spring Festival: **0 stuck days**.
+- **Dollar crisis (Earn & Save):** banks send no student transfer for 4 weeks, tried at all 33 start weeks of the plan (Oct 2026 – Jun 2027). Start weeks with no day without money: **0%** with today's habits, **39%** with Sathi, **94%** with Sathi + a Shield built from a ¥1,500/month campus job at 50%. Typical crisis: **20 → 4 → 0** days without money.
+- **Hundi, honestly:** $500 at ৳124.5 costs ৳623 above the market by hundi and ৳3,701 by one bank transfer (fees). Sathi shows that gap and closes it legally: fewer, planned transfers and the student's own Shield (৳0).
 - See [docs/evidence/scenario_summary.md](docs/evidence/scenario_summary.md).
 
 **Security** (details in the [security self-assessment](docs/SECURITY_SELF_ASSESSMENT.md)):
 - Permission levels L0–L3; the AI can never approve, sign, unfreeze or widen a limit.
 - Signatures and approvals are bound to the exact proposal or draft. What people read and hear is generated from those exact fields, never by the AI.
 - Numbers from the AI must appear in the user's text.
-- Two-person rule from ৳1 lakh; hash-chained audit log; 203 tests, including the red-team cases.
+- The student's savings rule is signed by the student only; Shield money only moves between the student's own accounts; the parent never sees income or purchases.
+- Two-person rule from ৳1 lakh; hash-chained audit log; 327 tests, including the red-team cases.
 
 ## Run it
 
@@ -74,8 +83,8 @@ On a phone, the app looks for the backend on the same computer at port 8000 (the
 
 ## Test it
 ```bash
-cd backend && .venv/Scripts/python -m pytest -q        # 203 tests: bank prices, year plan, mandates + autopilot, security, engines, agent, inbox, FX, cards, renewals, passport, documents
-cd mobile && npx tsc --noEmit && npx expo lint
+cd backend && .venv/Scripts/python -m pytest -q        # 327 tests: bank prices, year plan, mandates + autopilot, Earn & Save, security, engines, agent, inbox, FX, cards, renewals, passport, documents
+cd mobile && npx tsc --noEmit && npx expo lint   # a fresh clone needs expo-env.d.ts first: run `npx expo start` once (it is git-ignored)
 ```
 
 ## Submission documents
@@ -89,11 +98,12 @@ docs/00_project_brief.md     competition rules, decisions, concept, plan
 docs/01_problem_research.md  34 problems + field interview, with sources and confidence labels
 docs/02_build_plan.md        organiser expectations → scope → architecture → schedule
 backend/app/corridors/       rule pack (every number has a source + confidence)
-backend/app/engines/         year plan (bank calendars, look-ahead rule), cost + cost truth, living optimiser, tuition planner, FX ranges
+backend/app/engines/         year plan (bank calendars, look-ahead rule), cost + cost truth, living optimiser, tuition planner, FX ranges,
+                             earnings (income, work rules, savings rule, Shield, taka lens), hundi (honest comparison), stress (incl. dollar crisis)
 backend/app/agent/           autopilot, mandate compiler, chat agent (DeepSeek) + offline fallback
 backend/app/data/            bank holidays (BD + CN), bank quotes + real payment, FX history, demo messages
 backend/app/security/        permissions, compliance checks, scam/injection detection
 backend/app/sandbox/         simulated bank with clock, delays and fees
 backend/app/audit/           hash-chained operation log (execution evidence)
-mobile/src/app/              Expo Router screens (Today, Plan, Family, Sathi, Proof, payment approval, renewal, passport, settings)
+mobile/src/app/              Expo Router screens (Today, Plan, Save, Family, Sathi, Proof, payment approval, renewal, passport, settings)
 ```

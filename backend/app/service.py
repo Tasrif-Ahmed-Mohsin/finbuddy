@@ -25,11 +25,16 @@ from app.corridors.loader import load_corridor
 from app.engines.cost import atm_cost, tt_cost
 from app.engines.cost_truth import field_payment_truth
 from app.emergency import SafetyCheck, fastest_money, guide, render_plan
+from app.engines.earnings import (CATEGORY_KIND, CATEGORY_LABELS, EVERY, KINDS, SUGGESTED_PCT, IncomeSource, SavingsRule,
+                                  ShieldRelease, categorize, compile_savings_rule, income_schedule, monthly_income, paydays,
+                                  shield_share, taka_lens, wants_allowance_week, work_checks)
+from app.engines.hundi import compare as hundi_compare
+from app.engines.hundi import default_planned
 from app.engines.rate_watch import rate_watch
-from app.engines.stress import stress_test, what_if
-from app.engines.year_plan import (Policy, Situation, _per_withdrawal_cap, load_calendar, plan_year, project, runs_out_on,
-                                   spending_pace, topup_decision)
-from app.engines.living_planner import ATM_NOTE, LivingRequest, plan_living
+from app.engines.stress import dollar_crisis, stress_test, what_if
+from app.engines.year_plan import (Policy, Saving, Situation, _per_withdrawal_cap, load_calendar, plan_year, project,
+                                   runs_out_on, simulate, spending_pace, topup_decision)
+from app.engines.living_planner import ATM_NOTE, LivingRequest, best_quote_for, plan_living
 from app.documents import read_document as read_document_photo
 from app.engines.tuition_planner import TuitionRequest, plan_tuition
 from app.inbox.service import Inbox
@@ -38,7 +43,7 @@ from app.fx import FxProvider
 from app.bank_rates import BankRateStore
 from app.market import BankQuote, Market, build_market, load_quote_config, student_file_fees
 from app.money import D, ceil_div, q2
-from app.notify import Feed, draft_summaries, role_name
+from app.notify import Feed, cny, draft_summaries, num, role_name
 from app.passport import issue as issue_passport_doc
 from app.passport import verify as verify_passport_doc
 from app.renewal import RenewalCase, plan_renewal
@@ -137,6 +142,13 @@ class AppState:
         self.passport_secret = env_secret.encode() if env_secret else secrets.token_bytes(32)
         self.passports: dict[str, dict] = {}
         self.revoked_passports: set[str] = set()
+        # Earn & Save: the student's own money abroad (stipend / approved campus job) and the Shield.
+        self.income_sources: dict[str, IncomeSource] = {}
+        self.savings_rules: dict[str, SavingsRule] = {}  # proposals and rules, by id
+        self.savings_rule_id: str | None = None  # the active rule
+        self.savings_terms_id: str | None = None  # the last rule that was ever active: its terms keep covering the Shield
+        self.shield_releases: dict[str, ShieldRelease] = {}
+        self._crisis_cache: dict | None = None
         self._n = 0
         self.inbox = Inbox(self)
         self.agent = ChatAgent(self)
@@ -547,12 +559,30 @@ class AppState:
         """Is the year plan robust? The same year re-run with messy spending, late transfers and moved holidays."""
         self._require(actor, "plan_year")
         sit, market = self._year_situation(), self.market
+        student_money = self._may_see_student_money(actor)
         key = (sit.start, sit.balance_cny, tuple(sit.in_transit), sit.card_active, market.mid.as_of,
-               self.profile["monthly_living_cny"], runs)
+               self.profile["monthly_living_cny"], runs, self._earnings_key(), student_money)
         if self._stress_cache is None or self._stress_cache[0] != key:
             out = stress_test(sit, self.policy, self.calendar, self.corridor, market, runs=runs)
             out["what_if"] = what_if(sit, self.policy, self.calendar, self.corridor, market,
                                      lambda mid: build_market(mid, self.quote_cfg, self.real_quotes, self.bank_rates))
+            crisis = self._crisis(sit, with_student_money=student_money)
+            w, med = crisis["worst"], crisis["median_stuck"]
+            sathi = simulate("sathi", sit, self.policy, self.calendar, self.corridor, market,
+                             blocked=(date.fromisoformat(w["from"]), date.fromisoformat(w["to"])))
+            # One line in the what-if list: the TYPICAL crisis (median over every start week). The worst start is
+            # reported next to it and in full in `crisis` (chosen against Sathi, so it is the honest worst case).
+            out["what_if"].append({"key": "dollar_crisis", "weeks": crisis["weeks"], "basis": "median_start",
+                                   "stuck_days_sathi": med["sathi"], "stuck_days_today": med["today"],
+                                   "stuck_days_sathi_shield": med["sathi_shield"],
+                                   "worst": {"from": w["from"], "stuck_today": w["stuck_today"], "stuck_sathi": w["stuck_sathi"],
+                                             "stuck_sathi_shield": w["stuck_sathi_shield"]},
+                                   "shield_needed_cny": w["shield_needed_cny"],
+                                   "family_pays_bdt": str(q2(sum((c.total_bdt for c in sathi.costs), Decimal(0)))),
+                                   "change_bdt": "0.00", "overhead_pct": sathi.cost_summary()["overhead_pct"],
+                                   "overhead_pct_today": sathi.cost_summary()["overhead_pct"],
+                                   "transfers": len(sathi.transfers), "atm_bridges": len(sathi.atm)})
+            out["crisis"] = crisis
             out["period"] = {"from": sit.start.isoformat(), "to": sit.end.isoformat()}
             self._stress_cache = (key, out)
         out = self._stress_cache[1]
@@ -577,6 +607,9 @@ class AppState:
             "bd_living_remit_cap_usd_per_month")]
         m = self.autopilot.active_mandate()
         plan["mandate"] = self._mandate_view(m) if m else None
+        plan["shield"] = self._year_shield(sit) if self._may_see_student_money(actor) else None
+        if plan["shield"] is not None and actor == Actor.PARENT:
+            plan["shield"].pop("income_month_cny", None)  # the student's pay stays private even when the Shield is shared
         plan["data_is_sample"], plan["data_quality"] = self.estimates, self.data_quality
         self._log("year_planned", actor, "plan_year",
                   {k: plan["headline"][k] for k in ("stuck_days_today", "stuck_days_sathi", "saved_bdt")})
@@ -616,8 +649,13 @@ class AppState:
         for prop in reversed(list(self.proposals.values())):
             if prop.status == "proposed" and prop.signatures and who in prop.required_signers and who not in prop.signatures:
                 needs.append({"type": "sign_mandate", "proposal_id": prop.id, "summary": prop.summary().get(lang, "")})
+        if who == "parent":  # only when the student chose to lock their Shield with the family's approval
+            needs += [{"type": "approve_release", "release_id": r.id, "amount_cny": str(q2(r.amount_cny)),
+                       "available_at": r.available_at.isoformat()}
+                      for r in self.shield_releases.values() if r.status == "waiting" and r.needs_family
+                      and r.family_approved_at is None]
         return {"now": self.now.isoformat(), "runway": self.runway(), "needs_you": needs,
-                "notes": self.feed.for_actor(who, lang)}
+                "notes": self.feed.for_actor(who, lang), "shield": self.shield_summary(actor)}
 
     def receipts(self) -> list[dict]:
         """Proof for every executed payment: what was checked, who or what authorised it, and its log entries."""
@@ -640,7 +678,8 @@ class AppState:
         today = self.now.date()
         bal, transit = self.student_money()
         per_wd, _ = _per_withdrawal_cap(self.corridor, self.market.mid.cny_per_usd)
-        return fastest_money(today, bal, transit, self.planning_policy, self.calendar, self.card_usable(today), per_wd)
+        return fastest_money(today, bal, transit, self.planning_policy, self.calendar, self.card_usable(today), per_wd,
+                             self.shield_cny - self._shield_waiting())
 
     def emergency(self, actor: Actor, lang: str = "en") -> dict:
         self._require(actor, "emergency_plan")
@@ -656,6 +695,12 @@ class AppState:
         self._require(actor, "ask_family_for_money")
         sent = self.autopilot.tick()  # the mandate may already allow it (same rule as every day)
         plan = self._fastest()
+        shield_used = None
+        if Decimal(plan["from_shield_cny"]) > 0 and (actor == Actor.STUDENT or self._savings_rule() is not None):
+            # The student's own Shield first: instant, free, already in China. Only to the student's own spending account,
+            # and only because the numbers show the money cannot cover the days until a transfer lands.
+            shield_used = self._release_now(Decimal(plan["from_shield_cny"]), "emergency", actor)
+            plan = self._fastest()
         today, pol = self.now.date(), self.planning_policy
         lands = date.fromisoformat(plan["urgent_lands_on"])
         bal, transit = self.student_money()
@@ -668,16 +713,22 @@ class AppState:
                                 and self.now <= d.expires_at), None)
             draft = self.draft_view(open_living.id) if open_living else self.create_draft(
                 actor, "tt_living", amount, "student_own_cn", memo="Emergency: urgent living money")
+            covered = ({"en": "the student's own Shield covers the days until then.",
+                        "bn": "শিক্ষার্থীর নিজের সুরক্ষা তহবিল ততদিনের খরচ চালাবে।",
+                        "zh": "学生自己的应急储备可以支撑到那时。"} if shield_used else
+                       {"en": "the money in China lasts until then.", "bn": "চীনে থাকা টাকায় ততদিন চলবে।",
+                        "zh": "在中国的钱可以支撑到那时。"})
             texts = {lg: next((o["text"] for o in render_plan(plan, lg, self.calendar.names())["options"]
-                               if o["kind"] in ("card_atm", "local_bridge")), "") for lg in ("en", "bn", "zh")}
+                               if o["kind"] in ("card_atm", "local_bridge")), covered[lg]) for lg in ("en", "bn", "zh")}
             self.feed.add(self.now, "both", "needs_you", "emergency_no_money",
                           {"balance_cny": str(q2(bal)), "amount_cny": draft["amount_cny"], "lands_date": plan["urgent_lands_on"],
                            "bridge_en": texts["en"], "bridge_bn": texts["bn"], "bridge_zh": texts["zh"]},
                           {"screen": "draft", "draft_id": draft["id"]}, once=f"emergency:{today.isoformat()}")
         self._log("emergency_no_money", actor, "ask_family_for_money",
                   {"balance_cny": plan["balance_cny"], "draft_id": draft["id"] if draft else None,
-                   "autopilot": [a.get("type") for a in sent]})
-        return {**self.emergency(actor, lang), "draft": draft, "autopilot": sent}
+                   "autopilot": [a.get("type") for a in sent],
+                   "shield_used_cny": shield_used["amount_cny"] if shield_used else None})
+        return {**self.emergency(actor, lang), "draft": draft, "autopilot": sent, "shield_used": shield_used}
 
     def emergency_card_lost(self, actor: Actor, lang: str = "en") -> dict:
         last4 = self.profile["student_card_last4"]
@@ -808,6 +859,9 @@ class AppState:
         spent_total, stuck_n = Decimal(0), 0
         self._wa_batch = [] if days > 1 else None  # a fast-forward sends one summary, not one message per note
         for _ in range(days):
+            covered = self._shield_cover()  # the student's Shield, if today's money is not enough (savings rule)
+            if covered:
+                actions.append({"type": "shield_cover", "amount_cny": covered["amount_cny"]})
             spent, stuck = self.bank.spend_day()
             spent_total += spent
             if stuck:
@@ -829,7 +883,10 @@ class AppState:
                     self.feed.add(self.now, "both", "info", "transfer_arrived", {
                         "amount_cny": e["data"]["amount_cny"], "balance_cny": str(q2(self.bank.student_cny()))})
             events += arrived
+            actions += self._pay_incomes()  # pay days: the student's own money lands, the savings rule keeps its share
+            actions += self._process_releases()  # Shield releases whose waiting time is over
             self._daily_notes()
+            self._weekly_savings_notes()
             actions += self.autopilot.tick()
         batch, self._wa_batch = self._wa_batch, None
         if batch:
@@ -1032,3 +1089,620 @@ class AppState:
     def report_card_lost(self, actor: Actor, last4: str) -> dict:
         self._require(actor, "report_card_lost")
         return self.bank.set_card_status(last4, "lost", actor.value, "EXECUTE", "reported lost or stolen")
+
+    # ---- Earn & Save: the student's own money abroad (Interview #2, docs N-11 … N-14) -------------
+    # The student's income (stipend or approved campus job) is already in yuan: it never meets Bangladesh's dollar
+    # shortage, the bank's fixed fees or hundi. A savings rule the STUDENT signs keeps a share of each income in the
+    # Shield, a pocket of their own Chinese account that covers the days money from home cannot arrive. Money only ever
+    # moves between the student's own pockets; the parent sees the Shield level (if the student shares it), never
+    # purchases; the agent can propose a rule and act inside it, never sign it or take money out for anything else.
+    SHIELD_EVENTS = ("shield_saved", "shield_cover", "shield_released", "savings_rule_active", "savings_rule_revoked",
+                     "shield_release_requested", "shield_release_cancelled", "shield_release_approved")
+    DEFAULT_INCOME_LABEL = {"stipend": "Scholarship stipend", "work_study": "Campus job (approved work-study)",
+                            "other": "Other income"}
+
+    @property
+    def shield_cny(self) -> Decimal:
+        return self.bank.accounts["student_shield"].balance
+
+    def _shield_waiting(self) -> Decimal:
+        return sum((r.amount_cny for r in self.shield_releases.values() if r.status == "waiting"), Decimal(0))
+
+    def _savings_rule(self) -> SavingsRule | None:
+        r = self.savings_rules.get(self.savings_rule_id) if self.savings_rule_id else None
+        if r is None or r.status != "active":
+            return None
+        if self.now.date() > r.valid_until:
+            r.status, self.savings_rule_id = "expired", None
+            self._log("savings_rule_expired", "system", None, {"rule_id": r.id})
+            return None
+        return r
+
+    def _savings_terms(self) -> SavingsRule | None:
+        """The terms covering money already in the Shield: the active rule, or the last one that was ever active."""
+        return self._savings_rule() or (self.savings_rules.get(self.savings_terms_id) if self.savings_terms_id else None)
+
+    def _shares_with_family(self) -> bool:
+        t = self._savings_terms()
+        return bool(t and t.share_with_family)
+
+    def family_bdt_per_cny(self) -> Decimal:
+        """What one yuan costs the family to send: the cheapest legal bank for a month of living money, fees included."""
+        monthly = D(self.profile["monthly_living_cny"])
+        _, cost = best_quote_for(monthly, self.market)
+        return (cost.total_bdt / monthly).quantize(Decimal("0.0001"))
+
+    def _default_shield_target(self) -> Decimal:
+        return ATM_NOTE * ceil_div(self.policy.daily_spend_cny * self.corridor.i("shield_target_days"), ATM_NOTE)
+
+    def _earnings_key(self) -> tuple:
+        rule = self._savings_rule()
+        return (tuple((s.id, s.amount_cny, s.every, s.pay_day, s.status) for s in self.income_sources.values()),
+                (rule.id, rule.shield_pct, rule.target_cny) if rule else None, self.shield_cny)
+
+    def _saving_for_plans(self) -> tuple[Saving | None, bool]:
+        """The savings rule simulations use: the student's active rule, else Sathi's suggestion when there is income."""
+        rule = self._savings_rule()
+        if rule:
+            return Saving(rule.shield_pct, rule.target_cny, self.shield_cny), False
+        if any(s.status == "ok" for s in self.income_sources.values()):
+            return Saving(SUGGESTED_PCT, self._default_shield_target(), self.shield_cny), True
+        return None, False
+
+    def _income_plan(self, sit: Situation) -> list[tuple[date, Decimal]]:
+        return income_schedule(list(self.income_sources.values()), sit.start + timedelta(days=1), sit.end)
+
+    def _may_see_student_money(self, actor: Actor) -> bool:
+        """The student and Sathi (for the student) see it; the parent only if the student shares the Shield."""
+        return actor != Actor.PARENT or self._shares_with_family()
+
+    def _crisis(self, sit: Situation, weeks: int | None = None, with_student_money: bool = True) -> dict:
+        weeks = weeks or self.corridor.i("crisis_weeks")
+        saving, suggested = self._saving_for_plans() if with_student_money else (None, False)
+        income = self._income_plan(sit) if with_student_money else None
+        market = self.market
+        key = (sit.start, sit.balance_cny, tuple(sit.in_transit), sit.card_active, market.mid.as_of,
+               self.profile["monthly_living_cny"], weeks, self._earnings_key(), with_student_money)
+        cache = self._crisis_cache or {}
+        if key not in cache:
+            out = dollar_crisis(sit, self.policy, self.calendar, self.corridor, market, income, saving, weeks)
+            out["rule_is_suggestion"] = suggested
+            out["student_money_shown"] = with_student_money
+            cache = {k: v for k, v in cache.items() if k[:-1] == key[:-1]}  # keep only the other view of the same state
+            cache[key] = out
+            self._crisis_cache = cache
+        return cache[key]
+
+    def _year_shield(self, sit: Situation) -> dict:
+        saving, suggested = self._saving_for_plans()
+        out = {"income_month_cny": str(monthly_income(list(self.income_sources.values()))),
+               "shield_cny": str(q2(self.shield_cny)), "rule_is_suggestion": suggested,
+               "saving": {"pct": saving.pct, "target_cny": str(q2(saving.target))} if saving else None,
+               "end_cny": None, "used_cny": None}
+        if saving:
+            res = simulate("sathi", sit, self.policy, self.calendar, self.corridor, self.market,
+                           income=self._income_plan(sit), saving=saving)
+            out.update(end_cny=str(q2(res.shield_end)), used_cny=str(q2(res.shield_used)), saved_cny=str(q2(res.shield_saved)))
+        return out
+
+    def _shield_projection(self, pct: int, target: Decimal) -> dict:
+        """When the Shield reaches its target from planned income alone (no spending assumed from it)."""
+        today, shield = self.now.date(), self.shield_cny
+        points, reaches = [], None if self.shield_cny < target else today
+        for d, amt in income_schedule(list(self.income_sources.values()), today + timedelta(days=1), today + timedelta(days=365)):
+            shield += shield_share(amt, pct, shield, target)
+            if len(points) < 12:
+                points.append({"date": d.isoformat(), "shield_cny": str(q2(shield))})
+            if reaches is None and shield >= target:
+                reaches = d
+        return {"pct": pct, "target_cny": str(q2(target)), "reaches_target_on": reaches.isoformat() if reaches else None,
+                "points": points}
+
+    def _wants_between(self, start: date, end: date, lang: str = "en") -> dict:
+        rows = [(amt, cat, kind) for ts, amt, cat, kind in self.bank.wants_log if start <= ts.date() <= end]
+        wants = sum((a for a, _, k in rows if k == "want"), Decimal(0))
+        needs = sum((a for a, _, k in rows if k == "need"), Decimal(0))
+        by_cat: dict[str, Decimal] = {}
+        for a, c, k in rows:
+            if k == "want":
+                by_cat[c] = by_cat.get(c, Decimal(0)) + a
+        return {"from": start.isoformat(), "to": end.isoformat(), "wants_cny": str(q2(wants)), "needs_cny": str(q2(needs)),
+                "count": len(rows),
+                "by_category": [{"category": c, "label": CATEGORY_LABELS[c][lang], "cny": str(q2(v))}
+                                for c, v in sorted(by_cat.items(), key=lambda x: -x[1])]}
+
+    def _wants_week_view(self, lang: str = "en") -> dict:
+        """This week's wants through the taka lens, against what the student's own pay leaves for wants."""
+        today = self.now.date()
+        w = self._wants_between(today - timedelta(days=today.weekday()), today, lang)
+        rule = self._savings_rule()
+        allowance = wants_allowance_week(monthly_income(list(self.income_sources.values())), rule.shield_pct if rule else 0)
+        spent = D(w["wants_cny"])
+        over = max(spent - allowance, Decimal(0))
+        rate, daily = self.family_bdt_per_cny(), self.policy.daily_spend_cny
+        return {**w, "allowance_cny": str(allowance), "left_cny": str(q2(max(allowance - spent, Decimal(0)))),
+                "over_cny": str(q2(over)), "lens": taka_lens(spent, rate, daily), "over_lens": taka_lens(over, rate, daily)}
+
+    def _shield_history(self, limit: int = 12) -> list[dict]:
+        rows = [e for e in self.audit.entries if e["seq"] > self.session_start_seq and e["event"] in self.SHIELD_EVENTS]
+        return [{"seq": e["seq"], "hash": e["hash"][:12], "event": e["event"], "sim_time": e["sim_time"],
+                 "actor": e["actor"], "level": e["permission_level"], "amount_cny": e["data"].get("amount_cny")}
+                for e in rows[-limit:][::-1]]
+
+    def shield_summary(self, actor: Actor) -> dict | None:
+        """The Shield in one line for Today / the family feed: None for the parent when the student does not share it."""
+        terms = self._savings_terms()
+        if actor == Actor.PARENT and not self._shares_with_family():
+            return None
+        if terms is None and self.shield_cny == 0 and not self.income_sources:
+            return None
+        target = terms.target_cny if terms else self._default_shield_target()
+        return {"balance_cny": str(q2(self.shield_cny)), "target_cny": str(q2(target)),
+                "pct_of_target": int(min(self.shield_cny / target, Decimal(1)) * 100) if target > 0 else 0,
+                "days_of_living": str((self.shield_cny / self.policy.daily_spend_cny).quantize(Decimal("0.1"))),
+                "rule_on": self._savings_rule() is not None}
+
+    PRIVATE_EVENTS = ("income_received", "income_source_added", "income_source_removed", "spending_logged")
+
+    def visible_accounts(self, actor: Actor) -> list[dict]:
+        """Sandbox accounts as this person may see them: the Shield is hidden from the parent unless shared."""
+        hide = actor == Actor.PARENT and not self._shares_with_family()
+        return [a.to_dict() for a in self.bank.accounts.values() if not (hide and a.id == "student_shield")]
+
+    def audit_view(self, actor: Actor, entries: list[dict]) -> list[dict]:
+        """The log as the parent may read it: the student's pay and purchases (and the Shield, unless shared) show as
+        private. Hashes stay, so the chain is still checked on the server and every entry is still accounted for."""
+        if actor != Actor.PARENT:
+            return entries
+        private = self.PRIVATE_EVENTS + (() if self._shares_with_family() else self.SHIELD_EVENTS + (
+            "shield_cover", "savings_rule_proposed", "savings_rule_sign_denied", "savings_rule_superseded"))
+        return [{**e, "data": {"private": True}} if e["event"] in private else e for e in entries]
+
+    def savings_view(self, actor: Actor, lang: str = "en") -> dict:
+        self._require(actor, "plan_savings")
+        lang = lang if lang in ("en", "bn", "zh") else "en"
+        today, rule, terms = self.now.date(), self._savings_rule(), self._savings_terms()
+        target = terms.target_cny if terms else self._default_shield_target()
+        share = actor != Actor.PARENT or self._shares_with_family()
+        waiting = [r.to_dict() for r in reversed(list(self.shield_releases.values())) if r.status == "waiting"]
+        base = {
+            "now": self.now.isoformat(), "role": actor.value, "shared_with_family": self._shares_with_family(),
+            "shield": ({"balance_cny": str(q2(self.shield_cny)), "target_cny": str(q2(target)),
+                        "free_cny": str(q2(self.shield_cny - self._shield_waiting())),
+                        "pct_of_target": int(min(self.shield_cny / target, Decimal(1)) * 100) if target > 0 else 0,
+                        "days_of_living": str((self.shield_cny / self.policy.daily_spend_cny).quantize(Decimal("0.1"))),
+                        "full": self.shield_cny >= target} if share else None),
+            "rule": rule.to_dict() if rule else None,
+            "terms": ({"rule_id": terms.id, "cooling_off_hours": terms.cooling_off_hours, "family_lock": terms.family_lock,
+                       "share_with_family": terms.share_with_family, "status": terms.status} if terms else None),
+            "history": self._shield_history() if share else [],
+            "family_rate": {"bdt_per_cny": str(self.family_bdt_per_cny()),
+                            "basis": "What ¥1 costs the family to send: the cheapest legal bank for a month of living "
+                                     "money, fees included."},
+        }
+        if actor == Actor.PARENT:  # the Shield level and what needs the parent; never income or purchases
+            base["releases"] = [r for r in waiting if r["needs_family"] and r["family_approved_at"] is None]
+            return base
+        sources = list(self.income_sources.values())
+        planned = [(d, s) for s in sources if s.status == "ok"
+                   for d in paydays(s, today + timedelta(days=1), today + timedelta(days=40))]
+        nxt = min(planned, key=lambda x: x[0]) if planned else None
+        proposal = next((p for p in reversed(list(self.savings_rules.values())) if p.status in ("proposed", "needs_changes")), None)
+        suggested = None
+        if rule is None:
+            suggested = {"pct": SUGGESTED_PCT, "target_cny": str(q2(self._default_shield_target())),
+                         "cooling_off_hours": self.corridor.i("shield_cooling_off_hours"),
+                         "projection": self._shield_projection(SUGGESTED_PCT, self._default_shield_target())}
+        return {**base, "releases": waiting,
+                "income": {"sources": [s.to_dict() for s in sources], "monthly_cny": str(monthly_income(sources)),
+                           "next_pay": {"date": nxt[0].isoformat(), "amount_cny": str(q2(nxt[1].amount_cny)),
+                                        "label": nxt[1].label} if nxt else None},
+                "wants": self._wants_week_view(lang),
+                "projection": self._shield_projection(rule.shield_pct, rule.target_cny) if rule else None,
+                "proposal": proposal.to_dict() if proposal else None, "suggested": suggested,
+                "categories": [{"key": k, "label": v[lang], "kind": "want" if k in ("delivery", "eating_out", "shopping",
+                                "fun", "travel", "other_want") else "need"} for k, v in CATEGORY_LABELS.items()],
+                "work_rules": [{"name": k, **self.corridor.meta(k)} for k in (
+                    "cn_work_permission_required", "cn_work_hours_week_term", "cn_illegal_work_fine_cny_min",
+                    "cn_illegal_work_fine_cny_max")]}
+
+    # -- income ----------------------------------------------------------------------------------------
+    def add_income_source(self, actor: Actor, kind: str, label: str, amount_cny: Decimal, every: str = "month",
+                          pay_day: int = 10, hours_per_week: Decimal | None = None, permission: bool = False) -> dict:
+        self._require(actor, "add_income")
+        if actor != Actor.STUDENT:
+            raise PermissionError("only the student adds their own income")
+        if kind not in KINDS:
+            raise ValueError(f"kind must be one of {', '.join(KINDS)}")
+        if every not in EVERY:
+            raise ValueError("pay must come every month or every week")
+        amount = D(amount_cny)
+        if not Decimal(0) < amount <= Decimal(50000):
+            raise ValueError("amount must be between ¥0 and ¥50,000 per pay")
+        if every == "month" and not 1 <= pay_day <= 28:
+            raise ValueError("a monthly pay day must be between 1 and 28")
+        if every == "week" and not 0 <= pay_day <= 6:
+            raise ValueError("a weekly pay day must be a weekday number from 0 (Monday) to 6")
+        hours = D(hours_per_week) if hours_per_week is not None and kind == "work_study" else None
+        if hours is not None and not Decimal(0) <= hours <= Decimal(60):
+            raise ValueError("hours per week must be between 0 and 60")
+        perm = bool(permission) if kind == "work_study" else True
+        src = IncomeSource(self._id("income"), kind, (label or self.DEFAULT_INCOME_LABEL[kind]).strip()[:40], amount, every,
+                           pay_day, hours, perm, self.now.date(), work_checks(kind, hours, perm, self.corridor))
+        self.income_sources[src.id] = src
+        self._log("income_source_added", actor, "add_income", {
+            "source_id": src.id, "kind": kind, "amount_cny": str(q2(amount)), "every": every, "status": src.status,
+            "failed_checks": [c["id"] for c in src.checks if not c["passed"]]})
+        if src.status == "at_risk":
+            self.feed.add(self.now, "student", "warning", "work_permission",
+                          {"lo_cny": str(self.corridor.v("cn_illegal_work_fine_cny_min")),
+                           "hi_cny": str(self.corridor.v("cn_illegal_work_fine_cny_max"))},
+                          {"screen": "save"}, once=f"work_permission:{src.id}")
+        return src.to_dict()
+
+    def remove_income_source(self, actor: Actor, source_id: str) -> dict:
+        self._require(actor, "add_income")
+        if actor != Actor.STUDENT:
+            raise PermissionError("only the student changes their own income")
+        src = self.income_sources.pop(source_id)
+        self._log("income_source_removed", actor, "add_income", {"source_id": src.id})
+        return {"removed": src.id}
+
+    def log_income(self, actor: Actor, amount_cny: Decimal, source_id: str | None = None) -> dict:
+        """A pay or stipend arrived today. In the sandbox the bank credits it; in real life the bank alert shows it."""
+        self._require(actor, "add_income")
+        if actor != Actor.STUDENT:
+            raise PermissionError("only the student logs their own income")
+        amount = D(amount_cny)
+        if not Decimal(0) < amount <= Decimal(50000):
+            raise ValueError("amount must be between ¥0 and ¥50,000")
+        src = self.income_sources[source_id] if source_id else None
+        return self._income_arrived(src.id if src else None, src.kind if src else "other", amount, actor.value)
+
+    def _income_arrived(self, source_id: str | None, kind: str, amount: Decimal, actor_label: str) -> dict:
+        self.bank.credit_income(source_id, kind, amount, actor_label)
+        saved = self._apply_savings_rule(amount)
+        return {"type": "income", "source_id": source_id, "amount_cny": str(q2(amount)), "saved": saved,
+                "balance_cny": str(q2(self.bank.student_cny())), "shield_cny": str(q2(self.shield_cny))}
+
+    def _pay_incomes(self) -> list[dict]:
+        """Sandbox pay days: approved income lands on its day (unauthorised work is never simulated)."""
+        today = self.now.date()
+        return [self._income_arrived(s.id, s.kind, s.amount_cny, "system") for s in list(self.income_sources.values())
+                if s.status == "ok" and s.added_on < today and paydays(s, today, today)]
+
+    def _apply_savings_rule(self, amount: Decimal) -> dict | None:
+        """Pay yourself first: the agent moves the rule's share of an income into the Shield (L3, inside the rule)."""
+        rule = self._savings_rule()
+        if rule is None:
+            return None
+        keep = min(shield_share(amount, rule.shield_pct, self.shield_cny, rule.target_cny),
+                   self.bank.accounts["student_cn"].balance)
+        if keep <= 0:
+            return None
+        self._require(Actor.AGENT, "save_under_rule")
+        self.bank.move_cny("student_cn", "student_shield", keep, Actor.AGENT.value, Level.MANDATE.name, "shield_saved",
+                           {"rule_id": rule.id, "rule_hash": rule.hash()[:16], "income_cny": str(q2(amount)),
+                            "pct": rule.shield_pct})
+        monthly = monthly_income(list(self.income_sources.values()))
+        free = amount - keep
+        week = wants_allowance_week(monthly, rule.shield_pct) if monthly > 0 else q2(free * 7 / 30)
+        self.feed.add(self.now, "student", "did", "income_saved",
+                      {"saved_cny": str(keep), "amount_cny": str(q2(amount)), "shield_cny": str(q2(self.shield_cny)),
+                       "target_cny": str(rule.target_cny), "free_cny": str(q2(free)), "week_cny": str(week)}, {"screen": "save"})
+        if rule.share_with_family:
+            self.feed.add(self.now, "parent", "info", "family_shield",
+                          {"saved_cny": str(keep), "shield_cny": str(q2(self.shield_cny)), "target_cny": str(rule.target_cny)},
+                          {"screen": "save"})
+        if self.shield_cny >= rule.target_cny:
+            self.feed.add(self.now, "both" if rule.share_with_family else "student", "info", "shield_full",
+                          {"target_cny": str(rule.target_cny), "days_n": int(rule.target_cny // self.policy.daily_spend_cny)},
+                          {"screen": "save"}, once=f"shield_full:{rule.id}")
+        return {"saved_cny": str(q2(keep)), "shield_cny": str(q2(self.shield_cny)), "rule_id": rule.id}
+
+    # -- spending (the taka lens) --------------------------------------------------------------------------
+    def log_spending(self, actor: Actor, amount_cny: Decimal, merchant: str = "", kind: str | None = None,
+                     category: str | None = None, lang: str = "en") -> dict:
+        self._require(actor, "log_spending")
+        if actor != Actor.STUDENT:
+            raise PermissionError("only the student logs their own spending")
+        amount = D(amount_cny)
+        if not Decimal(0) < amount <= Decimal(20000):
+            raise ValueError("amount must be between ¥0 and ¥20,000")
+        if category is not None and category not in CATEGORY_KIND:
+            raise ValueError("unknown category")
+        if kind is not None and kind not in ("need", "want"):
+            raise ValueError("kind must be 'need' or 'want'")
+        guess = categorize(merchant)
+        if category is not None:
+            kind = CATEGORY_KIND[category]
+        elif kind is not None:
+            category = guess[0] if guess and guess[1] == kind else f"other_{kind}"
+        else:
+            category, kind = guess or ("other_want", "want")
+        res = self.bank.spend_logged(amount, category, kind, actor.value)
+        lang = lang if lang in ("en", "bn", "zh") else "en"
+        return {**res, "category": category, "kind": kind, "label": CATEGORY_LABELS[category][lang],
+                "lens": taka_lens(amount, self.family_bdt_per_cny(), self.policy.daily_spend_cny),
+                "week": self._wants_week_view(lang)}
+
+    def _weekly_savings_notes(self) -> None:
+        """Monday morning: last week's wants through the taka lens (student) and what was saved (family, if shared)."""
+        today = self.now.date()
+        if today.weekday() != 0:
+            return
+        start, end = today - timedelta(days=7), today - timedelta(days=1)
+        w = self._wants_between(start, end)
+        saved = sum((D(e["data"]["amount_cny"]) for e in self.audit.entries if e["seq"] > self.session_start_seq
+                     and e["event"] == "shield_saved" and e["sim_time"] and start.isoformat() <= e["sim_time"][:10] <= end.isoformat()),
+                    Decimal(0))
+        wants = D(w["wants_cny"])
+        if wants == 0 and saved == 0:
+            return
+        terms, rule = self._savings_terms(), self._savings_rule()
+        target = terms.target_cny if terms else self._default_shield_target()
+        lens = taka_lens(wants, self.family_bdt_per_cny(), self.policy.daily_spend_cny)
+        over = max(wants - wants_allowance_week(monthly_income(list(self.income_sources.values())),
+                                                rule.shield_pct if rule else 0), Decimal(0))
+        o = cny(over, "en")
+        over_t = ({"over_en": f" {o} of it was more than your own pay leaves for wants, so it came out of living money from home.",
+                   "over_bn": f" এর মধ্যে {cny(over, 'bn')} আপনার নিজের আয়ের শখের অংশের বেশি, তাই তা দেশ থেকে আসা মাসিক খরচ থেকে গেছে।",
+                   "over_zh": f"其中 {cny(over, 'zh')} 超出了你自己收入中可用于想要的部分，用的是家里寄来的生活费。"}
+                  if over > 0 else {"over_en": "", "over_bn": "", "over_zh": ""})
+        self.feed.add(self.now, "student", "info", "week_summary",
+                      {"wants_cny": str(q2(wants)), "wants_bdt": lens["bdt"], "days_n": lens["days_of_living"],
+                       "saved_cny": str(q2(saved)), "shield_cny": str(q2(self.shield_cny)), "target_cny": str(q2(target)),
+                       **over_t}, {"screen": "save"}, once=f"week:{today.isoformat()}")
+        if saved > 0 and self._shares_with_family():
+            self.feed.add(self.now, "parent", "info", "family_week",
+                          {"saved_cny": str(q2(saved)), "shield_cny": str(q2(self.shield_cny)), "target_cny": str(q2(target))},
+                          {"screen": "save"}, once=f"family_week:{today.isoformat()}")
+
+    # -- the savings rule (the student's own mandate) -------------------------------------------------------
+    def propose_savings_rule(self, actor: Actor, text: str = "", lang: str = "en", pct: int | None = None,
+                             target_cny: Decimal | None = None, cooling_off_hours: int | None = None,
+                             family_lock: bool | None = None, share_with_family: bool = True) -> dict:
+        """The student's words or form → a rule PROPOSAL. Nothing moves until the student signs its exact hash."""
+        self._require(actor, "propose_savings_rule")
+        if actor == Actor.PARENT:
+            raise PermissionError("a savings rule is the student's own choice: only the student (or Sathi for them) writes it")
+        rule = compile_savings_rule(self._id("saving"), self.now, actor.value, lang, self._default_shield_target(),
+                                    self.corridor.i("shield_cooling_off_hours"), text, pct,
+                                    D(target_cny) if target_cny is not None else None, cooling_off_hours, family_lock,
+                                    share_with_family)
+        flags = scan_text(text) if text else []
+        if has_high_risk(flags):
+            rule.errors.append("This text contains scam or prompt-injection signals ("
+                               + ", ".join(sorted({f.category.replace("_", " ") for f in flags}))
+                               + "), so Sathi will not turn it into a rule.")
+            rule.status = "needs_changes"
+        for old in self.savings_rules.values():  # one proposal at a time
+            if old.status in ("proposed", "needs_changes"):
+                old.status = "superseded"
+        self.savings_rules[rule.id] = rule
+        self._log("savings_rule_proposed", actor, "propose_savings_rule", {
+            "rule_id": rule.id, "status": rule.status, "pct": rule.shield_pct, "target_cny": str(rule.target_cny),
+            "cooling_off_hours": rule.cooling_off_hours, "family_lock": rule.family_lock,
+            "share_with_family": rule.share_with_family, "errors": len(rule.errors), "hash": rule.hash()[:16]})
+        out = rule.to_dict()
+        out["projection"] = self._shield_projection(rule.shield_pct, rule.target_cny) if not rule.errors else None
+        return out
+
+    def sign_savings_rule(self, actor: Actor, rule_id: str, rule_hash: str) -> dict:
+        self._require(actor, "sign_savings_rule")
+        if actor != Actor.STUDENT:
+            raise PermissionError("only the student signs their own savings rule")
+        rule = self.savings_rules[rule_id]
+        if rule.status != "proposed":
+            raise ValueError(f"this rule is {rule.status.replace('_', ' ')} and cannot be signed")
+        if not hmac.compare_digest(str(rule_hash), rule.hash()):
+            self._log("savings_rule_sign_denied", actor, "sign_savings_rule", {"rule_id": rule_id, "reason": "hash mismatch"})
+            raise PermissionError("the rule is not the one you read; open it again before signing")
+        if self.now - rule.created_at > timedelta(days=2):
+            rule.status = "superseded"
+            raise ValueError("this proposal is more than 2 days old; write it again")
+        old = self._savings_rule()
+        if old is not None:
+            old.status = "superseded"
+            self._log("savings_rule_superseded", actor, "sign_savings_rule", {"rule_id": old.id, "by": rule.id})
+        rule.signatures["student"] = self.now.isoformat()
+        rule.status, rule.activated_at = "active", self.now
+        self.savings_rule_id = self.savings_terms_id = rule.id
+        self._log("savings_rule_active", actor, "sign_savings_rule", {
+            "rule_id": rule.id, "pct": rule.shield_pct, "target_cny": str(rule.target_cny),
+            "cooling_off_hours": rule.cooling_off_hours, "family_lock": rule.family_lock,
+            "share_with_family": rule.share_with_family, "valid_until": rule.valid_until.isoformat(), "hash": rule.hash()})
+        summary = rule.summary()
+        self.feed.add(self.now, "both" if rule.share_with_family else "student", "info", "savings_rule_active",
+                      {f"summary_{lg}": summary[lg] for lg in ("en", "bn", "zh")}, {"screen": "save"})
+        out = rule.to_dict()
+        out["projection"] = self._shield_projection(rule.shield_pct, rule.target_cny)
+        return out
+
+    def revoke_savings_rule(self, actor: Actor) -> dict:
+        self._require(actor, "revoke_savings_rule")
+        if actor != Actor.STUDENT:
+            raise PermissionError("only the student can stop their savings rule")
+        rule = self._savings_rule()
+        if rule is None:
+            raise ValueError("no savings rule is on")
+        rule.status, self.savings_rule_id = "revoked", None  # the terms keep covering money already saved
+        self._log("savings_rule_revoked", actor, "revoke_savings_rule", {"rule_id": rule.id})
+        self.feed.add(self.now, "both" if rule.share_with_family else "student", "info", "savings_rule_revoked", {},
+                      {"screen": "save"})
+        return rule.to_dict()
+
+    # -- taking money out of the Shield ------------------------------------------------------------------
+    def _release_now(self, amount: Decimal, reason: str, actor: Actor) -> dict:
+        """Move Shield money to the student's own spending account now (an emergency, or a release that may go now)."""
+        amount = min(D(amount), self.shield_cny - self._shield_waiting())
+        if amount <= 0:
+            raise ValueError("there is no free money in the Shield")
+        mover = actor if actor == Actor.STUDENT else Actor.AGENT  # only the student, or Sathi inside the student's rule
+        if mover == Actor.AGENT:
+            self._require(Actor.AGENT, "shield_emergency_cover")
+        terms = self._savings_terms()
+        rel = ShieldRelease(self._id("release"), amount, reason, actor.value, self.now, self.now, False, status="released",
+                            released_at=self.now)
+        self.shield_releases[rel.id] = rel
+        event = "shield_cover" if reason == "emergency" else "shield_released"
+        self.bank.move_cny("student_shield", "student_cn", amount, mover.value,
+                           Level.MANDATE.name if mover == Actor.AGENT else Level.EXECUTE.name, event,
+                           {"release_id": rel.id, "reason": reason, "rule_id": terms.id if terms else None,
+                            "asked_by": actor.value})
+        who = "both" if self._shares_with_family() else "student"
+        if reason == "emergency":
+            self.feed.add(self.now, who, "did", "shield_used",
+                          {"amount_cny": str(q2(amount)), "shield_cny": str(q2(self.shield_cny))}, {"screen": "save"})
+        else:
+            self.feed.add(self.now, who, "info", "shield_released",
+                          {"amount_cny": str(q2(amount)), "shield_cny": str(q2(self.shield_cny))}, {"screen": "save"})
+        return rel.to_dict()
+
+    def _shortfall(self) -> Decimal:
+        """Yuan the student needs, from today until the next money can land, beyond what is in China now (¥100 steps).
+        0 when today is covered: that is what makes a withdrawal an emergency."""
+        need, bal = self.bank.daily_spend_cny, self.bank.student_cny()
+        if need <= 0 or bal >= need:
+            return Decimal(0)
+        today = self.now.date()
+        _, transit = self.student_money()
+        until = transit[0][0] if transit else self.calendar.arrival(self.calendar.next_open("BD", today),
+                                                                   self.corridor.i("bd_tt_transfer_days"))
+        worst = min((project(bal, transit, today, today + timedelta(days=k), need)
+                     for k in range(max((until - today).days, 1))), default=bal - need)
+        return ATM_NOTE * ceil_div(max(-worst, need - bal), ATM_NOTE)
+
+    def _shield_cover(self) -> dict | None:
+        """Before the day's spending: if the money in China cannot cover today, the Shield does (inside the rule).
+        It brings enough to last until the next money lands, so a crisis is one move, not one a day."""
+        free = self.shield_cny - self._shield_waiting()
+        short = self._shortfall()
+        if self._savings_rule() is None or short <= 0 or free <= 0:
+            return None
+        return self._release_now(min(free, short), "emergency", Actor.AGENT)
+
+    def request_shield_release(self, actor: Actor, amount_cny: Decimal, note: str = "") -> dict:
+        """The student takes money out. With no money for today it is an emergency (instant); otherwise the waiting time
+        and family approval the student chose when signing apply. Either way it only goes to the student's own account."""
+        self._require(actor, "release_shield")
+        if actor != Actor.STUDENT:
+            raise PermissionError("only the student can take money out of their Shield")
+        amount = D(amount_cny)
+        free = self.shield_cny - self._shield_waiting()
+        if amount <= 0 or amount > free:
+            raise ValueError(f"the Shield has {cny(free, 'en')} free to take out")
+        terms = self._savings_terms()
+        # An emergency (no money for today) releases at once only what the student needs until money can land; the
+        # rest of the request waits like any other, so spending down first cannot skip the cooling-off.
+        instant = min(amount, self._shortfall())
+        rest = amount - instant
+        hours = 0 if terms is None else terms.cooling_off_hours
+        needs_family = bool(terms and terms.family_lock)
+        self._log("shield_release_requested", actor, "release_shield", {
+            "amount_cny": str(q2(amount)), "emergency_cny": str(q2(instant)), "cooling_off_hours": hours,
+            "needs_family": needs_family})
+        if instant > 0:
+            now_rel = self._release_now(instant, "emergency", actor)
+            if rest <= 0:
+                return now_rel
+            amount = rest
+        if hours == 0 and not needs_family:
+            return self._release_now(amount, "planned", actor)
+        rel = ShieldRelease(self._id("release"), amount, "planned", actor.value, self.now, self.now + timedelta(hours=hours),
+                            needs_family, note=note[:80])
+        self.shield_releases[rel.id] = rel
+        released_now = instant
+        wait = {
+            "en": (f"You chose to wait {hours} hours before taking Shield money out" if hours else "You chose")
+                  + (" and to ask your family first." if needs_family else "."),
+            "bn": (f"তহবিলের টাকা তোলার আগে আপনি {num(hours, 'bn')} ঘণ্টা অপেক্ষা বেছে নিয়েছেন" if hours else "আপনি বেছে নিয়েছেন")
+                  + (", আর আগে পরিবারকে জিজ্ঞেস করবেন।" if needs_family else "।"),
+            "zh": (f"你选择了取出储备前等待 {hours} 小时" if hours else "你选择了") + ("，并先征得家人同意。" if needs_family else "。"),
+        }
+        self.feed.add(self.now, "student", "info", "shield_release_waiting",
+                      {"amount_cny": str(q2(amount)), "available_date": rel.available_at.isoformat(),
+                       "wait_en": wait["en"], "wait_bn": wait["bn"], "wait_zh": wait["zh"]}, {"screen": "save"})
+        if needs_family:
+            self.feed.add(self.now, "parent", "needs_you", "shield_release_needs_family", {"amount_cny": str(q2(amount))},
+                          {"screen": "save", "release_id": rel.id})
+        return {**rel.to_dict(), "released_now_cny": str(q2(released_now))}
+
+    def approve_shield_release(self, actor: Actor, release_id: str) -> dict:
+        self._require(actor, "approve_shield_release")
+        if actor != Actor.PARENT:
+            raise PermissionError("only the parent approves, and only when the student chose a family lock")
+        rel = self.shield_releases[release_id]
+        if not rel.needs_family or rel.status != "waiting" or rel.family_approved_at is not None:
+            raise ValueError("this release does not need your approval")
+        rel.family_approved_at = self.now
+        self._log("shield_release_approved", actor, "approve_shield_release", {"release_id": rel.id,
+                  "amount_cny": str(q2(rel.amount_cny))})
+        self._process_releases()
+        return rel.to_dict()
+
+    def cancel_shield_release(self, actor: Actor, release_id: str) -> dict:
+        self._require(actor, "cancel_shield_release")
+        if actor != Actor.STUDENT:
+            raise PermissionError("only the student can cancel their own release")
+        rel = self.shield_releases[release_id]
+        if rel.status != "waiting":
+            raise ValueError(f"this release is already {rel.status}")
+        rel.status = "cancelled"
+        self._log("shield_release_cancelled", actor, "cancel_shield_release", {"release_id": rel.id,
+                  "amount_cny": str(q2(rel.amount_cny))})
+        return rel.to_dict()
+
+    def _process_releases(self) -> list[dict]:
+        out = []
+        for rel in list(self.shield_releases.values()):
+            if rel.status != "waiting" or self.now < rel.available_at or (rel.needs_family and rel.family_approved_at is None):
+                continue
+            amount = min(rel.amount_cny, self.shield_cny)
+            rel.status = "released" if amount > 0 else "cancelled"
+            if amount <= 0:
+                continue
+            rel.released_at = self.now
+            self.bank.move_cny("student_shield", "student_cn", amount, rel.requested_by, Level.EXECUTE.name, "shield_released",
+                               {"release_id": rel.id, "reason": "planned", "waited_until": rel.available_at.isoformat(),
+                                "family_approved": rel.family_approved_at is not None})
+            self.feed.add(self.now, "both" if self._shares_with_family() else "student", "info", "shield_released",
+                          {"amount_cny": str(q2(amount)), "shield_cny": str(q2(self.shield_cny))}, {"screen": "save"})
+            out.append({"type": "shield_released", "release_id": rel.id, "amount_cny": str(q2(amount))})
+        return out
+
+    # -- hundi vs the legal way; the dollar-crisis test ---------------------------------------------------
+    def hundi_check(self, actor: Actor, amount: Decimal, currency: str = "USD", offered_bdt_per_usd: Decimal | None = None,
+                    premium_bdt_per_usd: Decimal | None = None, lang: str = "en") -> dict:
+        self._require(actor, "plan_savings")
+        amt, cur = D(amount), (currency or "USD").upper()
+        if cur not in ("USD", "CNY", "BDT"):
+            raise ValueError("currency must be USD, CNY or BDT")
+        if amt <= 0:
+            raise ValueError("amount must be positive")
+        mid = self.market.mid
+        amount_cny = q2(amt if cur == "CNY" else amt * mid.cny_per_usd if cur == "USD" else amt / mid.bdt_per_cny)
+        if amount_cny > Decimal(500000):
+            raise ValueError("that is more than a year of study costs; check the amount")
+        today = self.now.date()
+        planned = None
+        if self.autopilot.active_mandate() is not None:
+            bal, transit = self.student_money()
+            dec = topup_decision(today, bal, transit, self.planning_policy, self.calendar)
+            planned = default_planned(dec.to_dict() if dec else None, today)
+        r = hundi_compare(amount_cny, self.market, self.corridor, self.calendar, today, self.shield_cny - self._shield_waiting(),
+                          offered_bdt_per_usd, premium_bdt_per_usd, planned, lang)
+        r["input"] = {"amount": str(amt), "currency": cur}
+        self._log("hundi_checked", actor, "plan_savings", {"amount_cny": str(amount_cny), "verdict": r["verdict"],
+                  "premium_bdt_per_usd": r["options"][0]["premium_bdt_per_usd"]})
+        return r
+
+    def crisis_test(self, actor: Actor, weeks: int | None = None) -> dict:
+        self._require(actor, "plan_savings")
+        if weeks is not None and not 1 <= weeks <= 12:
+            raise ValueError("weeks must be between 1 and 12")
+        out = self._crisis(self._year_situation(), weeks, with_student_money=self._may_see_student_money(actor))
+        w = out["worst"]
+        self._log("crisis_tested", actor, "plan_savings", {"weeks": out["weeks"], "worst_from": w["from"],
+                  "stuck_today": w["stuck_today"], "stuck_sathi": w["stuck_sathi"], "stuck_sathi_shield": w["stuck_sathi_shield"]})
+        return out

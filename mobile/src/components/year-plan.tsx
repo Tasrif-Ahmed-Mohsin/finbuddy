@@ -186,6 +186,11 @@ function StressCard() {
               <Badge tone="block">
                 {t('stuckToday')}: {days(w.stuck_days_today)}
               </Badge>
+              {w.stuck_days_sathi_shield !== undefined && w.stuck_days_sathi_shield !== null && (
+                <Badge tone={w.stuck_days_sathi_shield === 0 ? 'ok' : 'warn'}>
+                  🛡️ {t('withShield')}: {days(w.stuck_days_sathi_shield)}
+                </Badge>
+              )}
               <Muted>{more > 0 ? `+${bdt(more, lang)} ${t('wiMoreForYear')}` : t('wiSameCost')}</Muted>
             </Row>
           </View>

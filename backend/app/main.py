@@ -140,6 +140,56 @@ class FreezeIn(BaseModel):
     reason: str = Field(default="", max_length=120)
 
 
+class IncomeSourceIn(BaseModel):
+    kind: str = "work_study"
+    label: str = Field(default="", max_length=40)
+    amount_cny: Decimal = Field(gt=0, le=50000)
+    every: str = "month"
+    pay_day: int = Field(default=10, ge=0, le=28)
+    hours_per_week: Decimal | None = Field(default=None, ge=0, le=60)
+    permission: bool = False
+
+
+class IncomeIn(BaseModel):
+    amount_cny: Decimal = Field(gt=0, le=50000)
+    source_id: str | None = None
+
+
+class SpendIn(BaseModel):
+    amount_cny: Decimal = Field(gt=0, le=20000)
+    merchant: str = Field(default="", max_length=60)
+    kind: str | None = None
+    category: str | None = None
+    lang: str = "en"
+
+
+class SavingsRuleIn(BaseModel):
+    text: str = Field(default="", max_length=500)
+    lang: str = "en"
+    pct: int | None = Field(default=None, ge=1, le=100)
+    target_cny: Decimal | None = Field(default=None, gt=0, le=1000000)
+    cooling_off_hours: int | None = Field(default=None, ge=0, le=168)
+    family_lock: bool | None = None
+    share_with_family: bool = True
+
+
+class SignRuleIn(BaseModel):
+    rule_hash: str = Field(min_length=64, max_length=64)
+
+
+class ReleaseIn(BaseModel):
+    amount_cny: Decimal = Field(gt=0, le=100000)
+    note: str = Field(default="", max_length=80)
+
+
+class HundiIn(BaseModel):
+    amount: Decimal = Field(gt=0, le=10000000)
+    currency: str = "USD"
+    offered_bdt_per_usd: Decimal | None = Field(default=None, gt=0)
+    premium_bdt_per_usd: Decimal | None = Field(default=None, ge=0, le=50)
+    lang: str = "en"
+
+
 class ChatTurn(BaseModel):
     role: str
     content: str = Field(max_length=4000)
@@ -330,7 +380,7 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
 
     @app.get("/accounts")
     def accounts(s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        return {"now": s.now.isoformat(), "accounts": [a.to_dict() for a in s.bank.accounts.values()],
+        return {"now": s.now.isoformat(), "accounts": s.visible_accounts(who),
                 "pending": [{"id": t.id, "draft_id": t.draft_id, "to": t.to_account_id, "amount_cny": str(t.amount),
                              "arrives_at": t.arrives_at.isoformat()} for t in s.bank.pending]}
 
@@ -477,7 +527,7 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
 
     @app.get("/audit")
     def audit(limit: int = 100, s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        return {"verify": s.audit.verify(), "entries": s.audit.entries[-limit:][::-1]}
+        return {"verify": s.audit.verify(), "entries": s.audit_view(who, s.audit.entries[-limit:][::-1])}
 
     # ---- inbox: shared / forwarded SMS and emails ----------------------------
     @app.post("/inbox/messages")
@@ -508,13 +558,19 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
         results = [s.inbox.ingest(who.value, "email", e.sender, e.text) for e in emails]
         return {"fetched": len(emails), "kept": sum(1 for r in results if r["kept"])}
 
+    def private_txn_ids(who: Actor, s: AppState) -> set[str]:
+        # The student's own pay alerts are theirs: the parent does not see them (Earn & Save privacy).
+        return {t.id for t in s.inbox.txns if t.kind == "income"} if who == Actor.PARENT else set()
+
     @app.get("/inbox/messages")
     def inbox_messages(limit: int = 50, s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        return [m.to_dict() for m in s.inbox.messages[-limit:][::-1]]
+        hidden = private_txn_ids(who, s)
+        return [m.to_dict() for m in s.inbox.messages[-limit:][::-1] if m.txn_id not in hidden]
 
     @app.get("/inbox/transactions")
     def inbox_transactions(limit: int = 50, s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        return [t.to_dict() for t in s.inbox.txns[-limit:][::-1]]
+        hidden = private_txn_ids(who, s)
+        return [t.to_dict() for t in s.inbox.txns[-limit:][::-1] if t.id not in hidden]
 
     @app.get("/inbox/summary")
     def inbox_summary(s: AppState = Depends(svc), who: Actor = Depends(actor)):
@@ -536,7 +592,65 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     @app.get("/insights")
     def insights(lang: str = "en", s: AppState = Depends(svc), who: Actor = Depends(actor)):
         items = s.inbox.insights()
+        if who == Actor.PARENT:  # the student's pay and wants are theirs to see
+            items = [i for i in items if i["type"] not in ("income_received", "wants_from_alerts")]
         return {"insights": s.translator.translate(items, lang), "summary": s.inbox.summary()}
+
+    # ---- Earn & Save: the student's own money abroad and the Shield ---------------------------
+    @app.get("/save")
+    def save_view(lang: str = "en", s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.savings_view, who, lang)
+
+    @app.post("/save/income/sources")
+    def save_add_income(body: IncomeSourceIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.add_income_source, who, body.kind, body.label, body.amount_cny, body.every, body.pay_day,
+                     body.hours_per_week, body.permission)
+
+    @app.delete("/save/income/sources/{source_id}")
+    def save_remove_income(source_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.remove_income_source, who, source_id)
+
+    @app.post("/save/income")
+    def save_log_income(body: IncomeIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.log_income, who, body.amount_cny, body.source_id)
+
+    @app.post("/save/spend")
+    def save_spend(body: SpendIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.log_spending, who, body.amount_cny, body.merchant, body.kind, body.category, body.lang)
+
+    @app.post("/save/rule/proposals")
+    def save_propose_rule(body: SavingsRuleIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.propose_savings_rule, who, body.text, body.lang, body.pct, body.target_cny, body.cooling_off_hours,
+                     body.family_lock, body.share_with_family)
+
+    @app.post("/save/rule/proposals/{rule_id}/sign")
+    def save_sign_rule(rule_id: str, body: SignRuleIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.sign_savings_rule, who, rule_id, body.rule_hash)
+
+    @app.delete("/save/rule")
+    def save_revoke_rule(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.revoke_savings_rule, who)
+
+    @app.post("/save/shield/release")
+    def save_release(body: ReleaseIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.request_shield_release, who, body.amount_cny, body.note)
+
+    @app.post("/save/shield/release/{release_id}/approve")
+    def save_release_approve(release_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.approve_shield_release, who, release_id)
+
+    @app.post("/save/shield/release/{release_id}/cancel")
+    def save_release_cancel(release_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.cancel_shield_release, who, release_id)
+
+    @app.post("/save/hundi-check")
+    def save_hundi(body: HundiIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.hundi_check, who, body.amount, body.currency, body.offered_bdt_per_usd, body.premium_bdt_per_usd,
+                     body.lang)
+
+    @app.get("/save/crisis")
+    def save_crisis(weeks: int | None = None, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.crisis_test, who, weeks)
 
     # ---- agent chat -----------------------------------------------------------
     @app.get("/agent/status")
@@ -552,7 +666,7 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     @app.get("/audit/export", response_class=PlainTextResponse)
     def audit_export(s: AppState = Depends(svc), who: Actor = Depends(actor)):
         import json
-        return "\n".join(json.dumps(e, ensure_ascii=False, sort_keys=True) for e in s.audit.entries)
+        return "\n".join(json.dumps(e, ensure_ascii=False, sort_keys=True) for e in s.audit_view(who, s.audit.entries))
 
     return app
 

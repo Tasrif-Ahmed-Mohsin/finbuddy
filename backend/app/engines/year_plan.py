@@ -30,6 +30,7 @@ import yaml
 
 from app.corridors.loader import Corridor
 from app.engines.cost import CostBreakdown, atm_cost
+from app.engines.earnings import shield_share
 from app.engines.living_planner import ATM_NOTE, best_quote_for
 from app.market import Market
 from app.money import D, ceil_div, q2
@@ -222,6 +223,15 @@ class Situation:
     tuition: tuple[date, date, Decimal] | None = None  # (send_by, deadline, amount) — shown on the timeline
 
 
+@dataclass(frozen=True)
+class Saving:
+    """The student's savings rule in a simulation (Earn & Save): `pct` of each income goes to the Shield until
+    `target`; the rest of the income is assumed spent on wants (conservative: no living money is offset)."""
+    pct: int
+    target: Decimal
+    start: Decimal = Decimal(0)  # Shield balance on the first day
+
+
 @dataclass
 class StrategyResult:
     name: str
@@ -230,6 +240,10 @@ class StrategyResult:
     atm: list[dict] = field(default_factory=list)
     costs: list[CostBreakdown] = field(default_factory=list)
     periods: list[dict] = field(default_factory=list)
+    shield_saved: Decimal = Decimal(0)  # moved into the Shield from income
+    shield_used: Decimal = Decimal(0)  # taken from the Shield on days the money in China ran out
+    shield_end: Decimal = Decimal(0)
+    shield_on: dict = field(default_factory=dict)  # date ISO -> Shield balance that morning (for the crisis start)
 
     def cost_summary(self) -> dict:
         rate = sum((c.by_kind("rate") for c in self.costs), Decimal(0))
@@ -253,12 +267,20 @@ def _per_withdrawal_cap(corridor: Corridor, cny_per_usd: Decimal) -> tuple[Decim
 
 
 def simulate(strategy: str, sit: Situation, policy: Policy, cal: BankCalendar, corridor: Corridor,
-             market: Market, spend=None, delay=None, reality: BankCalendar | None = None) -> StrategyResult:
+             market: Market, spend=None, delay=None, reality: BankCalendar | None = None,
+             income: list[tuple[date, Decimal]] | None = None, saving: Saving | None = None,
+             blocked: tuple[date, date] | None = None) -> StrategyResult:
     """Simulate one year. Optional stress hooks (engines/stress.py):
       spend(day) -> Decimal   what the student really spends that day (the planner still assumes `policy`)
       delay() -> int          extra days a transfer takes beyond the plan
       reality                 the real bank calendar (e.g. Eid two days later than estimated); `cal` is what the
                               planner believes. The planner only learns about a delay when money fails to arrive.
+    Earn & Save hooks:
+      income                  the student's own pay days (date, amount); without `saving` it is all spent on wants
+      saving                  the savings rule: a share of each income goes to the Shield, which covers any day the
+                              money in China runs out (the same rule the live autopilot follows)
+      blocked                 a dollar crisis: no Student File transfer can leave Bangladesh in [from, to]; anything
+                              sent then leaves on the first bank day after it (research P-01)
     """
     if strategy not in ("today", "sathi"):
         raise ValueError(f"unknown strategy '{strategy}'")
@@ -293,7 +315,10 @@ def simulate(strategy: str, sit: Situation, policy: Policy, cal: BankCalendar, c
             return
         quote, cost = best_quote_for(amount, market)
         expected = cal.arrival(d, policy.transfer_days)
-        lands = real_cal.arrival(d, policy.transfer_days)
+        leaves = d
+        if blocked is not None and blocked[0] <= d <= blocked[1]:  # the bank will not send until the crisis ends
+            leaves = real_cal.next_open("BD", blocked[1] + ONE_DAY)
+        lands = real_cal.arrival(leaves, policy.transfer_days)
         if delay is not None:
             lands = real_cal.next_open("CN", lands + timedelta(days=delay()))
         pipe.append((lands, expected, amount))
@@ -316,10 +341,20 @@ def simulate(strategy: str, sit: Situation, policy: Policy, cal: BankCalendar, c
         res.atm.append({"date": d.isoformat(), "amount_cny": str(q2(amount)), "total_bdt": str(q2(cost.total_bdt))})
         return amount
 
+    shield = saving.start if saving is not None else Decimal(0)
+    pay: dict[date, Decimal] = {}
+    for pd, amt in income or []:
+        pay[pd] = pay.get(pd, Decimal(0)) + D(amt)
+
     d = sit.start
     while d <= sit.end:
         bal += sum((amt for act, _, amt in pipe if act == d), Decimal(0))
         pipe = [t for t in pipe if t[0] > d]
+        if saving is not None and d in pay:  # pay yourself first; the rest of the pay goes on wants
+            keep = shield_share(pay[d], saving.pct, shield, saving.target)
+            shield += keep
+            res.shield_saved += keep
+        res.shield_on[d.isoformat()] = shield
         transit = planned(d)
         card_ok = sit.card_active and sit.card_valid_until is not None and d <= sit.card_valid_until
         file_ok = d <= sit.student_file_valid_until
@@ -352,6 +387,11 @@ def simulate(strategy: str, sit: Situation, policy: Policy, cal: BankCalendar, c
 
         need = spend(d) if spend is not None else daily
         spent_log.append(need)
+        if bal < need and shield > 0:  # the Shield covers the gap (instant: it is in the same Chinese account)
+            take = min(shield, need - bal)
+            shield -= take
+            bal += take
+            res.shield_used += take
         if bal >= need:
             bal -= need
         else:
@@ -359,6 +399,7 @@ def simulate(strategy: str, sit: Situation, policy: Policy, cal: BankCalendar, c
             bal = Decimal(0)
         d += ONE_DAY
 
+    res.shield_end = shield
     res.periods = _stuck_periods(res, sit, cal)
     return res
 

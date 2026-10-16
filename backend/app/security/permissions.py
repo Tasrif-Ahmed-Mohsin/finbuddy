@@ -64,13 +64,28 @@ ACTION_LEVELS: dict[str, Level] = {
     "report_card_lost": Level.EXECUTE,
     "execute_draft": Level.EXECUTE,
     "execute_under_mandate": Level.MANDATE,
+    # ---- Earn & Save: the student's own money (the Shield). Money only ever moves between the student's OWN pockets.
+    "plan_savings": Level.READ,  # savings view, hundi check, dollar-crisis test
+    "add_income": Level.DRAFT,  # the student declares a stipend or job (user only)
+    "log_spending": Level.DRAFT,  # the student logs a purchase (user only)
+    "propose_savings_rule": Level.DRAFT,  # turn the student's words into a rule PROPOSAL (nothing is active yet)
+    "sign_savings_rule": Level.MANDATE,  # the student signs the exact rule hash (user only, student only)
+    "revoke_savings_rule": Level.DRAFT,  # stops future saving; money already saved stays under the signed terms
+    "save_under_rule": Level.MANDATE,  # the autopilot moves a share of each income into the Shield, inside the rule
+    "shield_emergency_cover": Level.MANDATE,  # the autopilot uses the Shield only when the money in China ran out
+    "release_shield": Level.EXECUTE,  # the student takes money out (cooling-off; family approval if they chose it)
+    "approve_shield_release": Level.EXECUTE,  # the parent approves a release, only when the student chose a family lock
+    "cancel_shield_release": Level.DRAFT,  # dropping a waiting release only makes things safer
 }
 
 # The agent's ceiling. It can never EXECUTE on its own; only MANDATE within user-set caps.
 # Asymmetric by design: making things SAFER is easy, making them riskier needs a human.
 AGENT_ALLOWED = {"get_rates", "compare_tuition", "plan_living", "explain", "check_message", "create_draft", "cancel_draft",
                  "set_reminder", "plan_renewal", "freeze_card", "execute_under_mandate", "plan_year", "propose_mandate",
-                 "emergency_plan", "ask_family_for_money"}
+                 "emergency_plan", "ask_family_for_money",
+                 # Earn & Save: read, propose, and act only inside the student's signed savings rule. The agent can
+                 # never sign the rule, take money out of the Shield for anything but a real shortfall, or log income.
+                 "plan_savings", "propose_savings_rule", "save_under_rule", "shield_emergency_cover"}
 
 
 @dataclass

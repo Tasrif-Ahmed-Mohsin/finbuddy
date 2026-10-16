@@ -19,9 +19,10 @@ export default function TabsLayout() {
   const { t } = useSession();
   return (
     <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: Brand.primary }}>
-      {/* One loop: Today (sense) · Plan · Family (act) · Sathi (talk, add messages) · Proof */}
+      {/* One loop: Today (sense) · Plan · Save (the student's own money) · Family (act) · Sathi (talk, add messages) · Proof */}
       <Tabs.Screen name="index" options={{ title: t('tabToday'), tabBarIcon: icon('today-outline') }} />
       <Tabs.Screen name="plan" options={{ title: t('tabPlan'), tabBarIcon: icon('calendar-outline') }} />
+      <Tabs.Screen name="save" options={{ title: t('tabSave'), tabBarIcon: icon('wallet-outline') }} />
       <Tabs.Screen name="family" options={{ title: t('tabFamily'), tabBarIcon: icon('people-outline') }} />
       <Tabs.Screen name="assistant" options={{ title: t('tabSathi'), tabBarIcon: icon('chatbubbles-outline') }} />
       <Tabs.Screen name="proof" options={{ title: t('tabProof'), tabBarIcon: icon('shield-checkmark-outline') }} />

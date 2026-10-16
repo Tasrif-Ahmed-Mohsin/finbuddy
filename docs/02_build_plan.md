@@ -29,6 +29,13 @@
   - The unnamed estimates are gone. Every price says where it comes from: published, real payment, your quote, or estimate. BRAC's fees are labelled as an assumption.
   - The friend's ৳8,000 matches a one-time Student File opening fee.
   - **203 tests pass.**
+- ✅ **16 Oct: Earn & Save (Interview #2).** A second student: in a dollar shortage money comes by hundi ("1–2 taka lost per dollar"), while students' own pay abroad leaks into luxury instead of savings. Built:
+  - **Income in China** with the corridor's work rules (Exit and Entry Law Art. 43/80: university approval + work-study annotation; hour cap from conflicting sources, warned at 8 h): unauthorised work is flagged and never planned on.
+  - **Savings rule the student signs** (words in bn/en/zh or a form; template read-back; hash covers share, target, cooling-off, family lock, sharing, fixed destination) → the autopilot fills the **Shield** on pay days (L3 inside the rule) and covers real shortfalls from it; planned withdrawals wait the cooling-off (and the parent, only if the student chose it); emergencies are instant.
+  - **Taka lens**: wants in what they cost the family to send (cheapest legal bank, fees included) and in days of living money; bank-alert insights for pay and wants.
+  - **Honest hundi check**: one bank transfer can cost more on paper ($500 at ৳124.5: ৳3,701 vs ৳623); Sathi says so and shows the legal ways that beat both (Shield, planned transfers, the 10 Aug 2026 education-card circular).
+  - **Dollar-crisis test**: 4 weeks without student transfers at every start week: 0% → 39% → **94%** of starts without a stuck day (today → Sathi → Sathi + Shield), typical 20 → 4 → **0** days.
+  - App: **Save** tab, Shield card on Today, emergency option, crisis row in the stress test, chat tools + offline router (bn/en/zh, Banglish), family feed notes. Evidence: 237 entries; a top-up refused by the living cap was covered by the Shield; 0 stuck days. **327 tests pass.**
 - ⏭ Next: deck (≤10 min) + demo video (≤5 min); try on a real phone with Expo Go (fingerprint, speech in Bengali); deploy the backend; first full submission on 18 Oct; ask organisers whether the on-chain bonus expects FISCO BCOS (anchor the log's chain head); exact date of the friend's payment and real SMS samples.
 
 ---

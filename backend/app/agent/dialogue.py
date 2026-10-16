@@ -73,6 +73,28 @@ def find_amount(text: str) -> tuple[Decimal | None, str | None]:
     return None, None
 
 
+USD_AMOUNT = re.compile(r"(?:\$|usd|us\$)\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:usd|us\$|dollars?\b|ডলার|美元|美金)",
+                        re.IGNORECASE)
+HUNDI_RATE = re.compile(r"(\d{2,3}(?:\.\d+)?)\s*(?:taka|tk|৳|টাকা|塔卡)?\s*(?:per|a|/|প্রতি|每)\s*(?:dollar|usd|\$|ডলার|美元)"
+                        r"|(?:dollar|ডলার|美元)\s*(?:প্রতি|per|=)?\s*(\d{2,3}(?:\.\d+)?)\s*(?:taka|tk|৳|টাকা)", re.IGNORECASE)
+
+
+def find_hundi_terms(text: str) -> tuple[Decimal | None, str | None, Decimal | None]:
+    """(amount, currency, offered taka per dollar) from a hundi offer such as "$500 lagbe, 124 taka per dollar"."""
+    t = normalise(text)
+    rate = None
+    m = HUNDI_RATE.search(t)
+    if m:
+        r = Decimal(m.group(1) or m.group(2))
+        rate = r if Decimal(90) <= r <= Decimal(200) else None
+        t = t[:m.start()] + " " + t[m.end():]  # the rate is not the amount
+    u = USD_AMOUNT.search(t)
+    if u:
+        return Decimal(u.group(1) or u.group(2)), "USD", rate
+    amount, currency = find_amount(t)
+    return amount, currency, rate
+
+
 def find_purpose(text: str) -> str | None:
     if has_any(text, TUITION):
         return "tt_tuition"
@@ -105,6 +127,11 @@ WHO = {("parent",): {"en": "the parent", "bn": "অভিভাবক", "zh": "�
        ("parent", "student"): {"en": "the parent and the student", "bn": "অভিভাবক ও শিক্ষার্থী", "zh": "家长和学生"},
        ("student",): {"en": "the student", "bn": "শিক্ষার্থী", "zh": "学生"}}
 
+# The student's own money (Earn & Save): saving, the Shield, pay, spending too much. Includes Banglish ("joma", "noshto").
+SAVE_WORDS = ("save money", "saving", "savings", "shield", "my salary", "my pay", "stipend", "part-time", "part time job",
+              "spending too much", "spend too much", "wasting money", "luxury", "pocket money from my job", "সঞ্চয়", "জমাব",
+              "জমাতে", "জমাই", "বেতন", "বৃত্তি", "বিলাসিতা", "খরচ বেশি", "joma", "jomano", "shonchoy", "noshto", "存钱", "储蓄",
+              "攒钱", "工资", "奖学金", "乱花钱", "应急储备")
 NO_MONEY = ("no money", "out of money", "ran out of money", "run out of money", "have no money", "money is finished",
             "টাকা শেষ", "টাকা নেই", "হাতে টাকা নেই", "没钱", "钱用完", "没有钱了")
 TEXT = {

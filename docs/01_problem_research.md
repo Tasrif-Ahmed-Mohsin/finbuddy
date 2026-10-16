@@ -1,7 +1,7 @@
 # Problem Research — International Students' Money Problems in China
 
 **Focus corridor:** Bangladesh → China (findings that apply to other South Asian / African corridors are noted).
-**Last updated:** 2026-10-13
+**Last updated:** 2026-10-16 (Interview #2 added: §K, problems N-11 … N-14)
 **Purpose:** Evidence base for the problems Sathi solves. Feeds the pitch deck, the technical doc, and the solution design (next step).
 
 ### Confidence labels
@@ -11,7 +11,7 @@
 | ✅ | Official / primary source (government, regulator, university page, peer-reviewed paper, major news report) |
 | ⚠️ | Secondary source (guide, blog, op-ed, vendor). Probably right, **verify before putting a number on a slide** |
 | ❓ | Not found / unverified. **Ask our friend in China, the university, or a Bangladeshi bank** |
-| 🗣️ | Field evidence from a real student interview (Interview #1: self-funded Bangladeshi student who arrived in China in Sept 2026; anonymised). One person's experience: strong for "this happens", weak for "how often" |
+| 🗣️ | Field evidence from a real student interview (Interview #1: self-funded Bangladeshi student who arrived in China in Sept 2026; Interview #2: a Bangladeshi international student who works part-time abroad; both anonymised). One person's experience: strong for "this happens", weak for "how often" |
 
 Severity is our own judgment: **H** = can cost a whole semester's money or block study, **M** = recurring meaningful loss or stress, **L** = annoyance.
 
@@ -314,6 +314,52 @@ Original problem notes were in Bengali (Banglish); our translations are in quote
 
 ---
 
+## K. Field evidence: Interview #2 (2026-10-16)
+
+**Profile:** Bangladeshi international student who works part-time while studying (shared through a team member; anonymised). Original notes in Banglish; our translations in quotes.
+
+> "Dollar shongkot er karone, Taka ana jay nah. Majhe majhe illegally ana lage desh theke, Hundi kore. Ekhane job kore taka earn kore as a student, onm luxury korte goye Taka noshto kore fele, jekhane ei time e kichu savings thakto. Illegal e dollar proti 1/2 ta loss jay."
+>
+> "Because of the dollar crisis, money can't be brought from home. Sometimes it has to come illegally, by hundi. Here, students earn money from jobs, but spend it trying to live in luxury, when at this time they could have had some savings. Illegally, 1–2 taka is lost per dollar."
+
+### N-11 · The dollar shortage closes the legal channel, so families use hundi — H (validates P-01, N-08)
+- 🗣️ "Because of the dollar crisis, money can't be brought from home … sometimes by hundi."
+- Matches P-01 (2023–24: banks stopped opening Student Files) and N-08 (hundi offered to Interviewee #1).
+- **New angle:** the problem is not only the price of the legal channel but its **availability**. When it closes (a shortage, a bank refusal, Eid closures, the card stopping), the family has no legal option *that day*, so a buffer that is already abroad is the only fully legal answer.
+
+### N-12 · Hundi costs "1–2 taka per dollar", and on paper that can be cheaper than one small bank transfer — H
+- 🗣️ "Illegally, 1–2 taka is lost per dollar." For scale: ~1–1.6% at ৳123/USD.
+- **Our own data, said honestly:** with published fees (EBL ৳3,680 per transfer incl. VAT), **one** small legal transfer can cost more than this on paper. Sathi's hundi check with real saved rates: $500 at ৳124.5 → hundi ৳623 above the market vs one bank transfer ৳3,701 above the market (fees dominate). That gap is why families pick hundi.
+- What the hundi price leaves out: illegal in Bangladesh (only authorised dealers may deal in foreign exchange; Foreign Exchange Regulation Act 1947, s. 3) ⚠️ [legal guides](https://legalseba.com/bd-articles/?p=1094); underground banks (地下钱庄) are prosecuted in China as illegal business operation (Criminal Law Art. 225; 2019 SPC/SPP interpretation) ✅ [China Law Translate](https://www.chinalawtranslate.com/en/%E9%99%A2%E5%85%B3%E4%BA%8E%E5%8A%9E%E7%90%86%E9%9D%9E%E6%B3%95%E4%BB%8E%E4%BA%8B%E8%B5%84%E9%87%91%E6%94%AF%E4%BB%98%E7%BB%93%E7%AE%97%E4%B8%9A%E5%8A%A1%E3%80%81%E9%9D%9E%E6%B3%95%E4%B9%B0%E5%8D%96/); the yuan arrives from a stranger's account, a common cause of police freezes (P-16); no recourse; no paper trail for the Student File, visa proof of funds or the payment passport.
+- **Hook:** never recommend hundi, but stop pretending the bank is always cheaper. Close the gap legally: fewer, larger, planned transfers (the year plan) and money that never has to cross the border (the Shield).
+
+### N-13 · Students earn abroad, but the pay leaks into "wants" — H (new problem)
+- 🗣️ "Students earn money from jobs, but spend it trying to live in luxury."
+- Two documented biases push this way for a Bangladeshi student in China:
+  - **Face-value effect:** spending is biased toward the face value of a foreign currency; people overspend when a foreign price is numerically a *fraction* of the home-currency price (Raghubir & Srivastava 2002, *Journal of Consumer Research*) ✅ [NYU Stern summary](https://www.stern.nyu.edu/experience-stern/news/professor-priya-raghubir-s-joint-research-spending-and-currency-featured). ¥1 ≈ ৳17, so a ¥180 dinner "looks like 180" but costs the family ৳3,400 to send.
+  - **Cashless payments weaken the "pain of paying"** (Prelec & Simester 2001, *Marketing Letters*; Soman 2001, *Journal of Consumer Research*). Students in China pay almost everything by Alipay / WeChat Pay.
+- **Hook:** the **taka lens**: every "want" shown as what it costs the family to send (cheapest legal bank, fees included) and in days of living money. Weekly digest; only the student sees purchases.
+
+### N-14 · "There could have been savings at this time" — H (the fix the student names)
+- 🗣️ "…when at this time they could have had some savings."
+- A commitment chosen in advance is what works against present bias: a commitment savings account raised balances by 81 percentage points vs control after 12 months (Ashraf, Karlan & Yin 2006, *QJE* 121(2): 635–672) ✅ [Yale ISPS](https://isps.yale.edu/research/publications/isps06-009); pre-committing future pay rises lifted saving rates from 3.5% to 13.6% (Thaler & Benartzi 2004, *JPE*). Honest caveat: a later follow-up of the Philippine study reports the effect shrinking over time ⚠️.
+- **Hook:** the **Shield**: a savings rule the *student* signs ("keep 50% of every pay until ¥6,000"). Sathi moves the share when pay lands; an emergency (no money for today) releases it at once; anything else waits a cooling-off the student chose (0 / 24 / 72 h), optionally with family approval. It stays in the student's own Chinese account and never crosses a border.
+
+### Work rules for students in China (for N-13)
+- A student may work only with **university approval and a work-study annotation on the residence permit**; working outside the approved job or hours is illegal work (**Exit and Entry Administration Law Art. 43**), fined **¥5,000–20,000**, with 5–15 days' detention when serious and possible visa cancellation (**Art. 80**). ✅ (university pages: [Shenzhen University](https://lxs.szu.edu.cn/en/info/1084/1855.htm), [BFSU](https://osao.bfsu.edu.cn/info/2602/5272.htm)); see also P-19.
+- Weekly hour caps **conflict** between sources: 8 h/week (40 h/month) in term per two 2026 guides; 20 h/week per another. ⚠️ Sathi warns at the stricter number and says sources differ.
+- On-campus wages: about ¥15–30/h; research assistants ¥50–80/h or ¥500–2,000/month. ⚠️ [WentChina 2026](https://wentchina.com/can-international-students-work-part-time-china-2026/)
+- **Hook:** income from unauthorised work is flagged and **never planned on**; Sathi never suggests extra hours or cash jobs.
+
+### New legal channel: international cards for education (10 Aug 2026) — for N-11
+- Bangladesh Bank lets authorised dealer banks issue **international debit, prepaid or credit cards** in the student's **or the sponsor's** name for tuition and approved education costs; these payments sit **outside the travel quota**; banks report them under purpose codes. Whether living costs are covered is not clear in the reports. ⚠️ [Dhaka Tribune](https://www.dhakatribune.com/business/banks/417153/bb-allows-international-cards-for-overseas), [TBS](https://www.tbsnews.net/economy/banking/bb-allows-international-cards-overseas-education-payments-1511351?amp=), [Daily Star](https://www.thedailystar.net/business/news/students-can-now-pay-overseas-tuition-card-4244526)
+- **Hook:** listed in the hundi check as a legal route, labelled secondary until the circular text is checked.
+
+### Corridor note
+Interviewee #2 refers to money generically as "dollar", as most Bangladeshis do; the same logic holds in any host country. Sathi keeps the work rules in the corridor rule pack, so a UK, US, Canada or Australia corridor sets its own permission and hour rules without code changes.
+
+---
+
 ## Priority shortlist (re-ranked after Interview #1)
 
 Ranked by severity × how often it happens × how well an agent can fix it (our judgment, now backed by field evidence):
@@ -329,6 +375,7 @@ Ranked by severity × how often it happens × how well an agent can fix it (our 
 | 7 | P-21/P-22/P-23 send home legally + 2.5% incentive | **Measurable value** |
 | 8 | N-07/P-27 FX ranges and home-currency stress | **FX planner:** our original idea, done honestly |
 | 9 | P-29 refund (Australia corridor), P-31 credit record | Pitch story; Topic C names credit building |
+| **+** | **N-11 … N-14 (Interview #2): the student's own money abroad, the Shield, the taka lens, hundi honesty** | **Task completion + measurable value + innovation:** a dollar-crisis test (stuck days today → Sathi → Sathi + Shield), a commitment rule the student signs, and income that never crosses a border |
 
 Downgraded: P-10 (bank account opened same day with passport only, at least at the friend's university).
 

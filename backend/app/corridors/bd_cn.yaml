@@ -18,7 +18,7 @@ name: "Bangladesh → China"
 home_currency: BDT
 host_currency: CNY
 vehicle_currency: USD
-reviewed: "2026-10-13"
+reviewed: "2026-10-16"
 
 params:
   # ---- Bangladesh side -------------------------------------------------------
@@ -190,6 +190,51 @@ params:
     value: 5000
     confidence: official
     source: "Shanghai customs clearance guide (GACC)"
+
+  # ---- Earn & Save: the student's own money in China (Interview #2, docs N-11 … N-14) ----
+  cn_work_permission_required:
+    value: 1
+    confidence: official
+    source: "Exit and Entry Administration Law Art. 43: a student working outside the work-study rules (no approval, other job or more hours than approved) is working illegally. Explained on university pages (Shenzhen University, BFSU) and Peking University ISD"
+    note: "1 = a student needs university approval + a work-study annotation on the residence permit before any job."
+
+  cn_work_hours_week_term:
+    value: 8
+    confidence: secondary
+    source: "Student guides (2026): 8 h a week / 40 h a month in term time; another guide says 20 h a week. Sathi warns at the stricter number"
+    note: "Sources conflict. The university's approval letter decides; ask the international student office."
+
+  cn_illegal_work_fine_cny_min:
+    value: 5000
+    confidence: official
+    source: "Exit and Entry Administration Law Art. 80 (as quoted by university and law-firm pages)"
+    note: "Fine for the foreigner who works illegally; 5–15 days' detention when serious, and the visa can be cancelled."
+
+  cn_illegal_work_fine_cny_max:
+    value: 20000
+    confidence: official
+    source: "Exit and Entry Administration Law Art. 80 (as quoted by university and law-firm pages)"
+
+  shield_target_days:
+    value: 30
+    confidence: assumption
+    source: "Product choice: the suggested Shield is about a month of living money"
+
+  shield_cooling_off_hours:
+    value: 24
+    confidence: assumption
+    source: "Product choice: taking Shield money out for anything except an emergency waits a day (a commitment device, and 'pay right now' scams cannot reach it)"
+
+  crisis_weeks:
+    value: 4
+    confidence: assumption
+    source: "Product choice for the stress scenario: banks send no student transfers for 4 weeks. In the 2022–24 dollar shortage many banks stopped Student Files for much longer (research P-01)"
+
+  hundi_premium_bdt_per_usd:
+    value: 1.5
+    confidence: field
+    source: "Interview #2 (2026-10-16): 'illegal e dollar proti 1/2 ta loss jay' (1–2 taka lost per dollar by hundi)"
+    note: "One student's experience; the premium moves with the dollar market."
 
   # ---- Product safety settings -----------------------------------------------
   two_person_threshold_bdt:

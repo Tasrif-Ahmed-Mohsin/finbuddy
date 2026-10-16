@@ -352,7 +352,8 @@ export type DocumentResult = {
 
 // ---- the loop: Sense → Plan → Act → Prove ----------------------------------------------------
 export type NoteRef = {
-  screen?: 'draft' | 'topup' | 'family' | 'renewal' | 'proof' | 'plan' | 'emergency';
+  screen?: 'draft' | 'topup' | 'family' | 'renewal' | 'proof' | 'plan' | 'emergency' | 'save';
+  release_id?: string;
   draft_id?: string;
   amount_cny?: string;
   item?: 'endorsement_expiry' | 'student_file_expiry';
@@ -423,19 +424,22 @@ export type Runway = {
 export type NeedItem =
   | { type: 'approve_draft' | 'send_draft'; draft_id: string; kind: Draft['kind']; amount_cny: string; total_bdt: string; payee_name: string }
   | { type: 'sign_mandate'; proposal_id: string; summary: string }
-  | { type: 'confirm_safe'; check_id: string; asked_at: string };
+  | { type: 'confirm_safe'; check_id: string; asked_at: string }
+  | { type: 'approve_release'; release_id: string; amount_cny: string; available_at: string };
 
 export type SafetyCheck = { id: string; asked_by: Role; asked_at: string; status: 'open' | 'safe'; answered_at: string | null };
 export type EmergencyGuide = { title: string; steps: string[] };
 export type EmergencyView = {
   plan: { today: string; balance_cny: string; days_left: number | null; card_usable: boolean; bridge_needed_cny: string; urgent_lands_on: string };
-  text: { headline: string; options: { kind: 'card_atm' | 'on_the_way' | 'urgent_transfer' | 'local_bridge'; text: string }[] };
+  text: { headline: string; options: { kind: 'shield' | 'card_atm' | 'on_the_way' | 'urgent_transfer' | 'local_bridge'; text: string }[] };
   guides: { scam_call: EmergencyGuide; family_call: EmergencyGuide; card_lost: EmergencyGuide };
   card: { last4: string; status: string };
   safety_checks: SafetyCheck[];
 };
 
-export type Feed = { now: string; runway: Runway; needs_you: NeedItem[]; notes: Note[] };
+export type ShieldSummary = { balance_cny: string; target_cny: string; pct_of_target: number; days_of_living: string; rule_on: boolean };
+
+export type Feed = { now: string; runway: Runway; needs_you: NeedItem[]; notes: Note[]; shield: ShieldSummary | null };
 
 export type Proposal = {
   id: string;
@@ -519,6 +523,16 @@ export type CostTruth = {
   published_same_window: { bank_id: string; sheets: number; avg: string; low: string; high: string; paid_vs_published_avg_pct: string; paid_below_every_sheet: boolean } | null;
 };
 
+export type YearShield = {
+  income_month_cny: string;
+  shield_cny: string;
+  rule_is_suggestion: boolean;
+  saving: { pct: number; target_cny: string } | null;
+  end_cny: string | null;
+  used_cny: string | null;
+  saved_cny?: string;
+};
+
 export type YearPlan = {
   horizon: { from: string; to: string; days: number };
   headline: {
@@ -537,12 +551,13 @@ export type YearPlan = {
   student_file_fees: StudentFileFee[];
   assumptions: ({ name: string } & CorridorParam)[];
   mandate: MandateView | null;
+  shield?: YearShield;
   data_quality: DataQuality;
   method: string;
 };
 
 export type StuckStats = { zero_share_pct: number; median: number; p90: number; worst: number; mean: number };
-export type WhatIfKey = 'taka_weakens_10' | 'spending_plus_30' | 'transfers_3_days_late' | 'holidays_2_days_later' | 'all_at_once';
+export type WhatIfKey = 'taka_weakens_10' | 'spending_plus_30' | 'transfers_3_days_late' | 'holidays_2_days_later' | 'all_at_once' | 'dollar_crisis';
 export type StressTest = {
   runs: number;
   seed: number;
@@ -553,11 +568,16 @@ export type StressTest = {
     key: WhatIfKey;
     stuck_days_sathi: number;
     stuck_days_today: number;
+    stuck_days_sathi_shield?: number | null;
+    shield_needed_cny?: string;
+    basis?: 'median_start';
+    worst?: { from: string; stuck_today: number; stuck_sathi: number; stuck_sathi_shield: number | null };
     family_pays_bdt: string;
     change_bdt: string;
     overhead_pct: string;
     overhead_pct_today: string;
   }[];
+  crisis?: CrisisTest;
   method: string;
 };
 
@@ -569,4 +589,137 @@ export type Receipt = {
     | null;
   sent: { seq: number; hash: string; sim_time: string; permission_level: string; arrives_at?: string } | null;
   landed: { seq: number; hash: string; sim_time: string } | null;
+};
+
+// ---- Earn & Save: the student's own money abroad and the Shield ----------------------------------------
+export type IncomeSource = {
+  id: string;
+  kind: 'stipend' | 'work_study' | 'other';
+  label: string;
+  amount_cny: string;
+  every: 'month' | 'week';
+  pay_day: number;
+  hours_per_week: string | null;
+  permission: boolean;
+  added_on: string;
+  status: 'ok' | 'at_risk';
+  monthly_cny: string;
+  checks: Check[];
+};
+
+export type ShieldRelease = {
+  id: string;
+  amount_cny: string;
+  reason: 'emergency' | 'planned';
+  requested_by: Role | 'agent';
+  requested_at: string;
+  available_at: string;
+  needs_family: boolean;
+  family_approved_at: string | null;
+  status: 'waiting' | 'released' | 'cancelled';
+  released_at: string | null;
+  note: string;
+  released_now_cny?: string;
+};
+
+export type ShieldProjection = { pct: number; target_cny: string; reaches_target_on: string | null; points: { date: string; shield_cny: string }[] };
+
+export type SavingsRule = {
+  id: string;
+  owner: 'student';
+  shield_pct: number;
+  target_cny: string;
+  cooling_off_hours: number;
+  family_lock: boolean;
+  share_with_family: boolean;
+  valid_until: string;
+  emergency_release: boolean;
+  to_account: 'student_shield';
+  created_at: string;
+  created_by: string;
+  text: string;
+  errors: string[];
+  notes: string[];
+  signatures: { student?: string };
+  status: 'proposed' | 'needs_changes' | 'active' | 'revoked' | 'superseded' | 'expired';
+  summary: Lang3;
+  hash: string;
+  projection?: ShieldProjection | null;
+};
+
+export type TakaLens = { amount_cny: string; bdt: string; days_of_living: string };
+
+export type WantsWeek = {
+  from: string;
+  to: string;
+  wants_cny: string;
+  needs_cny: string;
+  count: number;
+  by_category: { category: string; label: string; cny: string }[];
+  allowance_cny: string;
+  left_cny: string;
+  over_cny: string;
+  lens: TakaLens;
+  over_lens: TakaLens;
+};
+
+export type ShieldEvent = { seq: number; hash: string; event: string; sim_time: string | null; actor: string; level: string; amount_cny: string | null };
+
+export type SavingsView = {
+  now: string;
+  role: Role | 'agent';
+  shared_with_family: boolean;
+  shield: { balance_cny: string; target_cny: string; free_cny: string; pct_of_target: number; days_of_living: string; full: boolean } | null;
+  rule: SavingsRule | null;
+  terms: { rule_id: string; cooling_off_hours: number; family_lock: boolean; share_with_family: boolean; status: string } | null;
+  history: ShieldEvent[];
+  family_rate: { bdt_per_cny: string; basis: string };
+  releases: ShieldRelease[];
+  // student only
+  income?: { sources: IncomeSource[]; monthly_cny: string; next_pay: { date: string; amount_cny: string; label: string } | null };
+  wants?: WantsWeek;
+  projection?: ShieldProjection | null;
+  proposal?: SavingsRule | null;
+  suggested?: { pct: number; target_cny: string; cooling_off_hours: number; projection: ShieldProjection } | null;
+  categories?: { key: string; label: string; kind: 'want' | 'need' }[];
+  work_rules?: ({ name: string } & CorridorParam)[];
+};
+
+export type SpendResult = { amount_cny: string; paid_cny: string; category: string; kind: 'want' | 'need'; label: string; lens: TakaLens; week: WantsWeek };
+
+export type HundiOption =
+  | { key: 'hundi'; legal: false; total_bdt: string; extra_bdt: string; rate_bdt_per_usd: string; premium_bdt_per_usd: string; premium_source: string }
+  | { key: 'bank_once'; legal: true; bank: string; total_bdt: string; extra_bdt: string; fees_bdt: string; rate_markup_bdt: string; send_on: string; lands: string }
+  | { key: 'shield'; legal: true; amount_cny: string; total_bdt: string; extra_bdt: string; available_on: string; covers_all: boolean }
+  | { key: 'planned'; legal: true; send_on: string; lands: string; amount_cny: string; extra_bdt: string };
+
+export type HundiCheck = {
+  amount_cny: string;
+  amount_usd: string;
+  mid_bdt: string;
+  mid_bdt_per_usd: string;
+  options: HundiOption[];
+  verdict: 'use_shield' | 'shield_then_bank' | 'wait_for_planned' | 'bank';
+  bank_costs_more_on_paper_bdt: string | null;
+  shield_saves_vs_hundi_bdt: string | null;
+  risks: { key: string; text: string; confidence: string; source: string }[];
+  legal_routes: { key: string; text: string; confidence: string; source: string }[];
+  honest_note: string;
+  data_is_sample: boolean;
+};
+
+export type CrisisTest = {
+  weeks: number;
+  starts_tested: number;
+  first_start: string;
+  last_start: string;
+  zero_share_pct: { today: number | null; sathi: number | null; sathi_shield: number | null };
+  median_stuck: { today: number | null; sathi: number | null; sathi_shield: number | null };
+  worst: { from: string; to: string; stuck_today: number; stuck_sathi: number; stuck_sathi_shield: number | null; shield_on_start_cny: string; shield_needed_cny: string };
+  protected_from: string | null;
+  with_shield: boolean;
+  rule_is_suggestion?: boolean;
+  student_money_shown?: boolean;
+  saving: { pct: number; target_cny: string } | null;
+  method: string;
 };

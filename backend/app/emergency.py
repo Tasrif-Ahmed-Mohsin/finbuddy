@@ -39,8 +39,11 @@ class SafetyCheck:
 
 
 def fastest_money(today: date, balance: Decimal, transit: list[tuple[date, Decimal]], policy: Policy, cal: BankCalendar,
-                  card_usable: bool, per_withdrawal_cny: Decimal) -> dict:
-    """Every way money can reach the student, soonest first. Facts only; nothing is sent here."""
+                  card_usable: bool, per_withdrawal_cny: Decimal, shield_cny: Decimal = Decimal(0)) -> dict:
+    """Every way money can reach the student, soonest first. Facts only; nothing is sent here.
+
+    The student's own Shield (Earn & Save) comes first: it is already in their Chinese account, costs nothing and needs
+    no bank in Bangladesh. A loan from a friend is suggested only for what the Shield cannot cover."""
     daily = policy.daily_spend_cny
     out = runs_out_on(balance, transit, today, daily)
     send_on = today if cal.is_open("BD", today) else cal.next_open("BD", today)
@@ -54,24 +57,33 @@ def fastest_money(today: date, balance: Decimal, transit: list[tuple[date, Decim
                 default=Decimal(0))
     bridge = ATM_NOTE * ceil_div(-worst, ATM_NOTE) if worst < 0 else Decimal(0)
     options = []
-    if card_usable and bridge > 0:
-        options.append({"kind": "card_atm", "available_on": today.isoformat(), "amount_cny": str(q2(min(per_withdrawal_cny, max(bridge, ATM_NOTE)))),
+    from_shield = min(shield_cny, bridge) if bridge > 0 else Decimal(0)
+    if from_shield > 0:
+        options.append({"kind": "shield", "available_on": today.isoformat(), "amount_cny": str(q2(from_shield)),
+                        "who": "student"})
+    left = bridge - from_shield  # what the Shield cannot cover
+    if card_usable and left > 0:
+        options.append({"kind": "card_atm", "available_on": today.isoformat(), "amount_cny": str(q2(min(per_withdrawal_cny, max(left, ATM_NOTE)))),
                         "who": "student"})
     for d, a in on_the_way:
         options.append({"kind": "on_the_way", "available_on": d.isoformat(), "amount_cny": str(q2(a)), "who": "bank"})
     options.append({"kind": "urgent_transfer", "send_on": send_on.isoformat(), "available_on": lands.isoformat(),
                     "closures": closures, "who": "parent"})
-    if bridge > 0 and not card_usable:
-        options.append({"kind": "local_bridge", "available_on": today.isoformat(), "amount_cny": str(q2(bridge)),
+    if left > 0 and not card_usable:
+        options.append({"kind": "local_bridge", "available_on": today.isoformat(), "amount_cny": str(q2(ATM_NOTE * ceil_div(left, ATM_NOTE))),
                         "repay_on": lands.isoformat(), "who": "student"})
     return {"today": today.isoformat(), "balance_cny": str(q2(balance)), "daily_spend_cny": str(daily),
             "days_left": int(balance // daily) if daily > 0 else None, "runs_out_on": out.isoformat() if out else None,
             "card_usable": card_usable, "bridge_needed_cny": str(q2(bridge)), "urgent_lands_on": lands.isoformat(),
-            "options": options}
+            "shield_cny": str(q2(shield_cny)), "from_shield_cny": str(q2(from_shield)), "options": options}
 
 
 # ---- text (deterministic templates; amounts and dates are formatted here, never by the LLM) --------------
 OPTION_TEXT = {
+    "shield": {
+        "en": "Today: Sathi can move {amount_cny} from your Shield to your spending account at once. It is your own money, already in China: no fee, no waiting, no bank in Bangladesh.",
+        "bn": "আজই: সাথী আপনার সুরক্ষা তহবিল থেকে {amount_cny} সঙ্গে সঙ্গে খরচের অ্যাকাউন্টে আনতে পারে। এটি আপনার নিজের টাকা, আগে থেকেই চীনে আছে: কোনো ফি নেই, অপেক্ষা নেই, বাংলাদেশের ব্যাংক লাগে না।",
+        "zh": "今天：Sathi 可以立即把应急储备中的 {amount_cny} 转入你的日常账户。这是你自己的钱，本来就在中国：没有手续费，不用等待，不需要孟加拉国的银行。"},
     "card_atm": {
         "en": "Today: withdraw up to {amount_cny} with the Bangladeshi card at a Bank of China or ICBC ATM.",
         "bn": "আজই: ব্যাংক অফ চায়না বা আইসিবিসি এটিএম থেকে বাংলাদেশি কার্ডে {amount_cny} পর্যন্ত তুলুন।",

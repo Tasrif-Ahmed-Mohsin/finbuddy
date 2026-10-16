@@ -6,6 +6,7 @@ import { Pressable } from 'react-native';
 import { DataBanner } from '@/components/data-banner';
 import { NeedCard, NoteCard } from '@/components/note-card';
 import { RunwayCard } from '@/components/runway-card';
+import { ShieldMini } from '@/components/save';
 import { InsightCard } from '@/components/sathi-updates';
 import { ThemedText } from '@/components/themed-text';
 import { Card, ErrorBox, H1, H2, Muted, Row, Screen, Segmented, styles } from '@/components/ui';
@@ -69,11 +70,15 @@ export default function TodayScreen() {
       {data && (
         <>
           <RunwayCard runway={data.feed.runway} />
+          {data.feed.shield && <ShieldMini shield={data.feed.shield} />}
           {needs.length > 0 && (
             <>
               <H2>{t('needsYou')}</H2>
               {needs.map((n) => (
-                <NeedCard key={n.type === 'sign_mandate' ? n.proposal_id : n.type === 'confirm_safe' ? n.check_id : n.draft_id} need={n} />
+                <NeedCard
+                  key={n.type === 'sign_mandate' ? n.proposal_id : n.type === 'confirm_safe' ? n.check_id : n.type === 'approve_release' ? n.release_id : n.draft_id}
+                  need={n}
+                />
               ))}
             </>
           )}

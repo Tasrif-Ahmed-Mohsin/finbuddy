@@ -1,7 +1,7 @@
 # Sathi: Technical Documentation
 
 **FinTechathon 2026 · International Track · Topic C: Cross-border & Student Finance Assistant**
-Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy · Version: 13 Oct 2026 · Companion: [SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md)
+Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy · Version: 16 Oct 2026 · Companion: [SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md)
 
 > **Sandbox:** no real money moves. All payments run in a simulated bank. The **exchange rate is real** (live, plus 953 days of saved daily history). **Bank prices are real or published**:
 > - Eastern Bank's own daily CNY rate sheets (`bank_rates.csv`, refreshed automatically).
@@ -33,13 +33,15 @@ When the channel breaks, families are pushed toward hundi, and in China, money f
 | **Act** | The parent writes a **family mandate** in their own words → strict proposal → signed with fingerprint (both people for large caps) → the **autopilot** sends living money inside it and asks for anything else | Family tab |
 | **Prove** | A receipt for every payment (who or what authorised it), a hash-chained log, the payment passport | Proof tab |
 
+**Earn & Save (Interview #2, §4.14):** the second interviewee works part-time abroad. When the dollar is short the family uses hundi ("1–2 taka lost per dollar"), while the student's own pay leaks into wants. Sathi treats the student's income as what it is, money that **never has to cross the border**, and turns part of it into a **Shield**: a savings rule the student signs keeps a share of each pay in their own Chinese account; emergencies use it at once; anything else waits a cooling-off. The same loop runs on it (Sense: income and wants in taka; Plan: dollar-crisis test, hundi check; Act: the autopilot inside the student's rule; Prove: every move in the log), in the **Save** tab.
+
 | Organiser capability | How Sathi shows it |
 |---|---|
 | **Intent understanding** | Mandates written in Bengali, English or Chinese (rules parser + grounded DeepSeek); chat with tool calling; SMS/email parsing; document photos |
 | **Task planning** | Year plan with look-ahead top-ups; living optimiser; tuition send-by planner; renewal plan for a student abroad |
 | **Safe execution** | Autopilot only inside a signed mandate (L3); every payment re-checked by deterministic compliance rules; approval tokens bound to the exact draft; sandbox bank; hash-chained log |
 | **User control** | Read-back read aloud before signing or approving; signatures bound to the proposal hash; two-person rule from ৳1 lakh; one-tap cancel; the family is asked whenever a limit would be exceeded |
-| **Measurable value** | Stuck days: **20 → 0** in the year plan, **0** in a 4-month live sandbox run; overhead **4.39% → 3.88%** with published bank fees; the real payment's fee was **5.5×** its rate markup |
+| **Measurable value** | Stuck days: **20 → 0** in the year plan, **0** in a 4-month live sandbox run; overhead **4.39% → 3.88%** with published bank fees; the real payment's fee was **5.5×** its rate markup; in a 4-week dollar crisis, **0% → 39% → 94%** of start weeks without a day without money (today → Sathi → Sathi + Shield) |
 
 ## 2. Problem and evidence (short)
 
@@ -65,6 +67,7 @@ flowchart TB
     YP["Year plan: day-by-day simulation, both bank calendars, endorsement end, card caps"]
     AG["Chat agent: DeepSeek tool calling (read, plan, draft, propose) + offline fallback"]
     ENG["Engines: cost (rate vs fee) · cost truth · living optimiser · tuition planner · FX ranges · renewal"]
+    EAS["Earn & Save: income + work rules · savings rule (student signs) · Shield · taka lens · hundi check · dollar-crisis test"]
     SEC["Security: permission engine · approval tokens · compliance checks · scam/injection scan"]
     INB["Inbox: filter → redact → scan → rules/AI extraction (grounded) → tracking → insights"]
     FEED["Family feed: templated notes in bn/en/zh"]
@@ -81,7 +84,8 @@ flowchart TB
   BIO -. proves presence .-> UI
   AG --> SVC
   AP --> SVC
-  SVC --> MC & YP & ENG & SEC & INB & FEED & BANK
+  SVC --> MC & YP & ENG & SEC & INB & FEED & BANK & EAS
+  EAS --> YP
   AP --> YP
   BANK --> AUD
   SVC --> AUD
@@ -144,7 +148,7 @@ sequenceDiagram
 | Path | Content |
 |---|---|
 | `backend/app/service.py` | Service layer: plans, drafts, approvals, execution, mandates and proposals, year plan, feed, receipts, simulated time, cards, renewals, passport, documents |
-| `backend/app/engines/` | `year_plan.py` (calendar, look-ahead rule, simulation), `cost.py`, `cost_truth.py`, `living_planner.py`, `tuition_planner.py`, `fx_range.py` |
+| `backend/app/engines/` | `year_plan.py` (calendar, look-ahead rule, simulation incl. income, Shield and a crisis window), `cost.py`, `cost_truth.py`, `living_planner.py`, `tuition_planner.py`, `fx_range.py`, `stress.py` (stress test, what-if, dollar crisis), **`earnings.py`** (income, work rules, savings rule, Shield, taka lens), **`hundi.py`** (honest hundi comparison) |
 | `backend/app/agent/` | `autopilot.py`, `mandate_compiler.py`, `chat.py` (tool-calling agent + fallback), `llm.py` (DeepSeek client), `explain.py` |
 | `backend/app/security/` | `permissions.py` (levels, tokens, mandates), `compliance.py` (checks), `scam.py` (scam/injection patterns) |
 | `backend/app/inbox/` | `filters.py`, `redact.py`, `parsers.py`, `extract_llm.py`, `insights.py`, `service.py`, `email_imap.py` |
@@ -152,7 +156,7 @@ sequenceDiagram
 | `backend/app/corridors/bd_cn.yaml` | Rule pack: every number with value, confidence (official / secondary / field / assumption) and source |
 | `backend/app/data/` | `bank_holidays.yaml` (BD + CN closures), `bank_quotes.yaml` (estimates + real payment), `fx_history.csv`, `demo_messages.yaml` |
 | `backend/scripts/` | `fetch_fx_history.py` (data pipeline), `demo_scenario.py` (end-to-end run + evidence export) |
-| `backend/tests/` | 203 automated test cases (14 files) |
+| `backend/tests/` | 327 automated test cases (20 files) |
 | `mobile/src/` | Expo Router screens (`app/`), components, API client, i18n (bn/en/zh), formatting (lakh, Bengali digits) |
 | `docs/` | Research, plans, this document, security self-assessment, `evidence/` (sandbox operation logs) |
 
@@ -394,6 +398,52 @@ When something goes wrong, the fastest **safe** way through it. Nothing moves wi
 
 Why the scams fail structurally: Sathi can only ever pay the student's own Chinese account and the university, and a new payee needs both people. The scam rules also recognise fake emergencies ("has been arrested", "ransom", "অপহরণ", "绑架", "赎金") and courier/customs pretexts ("your parcel contains", "包裹里有").
 
+### 4.14 Earn & Save: the student's own money abroad (`engines/earnings.py`, `engines/hundi.py`, `stress.dollar_crisis`)
+**Problem (Interview #2, research N-11 … N-14):** when the dollar is short, money cannot come from home legally and families use hundi ("1–2 taka lost per dollar"); meanwhile the student's own pay abroad leaks into wants, so nothing is saved for exactly that moment.
+
+**Idea:** the cheapest, safest yuan is the one that never crosses the border. Pay earned in China is already in yuan: no dollar shortage, no bank fee, no hundi. Sathi turns part of it into a **Shield**, a pocket of the student's own Chinese account that covers the days the legal channel from home is closed.
+
+| Step | What Sathi does |
+|---|---|
+| **Sense** | Income sources (stipend or approved campus job) checked against the corridor's work rules; pay and wants recognised in bank SMS; purchases logged with a need/want category (the merchant text is never logged) |
+| **Plan** | A savings rule from the student's words or a form; when the Shield will be full; the dollar-crisis test; the honest hundi check |
+| **Act** | On each pay day the autopilot moves the rule's share into the Shield (L3, inside the student's signed rule). If the money in China cannot cover a day, it moves Shield money back at once. Planned withdrawals wait the cooling-off and, if the student chose it, the parent's approval |
+| **Prove** | Every move in the hash-chained log (`shield_saved`, `shield_cover`, `shield_released`, rule signatures); the parent's feed shows the Shield level only if the student shares it |
+
+**Income and work rules (`work_checks`).** From the rule pack: `cn_work_permission_required` (Exit and Entry Administration Law Art. 43, official), `cn_work_hours_week_term` = 8 (secondary: sources say 8 or 20 h), fines ¥5,000–20,000 (Art. 80). A job without permission is `at_risk`: a warning in the feed, never planned on, never simulated in the sandbox. More hours than the cap: a warning.
+
+**The savings rule (`compile_savings_rule`).** Parsed by rules only (no AI): a share (`30%`, `৩০%`, `百分之30`, `half`), a target in yuan (the number after "until", or before "পর্যন্ত" in Bengali; a target in taka is refused), an optional waiting time. Bounds: 5–80% of each pay, ¥500–100,000, a cooling-off of 0 / 24 / 72 h, 12 months. The read-back is a template in bn/en/zh. Its **hash** covers the share, target, waiting time, family lock, sharing and the fixed destination `student_shield`, so no words can redirect it. Only the **student** signs (agent and parent: 403); scam or injection text is refused.
+
+**Pay yourself first (`shield_share`).** `keep = min(floor(pay × pct / 100), target − shield)`. The rest is the student's own: the weekly wants allowance is `monthly pay × (100 − pct) / 100 × 7 / 30`.
+
+**The Shield is not spending money.** `student_money()` (runway, year plan, autopilot) excludes it, and logged wants are kept apart from the living-spending pace, so savings never shrink the family's transfers and wants paid from the student's own pay never make the autopilot send more.
+
+**Taking money out:**
+
+| Situation | Rule |
+|---|---|
+| The money in China cannot cover today | The autopilot moves the shortfall until the next transfer lands, rounded up to ¥100, in one move (`shield_emergency_cover`, L3 inside the rule) |
+| "I have no money" (Emergency) | The Shield is the first option ("no fee, no waiting, no bank in Bangladesh"); a loan from a friend only for what it cannot cover |
+| Anything else | Waits the cooling-off the student signed; with a family lock, also the parent's approval; cancellable; money only ever goes to the student's own spending account (`move_cny` refuses any other account) |
+
+**Taka lens (`taka_lens`).** `bdt = yuan × family rate`, where the family rate is what ¥1 costs the family to send at the cheapest legal bank for a month of living money, fees included (৳19.07 with saved real rates), plus the days of living money it equals. This answers the face-value bias: a ¥180 dinner "looks like 180" but costs the family ৳3,400 to send.
+
+**Hundi, honestly (`hundi.compare`).** The same money every way: the offer's premium over the market; one legal bank transfer with real fees and its landing day; the Shield (৳0); the transfer the autopilot is planning anyway. It says out loud when one bank transfer costs more on paper ($500 at ৳124.5: hundi ৳623 vs one bank transfer ৳3,701 above the market) and lists what hundi leaves out (illegal in Bangladesh and China, account-freeze risk, no recourse, no record), each with its source and confidence. Legal routes include the Student File and the Bangladesh Bank education-card circular of 10 Aug 2026 (secondary). Sathi never suggests hundi.
+
+**Dollar-crisis test (`dollar_crisis`, `GET /save/crisis`, also a row in the what-if list).** Banks send no Student File transfer for 4 weeks (`crisis_weeks`); transfers asked for in that time leave on the first bank day after it. Every start week of the plan is tried (33 starts) and the planner never knows in advance. "With the Shield" adds the savings rule on the student's pay; the rest of the pay is assumed spent (conservative). At the worst start (chosen against Sathi), the Shield that would prevent every stuck day is the money the shortfall needs.
+
+Results with saved real rates, from the sandbox start, demo persona with an approved ¥1,500/month campus job:
+
+| 4-week dollar crisis, 33 start weeks | Today's habits | Sathi alone | Sathi + Shield (50% of pay) |
+|---|---|---|---|
+| Starts with no day without money | 0% | 39% | **94%** |
+| Typical start (median) | 20 days | 4 days | **0 days** |
+| Worst start (4 Jan 2027, right after the card stops) | 50 days | 25 days | **11 days** |
+
+At 30% of pay: 79% of starts, worst 17 days; at 70%: 97%, worst 5 days. A Shield of ¥5,000 covers even the worst start; at 50%, every crisis starting from 11 Jan 2027 is covered. The normal year is unchanged (20 → 0 stuck days); the Shield fills to ¥6,000 by June without being touched.
+
+**Live sandbox (evidence run):** on 22 Jan a ¥2,500 hospital bill pushed a ¥1,000 top-up past Bangladesh's USD 2,000/month living-money cap; the compliance check refused it (that is the law). The Shield covered ¥800 on its own in 2 moves, and the student had **0 stuck days** through Spring Festival.
+
 ## 5. Security design (summary)
 
 Full details, the permission-tier implementation and the known-risk list are in **[SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md)**.
@@ -408,6 +458,7 @@ Full details, the permission-tier implementation and the known-risk list are in 
   - draft hash for payments;
   - the read-back is generated from those exact fields and can be heard aloud.
 - **Two-person rule:** payments ≥ ৳1 lakh, and mandates whose per-payment cap is ≥ ৳1 lakh.
+- **The student's own money (Earn & Save):** the savings rule is signed by the student only (hash-bound read-back); the agent may propose it and act inside it (save a share of pay, cover a real shortfall), never sign it or withdraw for anything else; Shield money only moves between the student's own pockets; a cooling-off the student chose also keeps "pay right now" scams away from it; the parent sees the Shield level only if the student shares it, never income or purchases.
 - **Asymmetric friction:** the agent may freeze a card and propose; it may not unfreeze, approve, sign or widen a limit. Either person can cancel a mandate in one tap.
 - **Integrity and AI containment:**
   - a hash-chained audit log for every action;
@@ -424,6 +475,9 @@ Full details, the permission-tier implementation and the known-risk list are in 
 | Rules and limits | `corridors/bd_cn.yaml`, 34 parameters, each with source | official / secondary / field / assumption |
 | Bank holidays | `data/bank_holidays.yaml`, BD + CN, Oct 2026 – Sep 2027 | official (fixed dates) / secondary / assumption (lunar dates) |
 | Demo messages | `data/demo_messages.yaml` | **synthetic**, written by us |
+| Student work rules (China) | `bd_cn.yaml`: Exit and Entry Administration Law Art. 43 / 80 (university pages), weekly hour cap (student guides, conflicting) | official / secondary |
+| Hundi premium | `bd_cn.yaml`: "1–2 taka per dollar" (Interview #2) | field |
+| Behavioural research behind the Shield and the taka lens | Raghubir & Srivastava 2002; Prelec & Simester 2001; Ashraf, Karlan & Yin 2006; Thaler & Benartzi 2004 (`01_problem_research.md` §K) | peer-reviewed |
 | Research | `docs/01_problem_research.md` | sources cited per item |
 
 **Software licences** (all permissive): FastAPI, Pydantic, PyYAML, pytest (MIT); Uvicorn, NumPy, httpx, qrcode, pypdf (BSD); Expo, React Native, react-native-svg and Expo modules incl. expo-speech (MIT). Bank rate sheets and schedules of charges are public documents published by the banks; we store only the numbers we use, with their source address.
@@ -445,6 +499,9 @@ Full details, the permission-tier implementation and the known-risk list are in 
 | FX honesty | 7-day 80% ranges right **81.9%** of 689 tests | coverage backtest |
 | Safety | every red-team case blocked (security report §9) | automated tests |
 | Languages | Mandates, feed, read-backs and UI in BN/EN/ZH | tests |
+| **Dollar crisis (4 weeks, 33 start weeks)** | starts without a stuck day **0% → 39% → 94%**; typical **20 → 4 → 0** days; worst **50 → 25 → 11** days (today → Sathi → Sathi + Shield from a ¥1,500/month job at 50%) | `dollar_crisis` (§4.14) |
+| **Hundi honesty** | $500 at ৳124.5: hundi ৳623 vs one bank transfer ৳3,701 above the market, shown as is; the Shield's own money costs ৳0 | `hundi.compare` |
+| **Shield in the live sandbox** | a top-up blocked by the monthly living cap; the Shield covered ¥800 in 2 moves; **0** stuck days | `demo_scenario.py` |
 
 ## 8. API overview (FastAPI; interactive docs at `/docs`)
 
@@ -457,6 +514,7 @@ Full details, the permission-tier implementation and the known-risk list are in 
 | Agent | `POST /agent/chat`, `GET /agent/status`, `POST /check/message` |
 | Inbox | `POST /inbox/messages`, `POST /inbox/webhook`, `POST /inbox/email/sync`, `POST /inbox/demo/seed`, `GET /inbox/*`, `GET /insights?lang=` |
 | **Emergency** | `GET /emergency?lang=`, `POST /emergency/no-money`, `POST /emergency/card-lost`, `POST /emergency/safety-checks` (parent), `POST /emergency/safety-checks/{id}/safe` and `POST /emergency/safe` (student only), `POST /sandbox/expense` (a surprise bill, sandbox only) |
+| **Earn & Save** | `GET /save?lang=` (role-aware), `POST /save/income/sources`, `DELETE /save/income/sources/{id}`, `POST /save/income` (a pay arrived), `POST /save/spend` (taka lens), `POST /save/rule/proposals`, `POST /save/rule/proposals/{id}/sign` (`rule_hash`, student only), `DELETE /save/rule`, `POST /save/shield/release`, `POST /save/shield/release/{id}/approve` (parent, family lock only), `POST /save/shield/release/{id}/cancel`, `POST /save/hundi-check`, `GET /save/crisis?weeks=` |
 | Cards, renewals, documents, passport | `/cards/*`, `/renewals/*`, `/documents/*`, `/passport/*` |
 | Overview | `GET /timeline`, `GET /profile`, `GET /accounts`, `GET /corridor`, `GET /audit`, `GET /audit/export`, `GET /health` |
 
@@ -499,11 +557,12 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
 
 ## 10. Testing and execution evidence
 
-- `cd backend && .venv/Scripts/python -m pytest -q` runs **288 test cases** (219 test functions, some parameterised), all passing:
+- `cd backend && .venv/Scripts/python -m pytest -q` runs **327 test cases** (249 test functions, some parameterised), all passing:
 
   | Area | Test cases |
   |---|---|
   | Living optimiser (incl. 30-combination limit check) | 36 |
+  | **Earn & Save: income and work rules, savings rule (3 languages, hash, signers), Shield, cooling-off, family lock, emergencies, privacy on every door, taka lens, hundi honesty, dollar crisis, inbox, chat** | **39** |
   | **Dialogue: clarification, correction, refusal (EN/BN/ZH)** | **31** |
   | **Family mandate, signatures and autopilot** | **26** |
   | **Bank prices: published sheets, fee schedules, rate watch** | **23** |
@@ -538,7 +597,9 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
      - The card stops; Spring Festival.
   4. Prove: feed, receipts, passport.
 
-  **Result: 0 stuck days**, 4 autopilot payments inside the mandate, and 1 family approval when the cap wasn't enough (an early top-up before Spring Festival). It exports `docs/evidence/sandbox_operation_log.jsonl` (187 entries, hash chain valid) and `scenario_summary.md`.
+  5. Earn & Save alongside: an approved campus job (an unauthorised one is flagged), the student's Bengali savings rule (agent and parent signatures refused), an honest hundi check, weekly wants, and a hospital bill before Spring Festival.
+
+  **Result: 0 stuck days**, 4 autopilot payments inside the mandate, 2 family approvals when the cap was not enough, and 1 extra top-up refused by Bangladesh's monthly living cap, which the Shield covered on its own (¥800 in 2 moves). It exports `docs/evidence/sandbox_operation_log.jsonl` (237 entries, hash chain valid) and `scenario_summary.md`.
 
 ## 11. Limitations and next steps
 
@@ -552,4 +613,5 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
 - **Spending in the live sandbox is constant** (¥200/day); the planner already follows a faster real pace (`spending_pace`), and the stress test varies spending, delays and holiday dates. In production the pace would come from the student's parsed bank alerts.
 - **Stress-test ranges are assumptions** (70–130% spending, 0–3 days late, ±2 days for lunar holidays), chosen to be pessimistic; they are not measured from data yet.
 - **On-chain anchoring is not used yet.** The hash chain is ready: anchoring daily chain heads on a permissioned chain such as FISCO BCOS would let a bank verify the receipts without trusting our server.
+- **Earn & Save:** income is declared by the student (or seen in bank alerts) and cannot be verified with an employer; the China hour cap is from conflicting secondary sources (Sathi warns at the stricter one); need/want categories come from merchant keywords and the student can override them; the dollar-crisis test assumes the rest of the pay is spent (conservative) and models a full stop of Student File transfers, not partial limits; in production the Shield would be a real sub-account or time deposit at the student's Chinese bank, moved through a bank API.
 - **Production hardening** (real authentication, device-bound keys, KMS, TLS, rate limits): see the security report.
