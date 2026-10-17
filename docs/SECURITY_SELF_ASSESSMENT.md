@@ -205,7 +205,7 @@ The same model as family mandates, with the **student** as the one who signs (it
 - **Audit log:** each entry stores the SHA-256 of the previous entry. `verify()` (`audit/log.py:55`) recomputes the chain and reports the first broken entry. Tested: editing one entry is detected at its exact position.
 - **Payment passport:** HMAC-signed. Each entry references `audit_seq` + `audit_hash`. Verification (`passport.py:108`) fails on signature mismatch, an entry not in the log, a tampered log, revocation or expiry. Only the current sandbox session is used, a bug we found and fixed (ids repeat after a restart).
 - **Receipts** (`service.py:534`): for every executed payment, what was checked, who approved it (EXECUTE) or which signed mandate covered it (MANDATE, with signers and proposal hash), and the log entries for sending and landing.
-- **Exported evidence:** `docs/evidence/sandbox_operation_log.jsonl`, 237 entries over four sandbox months (including Earn & Save: savings rule, Shield moves, a top-up refused by the living cap and covered by the Shield), chain valid.
+- **Exported evidence:** `docs/evidence/sandbox_operation_log.jsonl`, 255 entries over four sandbox months, chain valid. Passkeys are required in the run: every approval, mandate signature and bank consent is a phone's signature over the exact hash (an unsigned approval, an unsigned mandate signature and a signature for another payment are refused in the log); a retried Send is answered without paying again; the double-entry books end balanced and reconciled; plus Earn & Save (savings rule, Shield moves, a top-up refused by the living cap and covered by the Shield).
 
 - **Double-entry books (`app/sandbox/ledger.py`):** every movement of money in the sandbox bank is a journal entry
   whose legs sum to zero per currency (taka and yuan legs through the FX desk, money on its way in a transit account).
@@ -305,7 +305,7 @@ The same model as family mandates, with the **student** as the one who signs (it
 | An SMS-planted amount drafted by the agent | blocked by taint tracking, however phrased | ✅ | `test_end_to_end_inbox_injection_blocked_in_service`, fuzzer `INV_TAINTED_AMOUNT_BLOCKED` |
 | 50,000 random honest and hostile steps, every rule checked after each step | 0 violations, 492 payments still went through; 3 of 3 deliberate bugs caught | ✅ | `tests/test_fuzzer.py`, `docs/evidence/safety_fuzzing_evidence.md` |
 
-Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (407 cases).
+Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (408 cases).
 
 ## 10. Known-risk list
 
@@ -362,6 +362,6 @@ For the **sandbox demo**, the residual risk is low: no real money or data. Every
 
 ```bash
 cd backend
-.venv/Scripts/python -m pytest -q                # 407 cases incl. all red-team tests above
+.venv/Scripts/python -m pytest -q                # 408 cases incl. all red-team tests above
 .venv/Scripts/python scripts/demo_scenario.py    # end-to-end run → docs/evidence/ (hash-chained log)
 ```

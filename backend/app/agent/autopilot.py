@@ -90,7 +90,7 @@ class Autopilot:
             return actions
         self.asked = {k for k in self.asked if not k.startswith(app.bank.month)}  # a new send clears old requests
 
-        draft = app.create_draft(Actor.AGENT, "tt_living", amount, m.payee_id, memo="Living money")
+        draft = app.create_draft(Actor.AGENT, "tt_living", amount, m.payee_id, memo="Living money", computed=True)
         if draft["status"] == "blocked":
             actions.append(self._ask_family(amount, "blocked by compliance checks", dec, draft_id=draft["id"]))
             return actions

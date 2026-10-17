@@ -63,7 +63,7 @@ so Sathi turns part of it into a **Shield** for the days the legal channel from 
 - **AI-specific defences:** taint tracking (amounts from messages cannot become payments the AI drafts), an output firewall on every reply, Confirmation of Payee.
 - **Safety fuzzing:** 50,000 random honest and hostile steps with 9 rules checked after each: 0 broken, 492 payments still went through, 3 of 3 deliberate bugs caught ([evidence](docs/evidence/safety_fuzzing_evidence.md)).
 - **Your data (PIPL):** what is kept and where it goes (DeepSeek is in China), copy, delete, and a per-person AI switch; read-only bank connections with a 90-day consent and revoke; Bangla voice input in the chat.
-- Two-person rule from ৳1 lakh; hash-chained audit log; 407 tests, including the red-team cases and Judge mode.
+- Two-person rule from ৳1 lakh; hash-chained audit log; 408 tests, including the red-team cases and Judge mode.
 
 ## Run it
 
@@ -89,7 +89,7 @@ On a phone, the app looks for the backend on the same computer at port 8000 (the
 
 ## Test it
 ```bash
-cd backend && .venv/Scripts/python -m pytest -q        # 407 tests: bank prices, year plan, mandates + autopilot, Earn & Save, security, engines, agent, inbox, FX, cards, renewals, passport, documents
+cd backend && .venv/Scripts/python -m pytest -q        # 408 tests: bank prices, year plan, mandates + autopilot, Earn & Save, security, engines, agent, inbox, FX, cards, renewals, passport, documents
 cd backend && .venv/Scripts/python scripts/judge_tasks.py   # Judge mode: 18 scripted tasks → docs/evidence/judge_tasks.md
 cd mobile && npx tsc --noEmit && npx expo lint   # a fresh clone needs expo-env.d.ts first: run `npx expo start` once (it is git-ignored)
 ```

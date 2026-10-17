@@ -156,7 +156,7 @@ sequenceDiagram
 | `backend/app/corridors/bd_cn.yaml` | Rule pack: every number with value, confidence (official / secondary / field / assumption) and source |
 | `backend/app/data/` | `bank_holidays.yaml` (BD + CN closures), `bank_quotes.yaml` (estimates + real payment), `fx_history.csv`, `demo_messages.yaml` |
 | `backend/scripts/` | `fetch_fx_history.py` (data pipeline), `demo_scenario.py` (end-to-end run + evidence export) |
-| `backend/tests/` | 407 automated test cases (29 files) |
+| `backend/tests/` | 408 automated test cases (29 files) |
 | `mobile/src/` | Expo Router screens (`app/`), components, API client, i18n (bn/en/zh), formatting (lakh, Bengali digits) |
 | `docs/` | Research, plans, this document, security self-assessment, `evidence/` (sandbox operation logs) |
 
@@ -587,7 +587,7 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
 
 ## 10. Testing and execution evidence
 
-- `cd backend && .venv/Scripts/python -m pytest -q` runs **407 test cases**, all passing:
+- `cd backend && .venv/Scripts/python -m pytest -q` runs **408 test cases**, all passing:
 
   | Area | Test cases |
   |---|---|
@@ -641,7 +641,7 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
 
   5. Earn & Save alongside: an approved campus job (an unauthorised one is flagged), the student's Bengali savings rule (agent and parent signatures refused), an honest hundi check, weekly wants, and a hospital bill before Spring Festival.
 
-  **Result: 0 stuck days**, 4 autopilot payments inside the mandate, 2 family approvals when the cap was not enough, and 1 extra top-up refused by Bangladesh's monthly living cap, which the Shield covered on its own (¥800 in 2 moves). It exports `docs/evidence/sandbox_operation_log.jsonl` (237 entries, hash chain valid) and `scenario_summary.md`.
+  **Result: 0 stuck days**, 4 autopilot payments inside the mandate, 2 family approvals when the cap was not enough, and 1 extra top-up refused by Bangladesh's monthly living cap, which the Shield covered on its own (¥800 in 2 moves). Every approval, mandate signature and bank consent in the run is a passkey signature by a simulated phone; a retried Send pays once; the books end balanced in taka and yuan (178 entries, 7 payments each booked once); a read-only BRAC Bank connection is allowed, read and revoked. It exports `docs/evidence/sandbox_operation_log.jsonl` (255 entries, hash chain valid) and `scenario_summary.md`.
 
 ## 11. Limitations and next steps
 

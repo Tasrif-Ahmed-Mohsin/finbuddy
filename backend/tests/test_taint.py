@@ -152,6 +152,17 @@ def test_amounts_the_person_types_in_chat_are_trusted():
     assert drafts and drafts[0]["status"] == "draft"
 
 
+def test_an_amount_the_planner_computed_is_not_tainted_by_a_coincidence():
+    """The demo inbox mentions ¥5,500; the autopilot computing a ¥5,500 top-up is not an injection (found by the
+    sandbox evidence run on 18 Oct). The same amount chosen by the AI in the chat still is."""
+    from app.security.permissions import Actor as A
+    app = create_app(audit_path=None, llm=None)
+    s = app.state.svc
+    s.inbox.ingest("parent", "sms", "BOC", "CNY 5,500.00 received in your account ending 3317.")
+    assert s.create_draft(A.AGENT, "tt_living", Decimal("5500"), "student_own_cn", computed=True)["status"] == "draft"
+    assert s.create_draft(A.AGENT, "tt_living", Decimal("5500"), "student_own_cn")["status"] == "blocked"
+
+
 def test_dates_and_bare_numbers_are_not_money():
     ledger = TaintLedger()
     ents = ledger.register_untrusted_text(TaintSource.UNTRUSTED_SMS, "m1", "BANK",

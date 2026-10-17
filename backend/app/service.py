@@ -88,6 +88,7 @@ class DraftSpec:
     purpose: str
     origin_message: str | None
     deadline: date | None = None  # tuition: the university deadline the payment must arrive by
+    computed: bool = False  # the amount was computed by Sathi's own planner (autopilot, emergency), not read from text
 
 
 class AppState:
@@ -267,7 +268,7 @@ class AppState:
             self._log("permission_denied", actor, action, {"action": action, "reason": decision.reason})
             raise PermissionError(decision.reason)
 
-    def _ctx(self, origin_message: str | None) -> ComplianceContext:
+    def _ctx(self, origin_message: str | None, computed_amount: Decimal | None = None) -> ComplianceContext:
         return ComplianceContext(
             corridor=self.corridor,
             payees=self.bank.payees,
@@ -281,7 +282,9 @@ class AppState:
             card_status=self.student_card.status,
             taint_ledger=self.taint_ledger,
             cop_service=self.cop_service,
-            trusted_amounts=self.trusted_amounts(),
+            # an amount Sathi's planner computed (autopilot, emergency) is not from outside text, even if a message
+            # happens to mention the same number
+            trusted_amounts=self.trusted_amounts() | ({computed_amount} if computed_amount is not None else set()),
             cop_names=self.cop_names(),
         )
 
@@ -564,7 +567,8 @@ class AppState:
 
     # ---- drafts (L1) ------------------------------------------------------
     def create_draft(self, actor: Actor, kind: str, amount_cny: Decimal, payee_id: str, quote_id: str | None = None,
-                     memo: str = "", origin_message: str | None = None, withdrawals: list[Decimal] | None = None) -> dict:
+                     memo: str = "", origin_message: str | None = None, withdrawals: list[Decimal] | None = None,
+                     computed: bool = False) -> dict:
         self._require(actor, "create_draft")
         amount = D(amount_cny)
         if amount <= 0:
@@ -593,7 +597,8 @@ class AppState:
             payee_id=payee_id, quote_id=quote_id, rate_bdt_per_cny=rate, memo=memo, created_at=self.now,
             expires_at=self.now + timedelta(minutes=self.corridor.i("quote_max_age_minutes")), created_by=actor,
         )
-        checks = run_draft_checks(draft, self._ctx(origin_message))
+        spec = replace(spec, computed=computed)
+        checks = run_draft_checks(draft, self._ctx(origin_message, amount if computed else None))
         draft.checks = [c.to_dict() for c in checks]
         draft.status = "blocked" if is_blocked(checks) else "draft"
         self.drafts[draft.id], self.specs[draft.id], self.tokens[draft.id] = draft, spec, []
@@ -712,7 +717,7 @@ class AppState:
         spec = self.specs[draft_id]
         if d.status in ("executed", "cancelled"):
             raise ValueError(f"draft is {d.status}")
-        checks = run_draft_checks(d, self._ctx(spec.origin_message))  # re-check at execution time
+        checks = run_draft_checks(d, self._ctx(spec.origin_message, d.amount_cny if spec.computed else None))  # re-check at execution time
         if is_blocked(checks):
             d.status, d.checks = "blocked", [c.to_dict() for c in checks]
             self._log("execution_blocked", actor, "execute_draft", {"draft_id": draft_id,
@@ -843,7 +848,7 @@ class AppState:
     def execute_under_mandate(self, actor: Actor, draft_id: str, mandate_id: str) -> dict:
         self._require(actor, "execute_under_mandate")
         d, spec, m = self.drafts[draft_id], self.specs[draft_id], self.mandates[mandate_id]
-        checks = run_draft_checks(d, self._ctx(spec.origin_message))
+        checks = run_draft_checks(d, self._ctx(spec.origin_message, d.amount_cny if spec.computed else None))
         decision = check_mandate(m, d, self.now, self.corridor.v("two_person_threshold_bdt"))
         if is_blocked(checks) or not decision.allowed or d.status in ("executed", "cancelled"):
             reason = decision.reason if not decision.allowed else (
@@ -1171,7 +1176,7 @@ class AppState:
             open_living = next((d for d in self.drafts.values() if d.kind == "tt_living" and d.status in ("draft", "approved")
                                 and self.now <= d.expires_at), None)
             draft = self.draft_view(open_living.id) if open_living else self.create_draft(
-                actor, "tt_living", amount, "student_own_cn", memo="Emergency: urgent living money")
+                actor, "tt_living", amount, "student_own_cn", memo="Emergency: urgent living money", computed=True)
             covered = ({"en": "the student's own Shield covers the days until then.",
                         "bn": "শিক্ষার্থীর নিজের সুরক্ষা তহবিল ততদিনের খরচ চালাবে।",
                         "zh": "学生自己的应急储备可以支撑到那时。"} if shield_used else

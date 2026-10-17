@@ -7,6 +7,9 @@ ending on 31 Dec (renewal needs the student in Bangladesh) and the Spring Festiv
 each pay to the Shield), weekly wants through the taka lens, and a surprise bill met from the Shield.
 Every step went through the real API: compliance checks, permission engine, approvals, mandate signatures, the
 autopilot, the sandbox bank (with both countries' bank calendars) and the hash-chained audit log. No real money.
+Passkeys are required, as in the app: every approval, mandate signature and bank consent is a signature by the
+person's phone (simulated devices with fresh random keys) over the exact hash, checked by the server. Every Send
+carries an Idempotency-Key, and the sandbox bank keeps double-entry books.
 Exchange rates: real saved history (mode `offline`); bank prices are estimates except the one real payment.
 
 **Result:** 0 stuck days in the live sandbox with Sathi, versus 20 simulated with today's habits over the same year.
@@ -19,26 +22,28 @@ Exchange rates: real saved history (mode `offline`); bank prices are estimates e
 | 4 | 2026-10-12 | Plan: stress test | 200 messy years (seed 2026): stuck days median 30.0 → 0.0, mean 30.1 → 0.9, worst 52 → 10; years with none 0.0% → 64.0%. What if (today→Sathi): taka_weakens_10 20→0; spending_plus_30 38→0; transfers_3_days_late 23→0; holidays_2_days_later 20→0; all_at_once 45→0; dollar_crisis 20→4 |
 | 5 | 2026-10-12 | Plan: cost truth (real payment) | BRAC rate 18.35 vs market avg 18.31 → markup ৳1448.14 (0.22%); fixed charge ৳8000.00 = 5.52× the rate markup |
 | 6 | 2026-10-12 | Act: mandate from the parent's words | Bengali instruction → up to ৳120000.00 per calendar month, student's own account only, until 2027-04-10; signers ['parent', 'student'] (two-person rule); parser=rules |
-| 7 | 2026-10-12 | Act: signatures → autopilot | wrong hash → HTTP 403; agent signs → HTTP 403; parent + student signed; autopilot sent ¥6100 at once (lands 2026-10-19) |
+| 7 | 2026-10-12 | Act: signatures → autopilot | wrong hash → HTTP 403; agent signs → HTTP 403; no passkey → HTTP 403; parent + student signed with their phones' passkeys; autopilot sent ¥6100 at once (lands 2026-10-19) |
 | 8 | 2026-10-12 | Security: injected instruction | proposal status=needs_changes: This text contains scam or prompt-injection signals (prompt injection), so Sathi will not … |
 | 9 | 2026-10-12 | Earn & Save: income in China | approved campus job ¥1500.00/month → status ok; unauthorised tutoring → status at_risk (failed: work_permission, work_hours; never planned on); parent declares the student's income → HTTP 403 |
 | 10 | 2026-10-12 | Earn & Save: savings rule (student's words) | Bengali → keep 50% of every pay until ¥6000.00, 24 h cooling-off, emergencies instant; agent signs → HTTP 403; parent signs → HTTP 403; student signed → active |
 | 11 | 2026-10-12 | Earn & Save: hundi offer, honestly | $500 at ৳124.5: hundi +৳622.90 over the market vs one bank transfer +৳3700.68 (fees; says so: bank costs ৳3077.78 more on paper); risks listed: illegal_bd, illegal_cn, account_freeze, no_recourse, no_record; verdict bank |
-| 12 | 2026-10-12 | T4 scam blocked | draft draft-0008 status=blocked; failed checks: payee_allowlisted, origin_message_safe |
-| 13 | 2026-10-12 | T1 tuition | best BRAC Bank ৳653435.64; read aloud before signing: “আপনি Demo University Finance Office (Sandbox Bank of China ****6021)-ক…”; agent execute → HTTP 403; approved by parent, student; sent |
-| 14 | 2026-10-12 | Card controls | agent (fallback) froze card via ['check_message', 'freeze_card']; agent unfreeze → HTTP 403; student unfroze with fingerprint/PIN |
-| 15 | 2026-10-12 | T3 renewal from abroad | renewal needs the student in person → plan: check Chinese account by 2026-12-12, living money by transfer by 2026-12-19 (done: mandate signed), renew on the next visit home |
-| 16 | 2026-10-19 | Tuition arrived | university account ¥35200.00 (deadline 2026-11-15) |
-| 17 | 2027-01-22 | Card stopped abroad (31 Dec) | card usable=False; living money kept arriving by transfer; stuck days so far = 0 |
-| 18 | 2027-01-22 | Earn & Save: surprise bill before Spring Festival | Shield ¥2250.00 after 3 pays; ¥2,500 hospital bill → money left ¥1600.00 |
-| 19 | 2027-02-21 | Spring Festival passed | stuck days in the live sandbox = 0; autopilot payments = 4 (all to the student's own account, inside the mandate); family approvals when the cap was not enough: ¥5400.00 on 2026-12-30, ¥7000.00 on 2027-01-25; extra top-ups the law did not allow: ¥1000.00 on 2027-01-26 (living_cap) |
-| 20 | 2027-02-21 | Prove: family feed (Bengali) | “সাথী শিক্ষার্থীর চীনের অ্যাকাউন্টে ¥৬,৩০০ পাঠিয়েছে: খরচ ৳১,১৯,৯৫১ (BRAC Bank)। পৌঁছাবে ২০২৭-০২-০১। এখন কেন: শিক্ষার্থীর হাতে ৫ দিনেরও কম টাকা …” |
-| 21 | 2027-02-21 | Earn & Save: results | 4 pays, Shield ¥2200.00 of ¥6000.00; Shield covered ¥800 on its own (2 moves); wants logged ¥3325 over 19 weeks; parent sees: “শিক্ষার্থী নিজের আয় থেকে ¥৭৫০ জমিয়েছে”. Dollar crisis (4 weeks, every start week): no-stuck-day starts 0.0% → 32.0% → 96.0% (today → Sathi → Sathi + Shield), typical 23 → 4 → 0 days |
-| 22 | 2027-02-21 | Prove: receipts | 7 payments: 3 approved by people (EXECUTE), 4 by the autopilot under the signed mandate (MANDATE, proposal hash e40b5cf1031a…) |
-| 23 | 2027-02-21 | Prove: payment passport | 7 payments, on time 1/1; verify → True; tampered copy → False |
+| 12 | 2026-10-12 | T4 scam blocked | draft draft-0008 status=blocked; failed checks: payee_allowlisted, origin_message_safe, cop_verification |
+| 13 | 2026-10-12 | T1 tuition | best BRAC Bank ৳653435.64; read aloud before signing: “আপনি Demo University Finance Office (Sandbox Bank of China ****6021)-ক…”; agent execute → HTTP 403; approve without passkey → HTTP 403; signature for another payment → HTTP 403; approved by parent, student with passkeys; sent; the same tap retried → HTTP 200, same answer = True (paid once); ISO 20022 pain.001 valid = True, UETR 1dab51db-58d9-42b5-a685-e6d42bab8d1c |
+| 14 | 2026-10-12 | Open banking (read-only) | parent allowed Sathi to read BRAC Bank for 90 days (passkey-signed consent obc-0001); Sathi read ৳1230304.59; parent revoked it → Sathi reading again: HTTP 403 |
+| 15 | 2026-10-12 | Card controls | agent (fallback) froze card via ['check_message', 'freeze_card']; agent unfreeze → HTTP 403; student unfroze with fingerprint/PIN |
+| 16 | 2026-10-12 | T3 renewal from abroad | renewal needs the student in person → plan: check Chinese account by 2026-12-12, living money by transfer by 2026-12-19 (done: mandate signed), renew on the next visit home |
+| 17 | 2026-10-19 | Tuition arrived | university account ¥35200.00 (deadline 2026-11-15) |
+| 18 | 2027-01-22 | Card stopped abroad (31 Dec) | card usable=False; living money kept arriving by transfer; stuck days so far = 0 |
+| 19 | 2027-01-22 | Earn & Save: surprise bill before Spring Festival | Shield ¥2250.00 after 3 pays; ¥2,500 hospital bill → money left ¥1600.00 |
+| 20 | 2027-02-21 | Spring Festival passed | stuck days in the live sandbox = 0; autopilot payments = 4 (all to the student's own account, inside the mandate); family approvals when the cap was not enough: ¥5400.00 on 2026-12-30, ¥7000.00 on 2027-01-25; extra top-ups the law did not allow: ¥1000.00 on 2027-01-26 (living_cap) |
+| 21 | 2027-02-21 | Prove: family feed (Bengali) | “সাথী শিক্ষার্থীর চীনের অ্যাকাউন্টে ¥৬,৩০০ পাঠিয়েছে: খরচ ৳১,১৯,৯৫১ (BRAC Bank)। পৌঁছাবে ২০২৭-০২-০১। এখন কেন: শিক্ষার্থীর হাতে ৫ দিনেরও কম টাকা …” |
+| 22 | 2027-02-21 | Earn & Save: results | 4 pays, Shield ¥2200.00 of ¥6000.00; Shield covered ¥800 on its own (2 moves); wants logged ¥3325 over 19 weeks; parent sees: “শিক্ষার্থী নিজের আয় থেকে ¥৭৫০ জমিয়েছে”. Dollar crisis (4 weeks, every start week): no-stuck-day starts 0.0% → 32.0% → 96.0% (today → Sathi → Sathi + Shield), typical 23 → 4 → 0 days |
+| 23 | 2027-02-21 | Prove: receipts | 7 payments: 3 approved by people (EXECUTE), 4 by the autopilot under the signed mandate (MANDATE, proposal hash e40b5cf1031a…) |
+| 24 | 2027-02-21 | Prove: payment passport | 7 payments, on time 1/1; verify → True; tampered copy → False |
+| 25 | 2027-02-21 | Prove: double-entry books | 178 journal entries; trial balance BDT 0.00, CNY 0.00; reconciled = True; 7 payments each booked once (booked twice: 0); 1 retry answered without paying again |
 
-**Audit log:** 237 entries, hash chain valid = **True** (file: `sandbox_operation_log.jsonl`).
+**Audit log:** 255 entries, hash chain valid = **True** (file: `sandbox_operation_log.jsonl`).
 
-Permission levels in the log: DRAFT ×24, EXECUTE ×12, MANDATE ×17, READ ×20, SANDBOX ×24, SYSTEM ×140
+Permission levels in the log: DRAFT ×24, EXECUTE ×14, MANDATE ×18, READ ×20, SANDBOX ×24, SYSTEM ×155
 
-Events: agent_chat ×1, autopilot_escalated ×3, card_active ×1, card_frozen ×1, clock_advanced ×132, crisis_tested ×1, draft_approved ×6, draft_cancelled ×1, draft_created ×9, hundi_checked ×1, income_received ×4, income_source_added ×2, income_source_removed ×1, mandate_created ×1, mandate_proposed ×2, mandate_sign_denied ×1, mandate_signed ×2, message_checked ×1, message_dropped ×1, message_ingested ×12, passport_issued ×1, permission_denied ×4, plan_tuition ×1, renewal_planned ×1, renewal_step ×2, sandbox_seeded ×1, savings_rule_active ×1, savings_rule_proposed ×1, shield_cover ×2, shield_saved ×4, spending_logged ×19, stress_tested ×1, surprise_expense ×1, transfer_arrived ×7, transfer_sent ×7, year_planned ×1
+Events: agent_chat ×1, autopilot_escalated ×3, bank_consent_authorised ×1, bank_consent_requested ×1, bank_consent_revoked ×1, bank_data_read ×1, bank_read_denied ×1, card_active ×1, card_frozen ×1, clock_advanced ×132, crisis_tested ×1, draft_approved ×6, draft_cancelled ×1, draft_created ×9, hundi_checked ×1, idempotent_replay ×1, income_received ×4, income_source_added ×2, income_source_removed ×1, iso20022_generated ×7, mandate_created ×1, mandate_proposed ×2, mandate_sign_denied ×2, mandate_signed ×2, message_checked ×1, message_dropped ×1, message_ingested ×12, passkey_registered ×2, passkey_verification_failed ×1, passport_issued ×1, permission_denied ×5, plan_tuition ×1, renewal_planned ×1, renewal_step ×2, sandbox_seeded ×1, savings_rule_active ×1, savings_rule_proposed ×1, shield_cover ×2, shield_saved ×4, spending_logged ×19, stress_tested ×1, surprise_expense ×1, transfer_arrived ×7, transfer_sent ×7, year_planned ×1
