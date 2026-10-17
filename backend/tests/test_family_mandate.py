@@ -1,4 +1,5 @@
 """Family mandate (L3): the parent's words → a checked proposal → signatures → the autopilot acts inside it."""
+from dataclasses import replace
 from datetime import date, datetime
 from decimal import Decimal as D
 
@@ -7,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.agent.mandate_compiler import MandatePolicy, compile_mandate, parse_rules
 from app.main import create_app
+from app.security.permissions import Actor, Draft, Mandate, check_mandate
 from tests.fake_llm import FakeLLM, completion
 
 H = {"student": {"Authorization": "Bearer demo-student"}, "parent": {"Authorization": "Bearer demo-parent"},
@@ -125,6 +127,30 @@ def test_agent_can_propose_but_raw_mandates_are_for_the_paying_parent_only(clien
     body = {"payee_id": "student_own_cn", "max_bdt_per_payment": "1000", "max_bdt_per_period": "1000"}
     assert client.post("/mandates", json=body, headers=H["student"]).status_code == 403
     assert client.post("/mandates", json=body, headers=H["agent"]).status_code == 403
+
+
+def test_the_parent_alone_cannot_open_a_big_raw_mandate(client):
+    # From ৳1 lakh per payment both people sign, so a big cap must go through a proposal; the raw route refuses it.
+    big = {"payee_id": "student_own_cn", "max_bdt_per_payment": "900000", "max_bdt_per_period": "900000"}
+    r = client.post("/mandates", json=big, headers=H["parent"])
+    assert r.status_code == 403 and "both" in r.json()["detail"]
+    assert client.get("/mandates", headers=H["parent"]).json() == []
+    small = client.post("/mandates", json={**big, "max_bdt_per_payment": "60000"}, headers=H["parent"]).json()
+    assert small["signed_by"] == ["parent"]
+
+
+def test_a_big_payment_needs_a_mandate_both_people_signed():
+    one = Mandate("m-1", Actor.PARENT, "student_own_cn", D("900000"), D("900000"), 30, datetime(2027, 1, 1),
+                  signed_by=("parent",))
+    both = replace(one, signed_by=("parent", "student"))
+    draft = Draft("d-1", "tt_living", Actor.PARENT, D("6000"), D("114405.20"), "student_own_cn", None, None, "",
+                  NOW, datetime(2026, 10, 13), Actor.AGENT)
+    assert check_mandate(one, draft, NOW).allowed  # without a threshold: the caps alone (unchanged behaviour)
+    denied = check_mandate(one, draft, NOW, D("100000"))
+    assert not denied.allowed and "both" in denied.reason
+    assert check_mandate(both, draft, NOW, D("100000")).allowed
+    small = replace(draft, total_bdt=D("57000"))
+    assert check_mandate(one, small, NOW, D("100000")).allowed  # below the threshold one signature is enough
 
 
 def activate(client, text=BN_120K):

@@ -235,7 +235,7 @@ class ApprovalService:
             self.used_nonces.add(tok["nonce"])
 
 
-def check_mandate(mandate: Mandate, draft: Draft, now: datetime) -> Decision:
+def check_mandate(mandate: Mandate, draft: Draft, now: datetime, two_person_threshold_bdt: Decimal | None = None) -> Decision:
     if mandate.revoked:
         return Decision(False, "mandate revoked")
     if now > mandate.expires_at:
@@ -248,4 +248,9 @@ def check_mandate(mandate: Mandate, draft: Draft, now: datetime) -> Decision:
         return Decision(False, "amount exceeds the mandate's per-payment cap")
     if mandate.spent_in_period(now) + draft.total_bdt > mandate.max_bdt_per_period:
         return Decision(False, "amount exceeds the mandate's period cap")
+    # The two-person rule holds for mandated payments too: a payment at or above the threshold needs a mandate that
+    # BOTH the student and the parent signed, however the mandate was created.
+    if (two_person_threshold_bdt is not None and draft.total_bdt >= two_person_threshold_bdt
+            and not {Actor.STUDENT.value, Actor.PARENT.value} <= set(mandate.signed_by)):
+        return Decision(False, "a payment this large needs a mandate signed by both the student and the parent")
     return Decision(True, "within mandate")

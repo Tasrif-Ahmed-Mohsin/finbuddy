@@ -57,7 +57,7 @@ so Sathi turns part of it into a **Shield** for the days the legal channel from 
 - Signatures and approvals are bound to the exact proposal or draft. What people read and hear is generated from those exact fields, never by the AI.
 - Numbers from the AI must appear in the user's text.
 - The student's savings rule is signed by the student only; Shield money only moves between the student's own accounts; the parent never sees income or purchases.
-- Two-person rule from ৳1 lakh; hash-chained audit log; 327 tests, including the red-team cases.
+- Two-person rule from ৳1 lakh; hash-chained audit log; 330 tests, including the red-team cases.
 
 ## Run it
 
@@ -83,7 +83,7 @@ On a phone, the app looks for the backend on the same computer at port 8000 (the
 
 ## Test it
 ```bash
-cd backend && .venv/Scripts/python -m pytest -q        # 327 tests: bank prices, year plan, mandates + autopilot, Earn & Save, security, engines, agent, inbox, FX, cards, renewals, passport, documents
+cd backend && .venv/Scripts/python -m pytest -q        # 330 tests: bank prices, year plan, mandates + autopilot, Earn & Save, security, engines, agent, inbox, FX, cards, renewals, passport, documents
 cd mobile && npx tsc --noEmit && npx expo lint   # a fresh clone needs expo-env.d.ts first: run `npx expo start` once (it is git-ignored)
 ```
 

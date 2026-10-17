@@ -196,12 +196,16 @@ class ChatAgent:
             tl = a.timeline()
             return {"timeline": tl["items"], "card_usage": tl["card_usage"], "spending": a.inbox.summary(),
                     "data_is_sample": tl["data_is_sample"]}
+        # The chat sees what the person chatting may see: the parent never gets the student's pay or wants.
         if name == "get_updates":
-            return {"insights": [{k: i[k] for k in ("type", "severity", "title", "body", "savings_bdt")} for i in a.inbox.insights()]}
+            return {"insights": [{k: i[k] for k in ("type", "severity", "title", "body", "savings_bdt")}
+                                 for i in a.visible_insights(Actor(self._actor))]}
         if name == "list_transactions":
             limit = int(args.get("limit") or 8)
+            hidden = a.private_txn_ids(Actor(self._actor))
+            mine = [x for x in a.inbox.txns if x.id not in hidden]
             return {"transactions": [{k: t[k] for k in ("received_at", "direction", "amount", "currency", "kind", "counterparty", "bdt_value", "owner")}
-                                     for t in [x.to_dict() for x in a.inbox.txns[-limit:][::-1]]]}
+                                     for t in [x.to_dict() for x in mine[-limit:][::-1]]]}
         if name == "compare_tuition":
             amount = _num(args.get("amount_cny"))
             deadline = date.fromisoformat(str(args.get("deadline")))
@@ -531,7 +535,7 @@ class ChatAgent:
             return T["living"].format(need=f"¥{int(Decimal(need)):,}", total=_bdt(p["total_bdt"]),
                                       save=_bdt(p["savings_vs_all_atm_bdt"]))
         tools_used.append("get_updates")
-        ins = self.app.inbox.insights()
+        ins = self.app.visible_insights(Actor(self._actor))
         if not ins:
             return T["nothing"]
         top = "\n".join(f"• {i['title']}: {i['body']}" for i in ins[:3])

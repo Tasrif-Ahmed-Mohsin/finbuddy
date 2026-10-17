@@ -394,6 +394,22 @@ def test_the_parent_never_reads_the_students_pay_or_purchases_anywhere(client):
     assert "error" in p.run_tool("propose_savings_rule", {"text": "save 50%"}, [])  # the parent cannot write it via the chat
 
 
+def test_the_chat_tools_never_show_the_parent_the_students_pay_or_wants(client):
+    # The AI sees what the person chatting may see: the same filter as the screens, so the parent cannot ask around it.
+    client.post("/inbox/demo/seed", headers=H["student"])  # includes a salary SMS and Meituan purchases
+    agent = svc(client).agent
+
+    def tool(who, name):
+        agent._actor = who
+        return agent.run_tool(name, {"limit": 20}, [])
+
+    assert "income" in {t["kind"] for t in tool("student", "list_transactions")["transactions"]}
+    assert "income" not in {t["kind"] for t in tool("parent", "list_transactions")["transactions"]}
+    assert {"income_received", "wants_from_alerts"} <= {i["type"] for i in tool("student", "get_updates")["insights"]}
+    parent_updates = {i["type"] for i in tool("parent", "get_updates")["insights"]}
+    assert parent_updates and not {"income_received", "wants_from_alerts"} & parent_updates
+
+
 def test_an_emergency_releases_only_the_shortfall_at_once(client):
     signed_rule(client, cooling_off_hours=24)
     client.post("/save/income", json={"amount_cny": "12000"}, headers=H["student"])  # Shield ¥6,000 (full)

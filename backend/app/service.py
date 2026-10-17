@@ -415,8 +415,14 @@ class AppState:
             raise PermissionError("only the parent, who pays, can create a mandate")
         if payee_id not in self.bank.payees or not self.bank.payees[payee_id].verified:
             raise ValueError("mandates are only allowed for verified payees")
+        threshold = self.corridor.v("two_person_threshold_bdt")
+        if D(max_bdt_per_payment) >= threshold:  # the two-person rule: big caps go through a proposal both people sign
+            self._log("permission_denied", actor, "execute_under_mandate", {
+                "reason": "two-person rule", "max_per_payment_bdt": str(max_bdt_per_payment)})
+            raise PermissionError(f"a cap of ৳{threshold:,.0f} or more per payment needs both the parent and the student: "
+                                  "write it as a family mandate so both can sign")
         m = Mandate(self._id("mandate"), actor, payee_id, D(max_bdt_per_payment), D(max_bdt_per_period), period_days,
-                    self.now + timedelta(days=valid_days))
+                    self.now + timedelta(days=valid_days), signed_by=(actor.value,))
         self.mandates[m.id] = m
         self._log("mandate_created", actor, "execute_under_mandate", {"mandate_id": m.id, "payee": payee_id,
                   "max_per_payment_bdt": str(m.max_bdt_per_payment), "max_per_period_bdt": str(m.max_bdt_per_period),
@@ -437,7 +443,7 @@ class AppState:
         self._require(actor, "execute_under_mandate")
         d, spec, m = self.drafts[draft_id], self.specs[draft_id], self.mandates[mandate_id]
         checks = run_draft_checks(d, self._ctx(spec.origin_message))
-        decision = check_mandate(m, d, self.now)
+        decision = check_mandate(m, d, self.now, self.corridor.v("two_person_threshold_bdt"))
         if is_blocked(checks) or not decision.allowed or d.status in ("executed", "cancelled"):
             reason = decision.reason if not decision.allowed else (
                 f"draft is {d.status}" if d.status in ("executed", "cancelled") else "blocked by compliance checks")
@@ -1243,6 +1249,16 @@ class AppState:
                 "rule_on": self._savings_rule() is not None}
 
     PRIVATE_EVENTS = ("income_received", "income_source_added", "income_source_removed", "spending_logged")
+    PRIVATE_INSIGHTS = ("income_received", "wants_from_alerts")
+
+    def private_txn_ids(self, actor: Actor) -> set[str]:
+        """The student's own pay alerts are theirs: the parent does not see them (Earn & Save privacy)."""
+        return {t.id for t in self.inbox.txns if t.kind == "income"} if actor == Actor.PARENT else set()
+
+    def visible_insights(self, actor: Actor) -> list[dict]:
+        """Insights as this person may see them: the student's pay and wants are theirs to see."""
+        items = self.inbox.insights()
+        return [i for i in items if i["type"] not in self.PRIVATE_INSIGHTS] if actor == Actor.PARENT else items
 
     def visible_accounts(self, actor: Actor) -> list[dict]:
         """Sandbox accounts as this person may see them: the Shield is hidden from the parent unless shared."""

@@ -558,18 +558,14 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
         results = [s.inbox.ingest(who.value, "email", e.sender, e.text) for e in emails]
         return {"fetched": len(emails), "kept": sum(1 for r in results if r["kept"])}
 
-    def private_txn_ids(who: Actor, s: AppState) -> set[str]:
-        # The student's own pay alerts are theirs: the parent does not see them (Earn & Save privacy).
-        return {t.id for t in s.inbox.txns if t.kind == "income"} if who == Actor.PARENT else set()
-
     @app.get("/inbox/messages")
     def inbox_messages(limit: int = 50, s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        hidden = private_txn_ids(who, s)
+        hidden = s.private_txn_ids(who)
         return [m.to_dict() for m in s.inbox.messages[-limit:][::-1] if m.txn_id not in hidden]
 
     @app.get("/inbox/transactions")
     def inbox_transactions(limit: int = 50, s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        hidden = private_txn_ids(who, s)
+        hidden = s.private_txn_ids(who)
         return [t.to_dict() for t in s.inbox.txns[-limit:][::-1] if t.id not in hidden]
 
     @app.get("/inbox/summary")
@@ -591,10 +587,7 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
 
     @app.get("/insights")
     def insights(lang: str = "en", s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        items = s.inbox.insights()
-        if who == Actor.PARENT:  # the student's pay and wants are theirs to see
-            items = [i for i in items if i["type"] not in ("income_received", "wants_from_alerts")]
-        return {"insights": s.translator.translate(items, lang), "summary": s.inbox.summary()}
+        return {"insights": s.translator.translate(s.visible_insights(who), lang), "summary": s.inbox.summary()}
 
     # ---- Earn & Save: the student's own money abroad and the Shield ---------------------------
     @app.get("/save")

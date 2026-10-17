@@ -212,6 +212,7 @@ The same model as family mandates, with the **student** as the one who signs (it
 | AI invents a bigger mandate cap | ignored, rules' number kept | ✅ | `test_llm_numbers_must_come_from_the_text` |
 | AI flag tries to change the payee or refuse | becomes a reminder only | ✅ | `test_only_the_rules_can_refuse_an_llm_flag_becomes_a_reminder` |
 | Student or agent creates a raw mandate on the parent's money | 403 | ✅ | `test_agent_can_propose_but_raw_mandates_are_for_the_paying_parent_only` |
+| Parent alone opens a raw mandate with a cap of ৳1 lakh+ per payment, then the agent sends ৳1 lakh+ under it (found in our own audit, 17 Oct; fixed) | 403: big caps need a proposal both people sign, and any mandated payment of ৳1 lakh+ needs both signatures | ✅ | `test_the_parent_alone_cannot_open_a_big_raw_mandate`, `test_a_big_payment_needs_a_mandate_both_people_signed` |
 | Autopilot exceeds the caps or pays someone else | never: every payment ≤ per-payment cap, monthly sum ≤ cap, payee = own account | ✅ | `test_autopilot_acts_on_signing_and_keeps_the_student_funded_through_the_card_stop` |
 | Cap too small for what is needed | the family is asked, nothing above the cap is sent | ✅ | `test_cap_too_small_means_the_family_is_asked_not_overridden` |
 | Autopilot keeps paying after cancel | stops | ✅ | `test_revoking_stops_the_autopilot` |
@@ -254,12 +255,13 @@ The same model as family mandates, with the **student** as the one who signs (it
 | A real emergency is slowed by the lock | never: instant when the balance cannot cover the day | ✅ | `test_an_emergency_is_instant_even_with_a_lock` |
 | Parent sees the student's income or purchases | never; Shield only if shared | ✅ | `test_privacy_parent_sees_the_shield_never_income_or_purchases` |
 | Parent reads pay or purchases through another door (accounts, audit log, export, insights, inbox, year plan, crisis test, the chat) | hidden or marked private; the chain still verifies | ✅ | `test_the_parent_never_reads_the_students_pay_or_purchases_anywhere`, `test_crisis_endpoint_and_year_plan_show_the_shield` |
+| Parent asks the chat to list transactions or updates (found in our own audit, 17 Oct; fixed) | the chat's tools use the same privacy filter as the screens: no pay alerts, no wants | ✅ | `test_the_chat_tools_never_show_the_parent_the_students_pay_or_wants` |
 | Spend down to zero, then withdraw the whole Shield "as an emergency" | only the shortfall until money can land is instant; the rest waits | ✅ | `test_an_emergency_releases_only_the_shortfall_at_once` |
 | Savings shrink the family's transfers, or wants speed up the autopilot | never | ✅ | `test_the_shield_is_not_spending_money`, `test_spending_is_categorised_and_shown_in_taka` |
 | Unauthorised work planned on | never; flagged with the legal route | ✅ | `test_only_the_student_declares_income_and_unauthorised_work_is_flagged`, `test_paydays_and_planned_income_skip_unauthorised_work` |
 | Hundi recommended, or the bank gap hidden | never; the gap is shown with the risks | ✅ | `test_hundi_check_is_honest_and_points_to_legal_ways`, `test_offline_agent_handles_saving_and_hundi` |
 
-Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (327 cases).
+Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (330 cases).
 
 ## 10. Known-risk list
 
@@ -271,7 +273,7 @@ Likelihood and impact are rated for a **production** deployment (L = low, M = me
 | R2 | **The server cannot prove the biometric step** (the phone checks biometrics, then calls approve) | M | H | Approval tokens are bound, single-use and expire; the two-person rule | Partial | Device-bound keys (Android Keystore / Secure Enclave, WebAuthn) **sign** the draft hash |
 | R3 | Web preview treats a tap as confirmation | L | M | Development only; the phone uses biometrics/PIN | Accepted | Disable approvals on web, or use WebAuthn |
 | R4 | CORS allows all origins; HTTP in development | M | M | Local network only | Open | TLS everywhere, strict CORS, HSTS |
-| R5 | No rate limiting / brute-force protection | M | M | Short-lived tokens; 24-character passport codes | Open | Gateway rate limits, lockouts, anomaly alerts |
+| R5 | Rate limiting covers writes only | M | M | Public site: per-address limits on writes (AI 20 / 10 min, others 120 / 10 min) and a daily AI budget; short-lived tokens; 24-character passport codes. Reads (e.g. the stress test) are not limited | Partial | Gateway rate limits on all routes, lockouts, anomaly alerts |
 | R6 | **Signing secrets** (approvals, passports) are random per process or come from env | M | H | Never logged; per-process randomness | Partial | KMS/HSM keys, rotation, key ids in signatures |
 | R7 | State in memory; audit file is local JSONL | M | M | Hash chain detects edits | Accepted for demo | Append-only (WORM) storage, periodic external anchoring of the chain head |
 | R8 | **Data sent to a third-party AI** (DeepSeek, China-based) | M | H | Only redacted text; photos only when the user chooses; no AI calls in tests | Partial | Explicit consent screen, data-processing agreement, region choice, per-user opt-out (rules still work) |
@@ -311,6 +313,6 @@ For the **sandbox demo**, the residual risk is low: no real money or data. Every
 
 ```bash
 cd backend
-.venv/Scripts/python -m pytest -q                # 327 cases incl. all red-team tests above
+.venv/Scripts/python -m pytest -q                # 330 cases incl. all red-team tests above
 .venv/Scripts/python scripts/demo_scenario.py    # end-to-end run → docs/evidence/ (hash-chained log)
 ```
