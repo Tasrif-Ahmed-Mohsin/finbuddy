@@ -156,7 +156,7 @@ sequenceDiagram
 | `backend/app/corridors/bd_cn.yaml` | Rule pack: every number with value, confidence (official / secondary / field / assumption) and source |
 | `backend/app/data/` | `bank_holidays.yaml` (BD + CN closures), `bank_quotes.yaml` (estimates + real payment), `fx_history.csv`, `demo_messages.yaml` |
 | `backend/scripts/` | `fetch_fx_history.py` (data pipeline), `demo_scenario.py` (end-to-end run + evidence export) |
-| `backend/tests/` | 330 automated test cases (20 files) |
+| `backend/tests/` | 332 automated test cases (20 files) |
 | `mobile/src/` | Expo Router screens (`app/`), components, API client, i18n (bn/en/zh), formatting (lakh, Bengali digits) |
 | `docs/` | Research, plans, this document, security self-assessment, `evidence/` (sandbox operation logs) |
 
@@ -543,7 +543,7 @@ cd mobile && npm install && npx expo start
 | `WHATSAPP_MODE` | `off` · `dry_run` (log only) · `live`; the public demo uses `off` |
 
 **Public deployment (one address, `Dockerfile` + `render.yaml`).** The image builds the Expo web app and serves it together with the API (`app/web.py`, API under `/api`). The app's routes such as `/emergency` get the web app; only files inside the build folder are served (path traversal tested). Because anyone can open a public demo and AI calls cost money:
-- per-address rate limits: AI-backed writes (chat, documents, mandate proposals, inbox) 20 per 10 minutes, other writes 120 per 10 minutes; reads are not limited;
+- per-address rate limits: AI-backed writes (chat, documents, mandate proposals, inbox) 20 per 10 minutes, other writes 120 per 10 minutes, the CPU-heavy stress test 30 per 10 minutes (and at most 200 runs a call); other reads are not limited;
 - a daily AI budget (`SATHI_LLM_DAILY_CALLS`, 600 in the image); past it, every answer still works through the rule-based fallback;
 - WhatsApp is off; secrets come only from the host's environment settings (`.env` files are excluded from the image);
 - "Start the demo again" in Settings (`POST /sandbox/reset`, users only) gives a clean sandbox from 12 Oct 2026.
@@ -557,14 +557,14 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
 
 ## 10. Testing and execution evidence
 
-- `cd backend && .venv/Scripts/python -m pytest -q` runs **330 test cases** (252 test functions, some parameterised), all passing:
+- `cd backend && .venv/Scripts/python -m pytest -q` runs **332 test cases** (254 test functions, some parameterised), all passing:
 
   | Area | Test cases |
   |---|---|
   | Living optimiser (incl. 30-combination limit check) | 36 |
-  | **Earn & Save: income and work rules, savings rule (3 languages, hash, signers), Shield, cooling-off, family lock, emergencies, privacy on every door, taka lens, hundi honesty, dollar crisis, inbox, chat** | **39** |
+  | **Earn & Save: income and work rules, savings rule (3 languages, hash, signers), Shield, cooling-off, family lock, emergencies, privacy on every door, taka lens, hundi honesty, dollar crisis, inbox, chat** | **40** |
   | **Dialogue: clarification, correction, refusal (EN/BN/ZH)** | **31** |
-  | **Family mandate, signatures and autopilot** | **26** |
+  | **Family mandate, signatures and autopilot** | **28** |
   | **Bank prices: published sheets, fee schedules, rate watch** | **23** |
   | **Emergency mode, fake emergencies, "Are you safe?"** | **22** |
   | Security and permissions | 20 |
@@ -572,12 +572,12 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
   | FX and card controls | 16 |
   | End-to-end API scenarios | 13 |
   | **Year plan, bank calendar, cost truth** | **12** |
-  | **Stress test, what-if, spending pace, late margin** | **11** |
+  | **Stress test, what-if, spending pace, late margin** | **12** |
   | Payment passport | 10 |
   | Renewals (incl. endorsement from abroad) | 10 |
   | WhatsApp alerts (dry run, template fallback) | 10 |
   | Agent | 9 |
-  | **Public deployment: routing, path traversal, rate limits, AI budget, reset** | **8** |
+  | **Public deployment: routing, path traversal, rate limits, AI budget, reset** | **9** |
   | Documents | 5 |
   | Tuition and FX method | 5 |
   | Cost engine | 4 |

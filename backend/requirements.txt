@@ -1,9 +1,11 @@
-fastapi>=0.115
-uvicorn[standard]>=0.30
-pydantic>=2.8
-PyYAML>=6.0
-numpy>=2.0
-pytest>=8.0
-httpx>=0.27
-qrcode>=7.4
-pypdf>=5.0  # reads banks' published rate-sheet PDFs (BSD)
+# Exact versions the tests pass with (pinned 2026-10-17), so a new release cannot break the Docker build.
+fastapi==0.143.0
+starlette==1.7.0  # comes with fastapi; pinned because its test client is changing
+uvicorn[standard]==0.54.0
+pydantic==2.14.1
+PyYAML==6.0.3
+numpy==2.5.4
+pytest==9.1.1
+httpx==0.28.1
+qrcode==8.2
+pypdf==6.20.1  # reads banks' published rate-sheet PDFs (BSD)

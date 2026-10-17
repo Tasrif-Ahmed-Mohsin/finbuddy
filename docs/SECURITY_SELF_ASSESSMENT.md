@@ -239,6 +239,7 @@ The same model as family mandates, with the **student** as the one who signs (it
 | The agent or the parent answers "Are you safe?" for the student | 403 | ✅ | `test_only_the_parent_asks_and_only_the_student_answers` |
 | Read files outside the web build (`/../.env`, encoded variants) | never served | ✅ | `test_files_outside_the_build_are_never_served` |
 | Flood the public AI endpoints | 429 after the per-address limit; other visitors unaffected | ✅ | `test_ai_endpoints_are_rate_limited_per_address` |
+| Hammer the CPU-heavy stress test to freeze the shared demo | capped at 200 runs; 429 after 30 calls per 10 min per address | ✅ | `test_stress_runs_are_capped_so_one_call_cannot_hog_the_server`, `test_the_cpu_heavy_stress_test_is_rate_limited_per_address` |
 | Run up the AI bill | daily budget, then rule-based answers | ✅ | `test_ai_budget_runs_out_into_the_rule_based_fallback` |
 | Agent resets the sandbox | 403 | ✅ | `test_users_can_reset_the_demo_but_the_agent_cannot` |
 | Pressing "I have no money" twice | one urgent draft, one alert, nothing sent | ✅ | `test_no_money_prepares_an_urgent_draft_for_the_parent_and_sends_nothing` |
@@ -261,7 +262,7 @@ The same model as family mandates, with the **student** as the one who signs (it
 | Unauthorised work planned on | never; flagged with the legal route | ✅ | `test_only_the_student_declares_income_and_unauthorised_work_is_flagged`, `test_paydays_and_planned_income_skip_unauthorised_work` |
 | Hundi recommended, or the bank gap hidden | never; the gap is shown with the risks | ✅ | `test_hundi_check_is_honest_and_points_to_legal_ways`, `test_offline_agent_handles_saving_and_hundi` |
 
-Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (330 cases).
+Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (332 cases).
 
 ## 10. Known-risk list
 
@@ -273,7 +274,7 @@ Likelihood and impact are rated for a **production** deployment (L = low, M = me
 | R2 | **The server cannot prove the biometric step** (the phone checks biometrics, then calls approve) | M | H | Approval tokens are bound, single-use and expire; the two-person rule | Partial | Device-bound keys (Android Keystore / Secure Enclave, WebAuthn) **sign** the draft hash |
 | R3 | Web preview treats a tap as confirmation | L | M | Development only; the phone uses biometrics/PIN | Accepted | Disable approvals on web, or use WebAuthn |
 | R4 | CORS allows all origins; HTTP in development | M | M | Local network only | Open | TLS everywhere, strict CORS, HSTS |
-| R5 | Rate limiting covers writes only | M | M | Public site: per-address limits on writes (AI 20 / 10 min, others 120 / 10 min) and a daily AI budget; short-lived tokens; 24-character passport codes. Reads (e.g. the stress test) are not limited | Partial | Gateway rate limits on all routes, lockouts, anomaly alerts |
+| R5 | Rate limiting covers writes and the one heavy read only | M | M | Public site: per-address limits on writes (AI 20 / 10 min, others 120 / 10 min) and on the CPU-heavy stress test (30 / 10 min, at most 200 runs); a daily AI budget; short-lived tokens; 24-character passport codes. Other reads are not limited | Partial | Gateway rate limits on all routes, lockouts, anomaly alerts |
 | R6 | **Signing secrets** (approvals, passports) are random per process or come from env | M | H | Never logged; per-process randomness | Partial | KMS/HSM keys, rotation, key ids in signatures |
 | R7 | State in memory; audit file is local JSONL | M | M | Hash chain detects edits | Accepted for demo | Append-only (WORM) storage, periodic external anchoring of the chain head |
 | R8 | **Data sent to a third-party AI** (DeepSeek, China-based) | M | H | Only redacted text; photos only when the user chooses; no AI calls in tests | Partial | Explicit consent screen, data-processing agreement, region choice, per-user opt-out (rules still work) |
@@ -313,6 +314,6 @@ For the **sandbox demo**, the residual risk is low: no real money or data. Every
 
 ```bash
 cd backend
-.venv/Scripts/python -m pytest -q                # 330 cases incl. all red-team tests above
+.venv/Scripts/python -m pytest -q                # 332 cases incl. all red-team tests above
 .venv/Scripts/python scripts/demo_scenario.py    # end-to-end run → docs/evidence/ (hash-chained log)
 ```

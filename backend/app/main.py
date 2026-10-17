@@ -458,7 +458,8 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
 
     @app.get("/plan/stress")
     def stress(runs: int = 200, s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        return guard(s.stress_test, who, max(20, min(runs, 500)))
+        # 200 runs is what the app asks for and what the results report; more only costs CPU on a shared demo.
+        return guard(s.stress_test, who, max(20, min(runs, 200)))
 
     @app.get("/feed")
     def feed(lang: str = "en", s: AppState = Depends(svc), who: Actor = Depends(actor)):

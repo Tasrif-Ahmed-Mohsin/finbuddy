@@ -6,7 +6,8 @@
 * The Expo web build (mobile/dist, or SATHI_WEB_DIR) is served for every other path; unknown paths get index.html
   so links into the app work. Only files inside the build folder are ever served.
 * Rate limits per address, because anyone can open a public demo and the AI calls cost money:
-  AI-backed writes (chat, documents, mandate proposals, inbox) 20 per 10 minutes, other writes 120 per 10 minutes.
+  AI-backed writes (chat, documents, mandate proposals, inbox) 20 per 10 minutes, other writes 120 per 10 minutes,
+  and the CPU-heavy stress test (a read) 30 per 10 minutes, so a few visitors cannot freeze a small server.
   The DeepSeek client also has a daily budget (SATHI_LLM_DAILY_CALLS); past it the agent answers with its rules.
 """
 from __future__ import annotations
@@ -21,7 +22,17 @@ from fastapi.responses import FileResponse, JSONResponse
 
 DEFAULT_WEB_DIR = Path(__file__).resolve().parents[2] / "mobile" / "dist"
 AI_PATHS = ("/api/agent/chat", "/api/documents", "/api/mandates/proposals", "/api/inbox")
-LIMITS = {"ai": (20, 600.0), "write": (120, 600.0)}  # (requests, seconds) per address
+HEAVY_PATHS = ("/api/plan/stress",)  # reads that cost seconds of CPU each
+LIMITS = {"ai": (20, 600.0), "write": (120, 600.0), "heavy": (30, 600.0)}  # (requests, seconds) per address
+
+
+def limit_kind(request: Request) -> str | None:
+    path = request.url.path
+    if request.method == "POST" and path.startswith("/api/"):
+        return "ai" if path.startswith(AI_PATHS) else "write"
+    if request.method == "GET" and path.startswith(HEAVY_PATHS):
+        return "heavy"
+    return None
 
 
 def client_address(request: Request) -> str:
@@ -36,14 +47,14 @@ def create_site(api: FastAPI | None = None, web_dir: Path | None = None, limits:
     if api is None:
         from app.main import app as api
     root = (web_dir or Path(os.environ.get("SATHI_WEB_DIR", DEFAULT_WEB_DIR))).resolve()
-    limits = limits or LIMITS
+    limits = {**LIMITS, **(limits or {})}
     hits: dict[tuple[str, str], deque] = defaultdict(deque)
     site = FastAPI(title="Sathi", docs_url=None, redoc_url=None, openapi_url=None)
 
     @site.middleware("http")
     async def rate_limit(request: Request, call_next):
-        if request.method == "POST" and request.url.path.startswith("/api/"):
-            kind = "ai" if request.url.path.startswith(AI_PATHS) else "write"
+        kind = limit_kind(request)
+        if kind is not None:
             n, window = limits[kind]
             if len(hits) > 20000:
                 hits.clear()  # bounded memory under a flood of addresses

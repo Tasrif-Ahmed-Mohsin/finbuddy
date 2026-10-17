@@ -96,6 +96,11 @@ def test_stress_endpoint(client):
     assert events and events[-1]["actor"] == "parent"
 
 
+def test_stress_runs_are_capped_so_one_call_cannot_hog_the_server(client):
+    assert client.get("/plan/stress?runs=100000", headers=H["parent"]).json()["runs"] == 200
+    assert client.get("/plan/stress?runs=1", headers=H["parent"]).json()["runs"] == 20
+
+
 def test_live_runway_uses_the_real_spending_pace(client):
     plan_daily = D(client.get("/runway", headers=H["student"]).json()["daily_spend_cny"])
     client.app.state.svc.bank.spend_log = [plan_daily * D("1.3")] * 14  # two weeks of spending 30% faster

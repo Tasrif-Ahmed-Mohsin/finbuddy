@@ -46,6 +46,15 @@ def test_ai_endpoints_are_rate_limited_per_address(site):
     assert site.get("/api/health").status_code == 200  # reading is never limited
 
 
+def test_the_cpu_heavy_stress_test_is_rate_limited_per_address(web_dir):
+    site = TestClient(create_site(create_app(audit_path=None, llm=None), web_dir, {"heavy": (2, 600.0)}))
+    codes = [site.get("/api/plan/stress?runs=20", headers=H["parent"]).status_code for _ in range(3)]
+    assert codes == [200, 200, 429]
+    other = {"x-forwarded-for": "203.0.113.9"}
+    assert site.get("/api/plan/stress?runs=20", headers={**H["parent"], **other}).status_code == 200
+    assert site.get("/api/plan/year", headers=H["parent"]).status_code == 200  # other reads are not limited
+
+
 def test_ai_budget_runs_out_into_the_rule_based_fallback():
     calls = []
 
