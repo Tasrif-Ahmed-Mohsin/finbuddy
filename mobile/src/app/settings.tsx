@@ -1,6 +1,12 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Mascot } from '@/components/mascot';
+import { Seal } from '@/components/neo';
 import { ThemedText } from '@/components/themed-text';
+import { Colors, Space } from '@/constants/theme';
 import { WhatsAppCard } from '@/components/whatsapp-card';
 import { Badge, Banner, Button, Card, ErrorBox, Field, H1, H2, Muted, Row, Screen, Segmented, styles } from '@/components/ui';
 import { post, type Accounts, type CorridorParam, type Role, type Sources } from '@/lib/api';
@@ -90,6 +96,48 @@ export default function SettingsScreen() {
       </Card>
 
       <Card>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/buddy')} style={({ pressed }) => [styles.row, { flexWrap: 'nowrap' }, pressed && { opacity: 0.8 }]}>
+          <Mascot size={64} mood="happy" />
+          <View style={{ flex: 1, gap: 2 }}>
+            <ThemedText type="smallBold">{t('meetSathi')}</ThemedText>
+            <Muted>{t('settingsBuddy')}</Muted>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Colors.light.textTertiary} />
+        </Pressable>
+      </Card>
+
+      <Card>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/judge')} style={({ pressed }) => [styles.row, { flexWrap: 'nowrap' }, pressed && { opacity: 0.8 }]}>
+          <Seal ok size={56} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <ThemedText type="smallBold">{t('judgeTitle')}</ThemedText>
+            <Muted>{t('settingsJudge')}</Muted>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Colors.light.textTertiary} />
+        </Pressable>
+      </Card>
+
+      {(
+        [
+          { href: '/banks', icon: 'business', title: 'settingsBanks', sub: 'settingsBanksSub' },
+          { href: '/privacy', icon: 'lock-closed', title: 'settingsPrivacy', sub: 'settingsPrivacySub' },
+        ] as const
+      ).map((l) => (
+        <Card key={l.href}>
+          <Pressable accessibilityRole="button" onPress={() => router.push(l.href)} style={({ pressed }) => [styles.row, { flexWrap: 'nowrap' }, pressed && { opacity: 0.8 }]}>
+            <View style={local.linkIcon}>
+              <Ionicons name={l.icon} size={24} color={Space.neon} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <ThemedText type="smallBold">{t(l.title)}</ThemedText>
+              <Muted>{t(l.sub)}</Muted>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.light.textTertiary} />
+          </Pressable>
+        </Card>
+      ))}
+
+      <Card>
         <Field label={t('server')} value={server} onChangeText={setServer} autoCapitalize="none" autoCorrect={false} />
         <Button title={t('testConnection')} variant="secondary" onPress={test} />
         {status && <Banner tone="ok">{status}</Banner>}
@@ -157,3 +205,7 @@ export default function SettingsScreen() {
     </Screen>
   );
 }
+
+const local = StyleSheet.create({
+  linkIcon: { width: 56, height: 56, borderRadius: 18, backgroundColor: Space.bg, alignItems: 'center', justifyContent: 'center', boxShadow: '0px 0px 12px rgba(77, 163, 255, 0.35)' },
+});

@@ -30,3 +30,6 @@ registration/
 *passport*.jpeg
 *passport*.png
 *passport*.pdf
+
+# Built Android apps (share the file, never commit it)
+*.apk

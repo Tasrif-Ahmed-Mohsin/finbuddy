@@ -11,6 +11,9 @@ Rules of the sandbox:
     separate savings pocket of the same account. It is NOT counted as money to spend: it is kept for the days
     money from home cannot arrive (Earn & Save).
   * Every operation writes to the hash-chained audit log: this is the execution evidence.
+  * Every movement of money is also a balanced double-entry journal entry (app/sandbox/ledger.py). Account balances
+    change ONLY through those entries, the books are checked after every operation (trial balance zero per
+    currency, every account reconciled), and a payment draft is booked at most once (exactly-once).
 """
 from __future__ import annotations
 
@@ -22,7 +25,10 @@ from app.audit.log import AuditLog
 from app.corridors.loader import Corridor
 from app.engines.year_plan import BankCalendar
 from app.money import q2
+from app.sandbox.ledger import ZERO, Ledger
 from app.security.compliance import Payee
+
+FX_DESK, TRANSIT, SPENDING, INCOME, OPENING = "fx_desk", "transit:CNY", "world:spending", "world:income", "equity:opening"
 
 
 @dataclass
@@ -88,6 +94,7 @@ class SandboxBank:
     # (when, amount, category, need|want): purchases the student logged. Kept apart from spend_log on purpose: wants paid
     # from the student's own pay must not look like faster LIVING spending, or the autopilot would send more from home.
     wants_log: list[tuple] = field(default_factory=list)
+    ledger: Ledger = field(default_factory=Ledger)
     _seq: int = 0
     _cny_per_usd: Decimal = Decimal("6.95")  # set from market data at seed time
 
@@ -108,16 +115,48 @@ class SandboxBank:
     def log(self, event: str, actor: str, level: str, data: dict) -> dict:
         return self.audit.append(event, actor, level, data, sim_time=self.clock.isoformat())
 
+    # ---- the books -------------------------------------------------------------
+    def _book(self, event: str, ref: str | None, legs: list[tuple[str, str, Decimal]]) -> None:
+        """Book one balanced entry, then move the customer balances it touches. The only way balances change."""
+        entry = self.ledger.post(self.clock.isoformat(), event, ref, legs)
+        for leg in entry.postings:
+            if leg.account in self.accounts:
+                self.accounts[leg.account].balance += leg.amount
+
+    def booked(self, draft_id: str) -> bool:
+        return draft_id in self.ledger.refs_of("payment_sent")
+
+    def check_books(self) -> dict:
+        """Trial balance (each currency sums to zero) and reconciliation (books = what each account shows)."""
+        trial = self.ledger.trial_balance()
+        mismatches = []
+        for a in self.accounts.values():
+            in_books = self.ledger.balance(a.id, a.currency)
+            if in_books != a.balance:
+                mismatches.append({"account": a.id, "books": str(in_books), "shown": str(a.balance)})
+        transit = sum((t.amount for t in self.pending), ZERO)
+        if self.ledger.balance(TRANSIT, "CNY") != transit:
+            mismatches.append({"account": TRANSIT, "books": str(self.ledger.balance(TRANSIT, "CNY")), "shown": str(transit)})
+        sent = self.ledger.refs_of("payment_sent")
+        twice = sorted({r for r in sent if sent.count(r) > 1})
+        return {"balanced": all(v == 0 for v in trial.values()), "trial_balance": {k: str(v) for k, v in trial.items()},
+                "reconciled": not mismatches, "mismatches": mismatches, "booked_twice": twice,
+                "entries": len(self.ledger.entries), "ok": all(v == 0 for v in trial.values()) and not mismatches and not twice}
+
     # ---- operations --------------------------------------------------------
     def execute_tt(self, draft_id: str, from_account_id: str, payee_id: str, amount_cny: Decimal,
                    total_bdt: Decimal, actor: str, level: str, purpose: str) -> dict:
         src = self.accounts[from_account_id]
         payee = self.payees[payee_id]
+        if self.booked(draft_id):
+            raise ValueError(f"{draft_id} is already booked: the bank never books one payment twice")
         if src.currency != "BDT":
             raise ValueError("bank transfers in this sandbox are sent from a BDT account")
         if src.balance < total_bdt:
             raise ValueError(f"insufficient funds: {q2(src.balance)} BDT available, {q2(total_bdt)} BDT needed")
-        src.balance -= total_bdt
+        # taka out to the bank's FX desk, yuan from the FX desk into transit (one balanced leg per currency)
+        self._book("payment_sent", draft_id, [(from_account_id, "BDT", -total_bdt), (FX_DESK, "BDT", total_bdt),
+                                              (FX_DESK, "CNY", -amount_cny), (TRANSIT, "CNY", amount_cny)])
         days = self.corridor.i("bd_tt_transfer_days")
         if self.calendar:  # leaves on the next Bangladeshi bank day, lands on a Chinese bank day
             leaves = self.calendar.next_open("BD", self.clock.date())
@@ -157,8 +196,11 @@ class SandboxBank:
             raise ValueError("card monthly BDT cap would be exceeded")
         if card_acct.balance < total_bdt:
             raise ValueError("insufficient funds on the card account")
-        card_acct.balance -= total_bdt
-        self.accounts[cash_account_id].balance += sum(withdrawals_cny, Decimal(0))
+        if self.booked(draft_id):
+            raise ValueError(f"{draft_id} is already booked: the bank never books one payment twice")
+        cash = sum(withdrawals_cny, Decimal(0))
+        self._book("payment_sent", draft_id, [(card_account_id, "BDT", -total_bdt), (FX_DESK, "BDT", total_bdt),
+                                              (FX_DESK, "CNY", -cash), (cash_account_id, "CNY", cash)])
         usage.tx_count += len(withdrawals_cny)
         usage.bdt_charged += total_bdt
         return self.log("atm_withdrawals", actor, level, {
@@ -185,12 +227,7 @@ class SandboxBank:
 
     def surprise_expense(self, amount: Decimal, memo: str, actor: str) -> dict:
         """A one-off bill paid from the student's money in China (sandbox only), e.g. a doctor or a deposit."""
-        paid = Decimal(0)
-        for acct_id in ("student_cash", "student_cn"):
-            acct = self.accounts[acct_id]
-            take = min(acct.balance, amount - paid)
-            acct.balance -= take
-            paid += take
+        paid = self.take_from_spending(amount, "surprise_expense")
         if self.spend_log:
             self.spend_log[-1] += amount
         self.log("surprise_expense", actor, "SANDBOX", {"amount_cny": str(amount), "paid_cny": str(paid), "memo": memo[:80]})
@@ -200,7 +237,7 @@ class SandboxBank:
     # ---- the student's own money (Earn & Save) ---------------------------------------
     def credit_income(self, source_id: str | None, kind: str, amount: Decimal, actor: str) -> dict:
         """Pay or a stipend lands in the student's own Chinese account (sandbox: the employer or university pays)."""
-        self.accounts["student_cn"].balance += amount
+        self._book("income_received", source_id, [(INCOME, "CNY", -amount), ("student_cn", "CNY", amount)])
         return self.log("income_received", actor, "SANDBOX", {"source_id": source_id, "kind": kind,
                         "amount_cny": str(q2(amount)), "balance_cny": str(q2(self.student_cny()))})
 
@@ -212,24 +249,25 @@ class SandboxBank:
         src = self.accounts[from_id]
         if amount <= 0 or src.balance < amount:
             raise ValueError(f"not enough money in {src.label}: ¥{q2(src.balance)} available")
-        src.balance -= amount
-        self.accounts[to_id].balance += amount
+        self._book(event, data.get("rule_id") or data.get("reason"), [(from_id, "CNY", -amount), (to_id, "CNY", amount)])
         return self.log(event, actor, level, {**data, "from": from_id, "to": to_id, "amount_cny": str(q2(amount)),
                         "shield_cny": str(q2(self.accounts["student_shield"].balance))})
 
-    def take_from_spending(self, amount: Decimal) -> Decimal:
+    def take_from_spending(self, amount: Decimal, event: str = "spending") -> Decimal:
         """Pay from cash first, then the Chinese account. Returns what was actually paid."""
-        paid = Decimal(0)
+        paid, legs = Decimal(0), []
         for acct_id in ("student_cash", "student_cn"):
-            acct = self.accounts[acct_id]
-            take = min(acct.balance, amount - paid)
-            acct.balance -= take
-            paid += take
+            take = min(self.accounts[acct_id].balance, amount - paid)
+            if take > 0:
+                legs.append((acct_id, "CNY", -take))
+                paid += take
+        if paid > 0:
+            self._book(event, None, legs + [(SPENDING, "CNY", paid)])
         return paid
 
     def spend_logged(self, amount: Decimal, category: str, kind: str, actor: str) -> dict:
         """A purchase the student logged (or a bank alert showed). The merchant text is never logged, only the category."""
-        paid = self.take_from_spending(amount)
+        paid = self.take_from_spending(amount, "spending_logged")
         self.wants_log.append((self.clock, amount, category, kind))
         self.log("spending_logged", actor, "SANDBOX", {"amount_cny": str(q2(amount)), "paid_cny": str(q2(paid)),
                  "category": category, "kind": kind})
@@ -242,12 +280,7 @@ class SandboxBank:
         if need <= 0:
             return Decimal(0), False
         self.spend_log = (self.spend_log + [need])[-30:]
-        spent = Decimal(0)
-        for acct_id in ("student_cash", "student_cn"):
-            acct = self.accounts[acct_id]
-            take = min(acct.balance, need - spent)
-            acct.balance -= take
-            spent += take
+        spent = self.take_from_spending(need, "daily_living")
         stuck = spent < need
         if stuck:
             self.stuck_days.append(self.clock.date().isoformat())
@@ -259,7 +292,7 @@ class SandboxBank:
         arrived, events = [], []
         for t in self.pending:
             if t.arrives_at <= self.clock:
-                self.accounts[t.to_account_id].balance += t.amount
+                self._book("payment_arrived", t.draft_id, [(TRANSIT, "CNY", -t.amount), (t.to_account_id, "CNY", t.amount)])
                 arrived.append(t)
                 events.append(self.log("transfer_arrived", actor, "SYSTEM", {
                     "transfer_id": t.id, "draft_id": t.draft_id, "to": t.to_account_id,
@@ -284,6 +317,7 @@ def seed_demo_bank(corridor: Corridor, audit: AuditLog, start: datetime, cny_per
     """Demo persona: a self-funded Bangladeshi student in China and a parent in Dhaka (fictional)."""
     bank = SandboxBank(corridor=corridor, audit=audit, clock=start)
     bank._cny_per_usd = cny_per_usd
+    opening = []
     for acct in (
         Account("parent_bd", "parent", "Parent savings (Dhaka) [sandbox]", "BDT", Decimal("2000000")),
         Account("student_bd_card", "student", "Student File card account (Bangladesh) [sandbox]", "BDT", Decimal("300000")),
@@ -293,7 +327,13 @@ def seed_demo_bank(corridor: Corridor, audit: AuditLog, start: datetime, cny_per
                 Decimal("0")),
         Account("university", "university", "Demo University finance office [sandbox]", "CNY", Decimal("0")),
     ):
+        if acct.balance:
+            opening.append((acct.id, acct.currency, acct.balance))
+        acct.balance = Decimal(0)  # the opening entry below gives each account its starting money
         bank.accounts[acct.id] = acct
+    for cur in sorted({c for _, c, _ in opening}):
+        legs = [(a, c, v) for a, c, v in opening if c == cur]
+        bank._book("opening_balances", None, legs + [(OPENING, cur, -sum(v for _, _, v in legs))])
     bank.payees = {
         "univ_demo": Payee("univ_demo", "Demo University Finance Office", "Sandbox Bank of China", "****6021", "CNY",
                            True, "University official fee page (sandbox)", "university"),

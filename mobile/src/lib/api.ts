@@ -34,6 +34,33 @@ export const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSO
 // ---- response types ------------------------------------------------------
 export type Check = { id: string; passed: boolean; severity: 'block' | 'warn' | 'info'; message: string; source: string };
 
+export type PasskeyApproval = {
+  actor: Role;
+  credential_id: string;
+  label: string;
+  thumbprint: string;
+  draft_hash: string;
+  verified_at: string;
+  biometric_uv: boolean;
+  alg: string;
+  kind?: 'webauthn' | 'device_key' | 'simulated';
+  origin?: string;
+};
+
+export type CopVerification = {
+  status: 'match' | 'close_match' | 'no_match' | 'opted_out' | 'unavailable';
+  intended_name: string;
+  registered_name: string;
+  account_type: 'business' | 'personal';
+  match_score: number;
+  bank_name: string;
+  bic: string;
+  app_scam_risk: 'low' | 'medium' | 'critical';
+  reason: string;
+  advice: string;
+  verified_at: string;
+};
+
 export type Draft = {
   id: string;
   kind: 'tt_tuition' | 'tt_living' | 'atm_plan';
@@ -54,6 +81,11 @@ export type Draft = {
   withdrawals: string[];
   summary: Lang3;
   draft_hash: string;
+  passkey_approvals?: PasskeyApproval[];
+  is_passkey_signed?: boolean;
+  uetr?: string | null;
+  iso_msg_id?: string | null;
+  cop_verification?: CopVerification;
 };
 
 export type Lang3 = { en: string; bn: string; zh: string };
@@ -276,7 +308,9 @@ export type StoredMessage = { id: string; source: string; sender: string; receiv
 
 export type IngestResult = { kept: boolean; reason?: string; message?: StoredMessage; transaction?: InboxTxn | null; flags?: Flag[] };
 
-export type ChatReply = { reply: string; mode: 'llm' | 'fallback'; actions: ({ type: 'draft'; draft_id: string; status: string } | { type: 'card'; last4: string; status: string } | { type: 'renewal'; item: string; case_id: string } | { type: 'mandate'; proposal_id: string; status: string })[]; tools_used: string[] };
+export type ChatSignal = 'refused' | 'corrected' | 'drafted' | 'cancelled' | 'checked' | 'card_locked' | 'clarify' | 'offline';
+export type ChatChoice = { kind: 'purpose'; value: 'tt_tuition' | 'tt_living' } | { kind: 'amount'; value: string } | { kind: 'cancel' };
+export type ChatReply = { reply: string; mode: 'llm' | 'fallback'; signals?: ChatSignal[]; choices?: ChatChoice[]; actions: ({ type: 'draft'; draft_id: string; status: string } | { type: 'card'; last4: string; status: string } | { type: 'renewal'; item: string; case_id: string } | { type: 'mandate'; proposal_id: string; status: string })[]; tools_used: string[]; firewall?: FirewallVerdict };
 
 export type Sources = Record<string, { available: boolean; note: string; path?: string; header?: string }> & { privacy: string[] };
 
@@ -584,11 +618,191 @@ export type StressTest = {
 export type Receipt = {
   draft: Draft;
   authority:
-    | { type: 'approvals'; level: string; executed_by: string; approved_by: Role[]; draft_hash: string }
+    | { type: 'approvals'; level: string; executed_by: string; approved_by: Role[]; draft_hash: string; passkey_signed?: boolean }
     | { type: 'mandate'; level: string; executed_by: string; mandate_id: string; signed_by: Role[]; proposal_hash: string | null; draft_hash: string }
     | null;
   sent: { seq: number; hash: string; sim_time: string; permission_level: string; arrives_at?: string } | null;
   landed: { seq: number; hash: string; sim_time: string } | null;
+  uetr?: string | null;
+  iso20022?: {
+    uetr: string;
+    msg_id: string;
+    schema: string;
+    valid: boolean;
+    checks_passed: number;
+    origin_bic: string;
+    origin_bank_name: string;
+    dest_bic: string;
+    dest_bank_name: string;
+    created_at: string;
+    regulatory_reporting?: string;
+  } | null;
+};
+
+export type Iso20022Record = {
+  uetr: string;
+  msg_id: string;
+  draft_id: string;
+  xml: string;
+  schema: string;
+  validation: {
+    valid: boolean;
+    schema: string;
+    uetr: string;
+    msg_id: string;
+    amount: string;
+    currency: string;
+    checks_passed: number;
+    checks: string[];
+    errors: string[];
+  };
+  origin_bic: string;
+  origin_bank_name: string;
+  dest_bic: string;
+  dest_bank_name: string;
+  created_at: string;
+  regulatory_reporting: string;
+};
+
+export function getIso20022(base: string, role: Role, draftId: string) {
+  return api<Iso20022Record>(base, role, `/receipts/${draftId}/iso20022`);
+}
+
+export type FuzzReport = {
+  timestamp: string;
+  total_attacks: number;
+  violations_detected: number;
+  duration_seconds: number;
+  attacks_per_second: number;
+  deepseek_tokens_consumed: number;
+  deepseek_cost_usd: number;
+  attacks_by_vector: Record<string, number>;
+  invariant_status: Record<string, { desc: string; violations: number }>;
+  hostile_steps?: number;
+  payments_completed?: number;
+  payments_under_mandate?: number;
+  refusals?: number;
+  seed?: number;
+  mutants?: { mutant: string; doc: string; expected: string; caught: boolean; first_seen_at_step: number | null }[];
+};
+
+// ---- double-entry books (GET /ledger) ----------------------------------------
+export type LedgerView = {
+  books: {
+    ok: boolean;
+    balanced: boolean;
+    reconciled: boolean;
+    trial_balance: Record<string, string>;
+    mismatches: { account: string; books: string; shown: string }[];
+    booked_twice: string[];
+    entries: number;
+  };
+  accounts: { id: string; label: string; currency: string; owner: string; books: string; shown: string }[];
+  entries: { id: string; at: string; event: string; ref: string | null; postings: { account: string; currency: string; amount: string }[] }[];
+  payments_booked: number;
+  idempotent_replays: number;
+};
+
+// ---- open-banking connections (GET /banks) -------------------------------------
+export type BankConsent = {
+  id: string;
+  connector: string;
+  bank: string;
+  country: string;
+  standard: string;
+  holder: Role;
+  permissions: { id: string; text: string }[];
+  days: number;
+  created_at: string;
+  expires_at: string;
+  days_left: number;
+  status: 'AwaitingAuthorisation' | 'Authorised' | 'Revoked' | 'Expired';
+  authorised_at: string | null;
+  revoked_at: string | null;
+  reads: number;
+  last_read: string | null;
+  hash: string;
+  can_move_money: false;
+};
+export type BanksView = {
+  connectors: { id: string; bank: string; country: string; standard: string; holder: Role; yours: boolean; active: BankConsent | null }[];
+  consents: BankConsent[];
+  permissions: { id: string; text: string }[];
+  max_days: number;
+};
+export type BankRead = {
+  consent_id: string;
+  bank: string;
+  standard: string;
+  Data: { Account: { AccountId: string; Nickname: string; Currency: string; Balance?: { Amount: { Amount: string; Currency: string } } }[] };
+};
+
+// ---- privacy & data rights (GET /privacy) ----------------------------------------
+export type PrivacyView = {
+  held: { id: string; count: number; deletable: boolean; what: string; why: string }[];
+  recipients: { id: string; name: string; law: string; what: string[]; why: string; when: string; kept_there: string; switch: string }[];
+  not_stored: string[];
+  switches: { ai: boolean; ai_available: boolean; whatsapp: boolean; banks: boolean };
+  rights: string[];
+  law: string;
+};
+
+export type TaintStatus = {
+  taint_tracking_active: boolean;
+  defense_standard: string;
+  enforcement_mode: string;
+  total_entities_tracked: number;
+  untrusted_entities: number;
+  endorsed_entities: number;
+  total_injections_blocked: number;
+  recent_blocks: {
+    timestamp: string;
+    sink: string;
+    parameter: string;
+    reason: string;
+  }[];
+};
+
+export type FirewallViolation = {
+  violation_type: 'otp_code' | 'payment_card' | 'bank_account' | 'cross_role_privacy' | 'system_prompt_leak' | 'secret_credential';
+  severity: 'low' | 'medium' | 'critical';
+  description: string;
+  snippet_masked: string;
+  action: 'redacted' | 'blocked';
+};
+
+export type FirewallVerdict = {
+  passed: boolean;
+  action_taken: 'allow' | 'redact' | 'block';
+  original_length: number;
+  filtered_length: number;
+  filtered_text: string;
+  violations: FirewallViolation[];
+  actor: string;
+  checked_at: string;
+  latency_ms: number;
+};
+
+export type FirewallTelemetry = {
+  status: string;
+  mode: string;
+  total_inspections: number;
+  total_violations: number;
+  blocked_count: number;
+  redacted_count: number;
+  category_counts: Record<string, number>;
+  recent_interceptions: {
+    timestamp: string;
+    actor: string;
+    action: string;
+    violations_count: number;
+    violations: FirewallViolation[];
+  }[];
+};
+
+export type FirewallTestResponse = {
+  verdict: FirewallVerdict;
+  telemetry: FirewallTelemetry;
 };
 
 // ---- Earn & Save: the student's own money abroad and the Shield ----------------------------------------
@@ -722,4 +936,32 @@ export type CrisisTest = {
   student_money_shown?: boolean;
   saving: { pct: number; target_cny: string } | null;
   method: string;
+};
+
+export type JudgeTask = {
+  id: string;
+  criterion: 'task' | 'security' | 'interaction';
+  title: string;
+  goal: string;
+  steps: { who: string; did: string; got: string }[];
+  checks: { what: string; ok: boolean }[];
+  value: string | null;
+  evidence: { seq: number | null; event: string; hash: string; chain_valid: boolean } | null;
+  error: string | null;
+  ms: number;
+  passed: boolean;
+};
+export type JudgeRun = {
+  summary: Record<'task' | 'security' | 'interaction', { passed: number; total: number }>;
+  passed: number;
+  total: number;
+  tasks: JudgeTask[];
+};
+export type ValueSummary = {
+  stuck_days_today: number;
+  stuck_days_sathi: number;
+  saved_bdt: string;
+  stopped: number;
+  flagged_messages: number;
+  payments: number;
 };

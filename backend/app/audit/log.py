@@ -23,10 +23,13 @@ class AuditLog:
         self.path = path
         self.entries: list[dict] = []
         self._lock = threading.Lock()
-        if path and path.exists():
-            for line in path.read_text(encoding="utf-8").splitlines():
-                if line.strip():
-                    self.entries.append(json.loads(line))
+        self._size = 0  # file size after our last read or write
+        self._load()
+
+    def _load(self) -> None:
+        if self.path and self.path.exists():
+            self.entries = [json.loads(line) for line in self.path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            self._size = self.path.stat().st_size
 
     @property
     def last_hash(self) -> str:
@@ -34,6 +37,10 @@ class AuditLog:
 
     def append(self, event: str, actor: str, level: str, data: dict, sim_time: str | None = None) -> dict:
         with self._lock:
+            if self.path and self.path.exists() and self.path.stat().st_size != self._size:
+                # Another process wrote to the same log (e.g. the API and the web site both running): continue its chain
+                # instead of forking it, which would look like tampering.
+                self._load()
             body = {
                 "seq": len(self.entries) + 1,
                 "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -50,6 +57,7 @@ class AuditLog:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
                 with self.path.open("a", encoding="utf-8") as f:
                     f.write(_canonical(body) + "\n")
+                self._size = self.path.stat().st_size
             return body
 
     def verify(self) -> dict:

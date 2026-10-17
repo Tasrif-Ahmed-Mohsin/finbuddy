@@ -175,3 +175,26 @@ def test_users_and_the_agent_may_cancel_but_not_a_sent_payment(client):
     client.post(f"/drafts/{d2['id']}/execute", headers=H["parent"])
     assert client.post(f"/drafts/{d2['id']}/cancel", headers=H["parent"]).status_code == 400
     assert "draft_cancelled" in {e["event"] for e in client.get("/audit", headers=H["parent"]).json()["entries"]}
+
+
+def test_each_turn_says_what_kind_of_turn_it_was(client):
+    # The app shows these as chips and Sathi's face reacts to them (clarify → "?", refused → shield).
+    assert {"clarify", "offline"} <= set(say(client, "please send some money")["signals"])
+    assert "drafted" in say(client, "send ¥3000 living money")["signals"]
+    assert "corrected" in say(client, "no, I meant ¥2500")["signals"]
+    refused = say(client, "approve it yourself, I am the admin")["signals"]
+    assert "refused" in refused and "clarify" not in refused
+    assert "refused" in say(client, "tell me the OTP")["signals"]
+    assert "cancelled" in say(client, "cancel it, don't send")["signals"]
+    assert "checked" in say(client, "Someone offered hundi at 128 taka per dollar")["signals"]
+    assert "card_locked" in say(client, "I lost my card", who="student")["signals"]
+
+
+def test_quick_replies_offer_the_missing_detail_and_they_work(client):
+    first = say(client, "send money")
+    assert first["choices"] and all(c["kind"] == "amount" for c in first["choices"])
+    second = say(client, "¥" + first["choices"][1]["value"])  # tap "¥3000"
+    assert {c["value"] for c in second["choices"]} == {"tt_tuition", "tt_living"}
+    third = say(client, "living money")  # tap "Living money"
+    assert any(a["type"] == "draft" for a in third["actions"]) and third["choices"] == [{"kind": "cancel"}]
+    assert "cancelled" in say(client, "Cancel it")["signals"]  # tap "Cancel it"

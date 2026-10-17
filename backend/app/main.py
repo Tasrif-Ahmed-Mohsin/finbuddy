@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hmac
 import html
+import json
 import os
 from datetime import date
 from decimal import Decimal
@@ -15,7 +16,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from app.agent.llm import LLMUnavailable, make_llm
@@ -23,7 +24,7 @@ from app.config import load_settings
 from app.inbox.email_imap import fetch_recent
 from app.passport import qr_svg
 from app.security.permissions import Actor
-from app.service import AppState
+from app.service import AppState, IdempotencyConflict
 
 DEMO_TOKENS = {
     os.environ.get("SATHI_STUDENT_TOKEN", "demo-student"): Actor.STUDENT,
@@ -84,8 +85,24 @@ class ProposalIn(BaseModel):
     lang: str = "en"
 
 
+class PasskeyAssertionIn(BaseModel):
+    """A WebAuthn assertion (base64url fields), signed over the draft's or the mandate proposal's hash."""
+    credential_id: str = Field(min_length=3, max_length=400)
+    client_data_json: str = Field(min_length=10, max_length=4000)
+    authenticator_data: str = Field(min_length=10, max_length=2000)
+    signature: str = Field(min_length=10, max_length=400)
+
+
 class SignIn(BaseModel):
     proposal_hash: str = Field(min_length=64, max_length=64)
+    assertion: PasskeyAssertionIn | None = None
+
+
+class PasskeyRegisterIn(BaseModel):
+    credential_id: str = Field(min_length=3, max_length=400)
+    public_key: str = Field(min_length=20, max_length=2000)  # PEM, base64 SPKI DER, or base64 raw P-256 point
+    label: str = Field(default="Passkey", max_length=80)
+    kind: str = Field(default="webauthn", pattern="^(webauthn|device_key|simulated)$")
 
 
 class WhatsAppRecipientIn(BaseModel):
@@ -155,6 +172,35 @@ class IncomeIn(BaseModel):
     source_id: str | None = None
 
 
+class BankConsentIn(BaseModel):
+    connector: str = Field(pattern="^(brac_bd|boc_cn)$")
+    permissions: list[str] = Field(default_factory=lambda: ["ReadAccountsBasic", "ReadBalances"], max_length=5)
+    days: int = Field(default=90, ge=1, le=90)
+
+
+class ConsentAuthoriseIn(BaseModel):
+    assertion: PasskeyAssertionIn | None = None
+
+
+class PrivacyDeleteIn(BaseModel):
+    categories: list[str] = Field(min_length=1, max_length=6)
+
+
+class AiConsentIn(BaseModel):
+    allowed: bool
+
+
+class CopVerifyIn(BaseModel):
+    payee_id: str
+    intended_name: str | None = None
+
+
+class FirewallTestIn(BaseModel):
+    text: str = Field(..., max_length=5000)
+    actor: str = "parent"
+    lang: str = "en"
+
+
 class SpendIn(BaseModel):
     amount_cny: Decimal = Field(gt=0, le=20000)
     merchant: str = Field(default="", max_length=60)
@@ -204,13 +250,13 @@ class ChatIn(BaseModel):
 _AUTO = object()
 
 
-def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO) -> FastAPI:
+def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO, fx=None, bank_rates=None, settings=None) -> FastAPI:
     app = FastAPI(title="Sathi API", version="0.3.0",
                   description="Cross-border student finance agent (sandbox). No real money moves.")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-    settings = load_settings()
+    settings = settings or load_settings()
     the_llm = make_llm(settings) if llm is _AUTO else llm
-    app.state.svc = AppState(audit_path=audit_path, llm=the_llm, settings=settings)
+    app.state.svc = AppState(audit_path=audit_path, llm=the_llm, settings=settings, fx=fx, bank_rates=bank_rates)
 
     def svc() -> AppState:
         return app.state.svc
@@ -224,6 +270,8 @@ def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO) -> FastAPI:
     def guard(fn, *args, **kwargs):
         try:
             return fn(*args, **kwargs)
+        except IdempotencyConflict as e:
+            raise HTTPException(status_code=422, detail=str(e))
         except PermissionError as e:
             raise HTTPException(status_code=403, detail=str(e))
         except KeyError as e:
@@ -235,6 +283,12 @@ def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO) -> FastAPI:
         if who == Actor.AGENT:
             raise HTTPException(status_code=403, detail="only the student or parent can do this")
         return who
+
+    def own_origin(request: Request) -> tuple[str, ...]:
+        """The public site signs passkeys on its own origin (web app and API share one host there)."""
+        host = request.headers.get("host", "")
+        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        return (f"{proto}://{host}",) if host and proto in ("http", "https") else ()
 
     # ---- routes -----------------------------------------------------------
     @app.get("/health")
@@ -396,10 +450,14 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     def check_message(body: MessageIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return guard(s.check_message, who, body.text)
 
+    # Payment writes accept an Idempotency-Key header (as card networks and Stripe do): the app sends one key per
+    # tap, so a retry after a lost answer returns the first result instead of acting twice.
     @app.post("/drafts")
-    def create_draft(body: DraftIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        return guard(s.create_draft, who, body.kind, body.amount_cny, body.payee_id, body.quote_id, body.memo,
-                     body.origin_message, body.withdrawals)
+    def create_draft(body: DraftIn, s: AppState = Depends(svc), who: Actor = Depends(actor),
+                     idempotency_key: str | None = Header(default=None)):
+        return guard(s.idempotent, who, idempotency_key, {"op": "create_draft", **body.model_dump(mode="json")},
+                     lambda: s.create_draft(who, body.kind, body.amount_cny, body.payee_id, body.quote_id, body.memo,
+                                            body.origin_message, body.withdrawals))
 
     @app.get("/drafts")
     def list_drafts(s: AppState = Depends(svc), who: Actor = Depends(actor)):
@@ -409,17 +467,51 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     def get_draft(draft_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return guard(s.draft_view, draft_id)
 
+    @app.get("/auth/passkey/credentials")
+    def list_passkeys(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        user_only(who)
+        return {"required": s.settings.passkey_required, "credentials": s.passkeys.list_credentials(who.value)}
+
+    @app.post("/auth/passkey/register")
+    def register_passkey(body: PasskeyRegisterIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        user_only(who)
+        return guard(s.register_passkey, who, body.credential_id, body.public_key, body.label, body.kind)
+
+    @app.delete("/auth/passkey/credentials/{credential_id}")
+    def remove_passkey(credential_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        user_only(who)
+        if not s.passkeys.remove(who.value, credential_id):
+            raise HTTPException(status_code=404, detail="no such passkey")
+        s._log("passkey_removed", who, "register_passkey", {"credential_id": credential_id[:40]})
+        return {"removed": True}
+
     @app.post("/drafts/{draft_id}/approve")
-    def approve(draft_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        return guard(s.approve, who, draft_id)
+    def approve(draft_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor),
+                idempotency_key: str | None = Header(default=None)):
+        return guard(s.idempotent, who, idempotency_key, {"op": "approve", "draft_id": draft_id},
+                     lambda: s.approve(who, draft_id))
+
+    @app.post("/drafts/{draft_id}/passkey-approve")
+    def passkey_approve(draft_id: str, body: PasskeyAssertionIn, request: Request, s: AppState = Depends(svc),
+                        who: Actor = Depends(actor), idempotency_key: str | None = Header(default=None)):
+        user_only(who)
+        return guard(s.idempotent, who, idempotency_key, {"op": "passkey_approve", "draft_id": draft_id, **body.model_dump()},
+                     lambda: s.approve_passkey(who, draft_id, body.model_dump(), own_origin(request)))
 
     @app.post("/drafts/{draft_id}/cancel")
     def cancel_draft(draft_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return guard(s.cancel_draft, who, draft_id, "cancelled in the app")
 
     @app.post("/drafts/{draft_id}/execute")
-    def execute(draft_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        return guard(s.execute, who, draft_id)
+    def execute(draft_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor),
+                idempotency_key: str | None = Header(default=None)):
+        return guard(s.idempotent, who, idempotency_key, {"op": "execute", "draft_id": draft_id},
+                     lambda: s.execute(who, draft_id))
+
+    @app.get("/ledger")
+    def ledger(limit: int = 40, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        """The sandbox bank's double-entry books: balanced, reconciled, every payment booked once."""
+        return s.ledger_view(who, max(1, min(limit, 200)))
 
     @app.post("/drafts/{draft_id}/execute-under-mandate/{mandate_id}")
     def execute_mandate(draft_id: str, mandate_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
@@ -448,8 +540,10 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
         return guard(lambda: s.proposals[proposal_id].to_dict())
 
     @app.post("/mandates/proposals/{proposal_id}/sign")
-    def sign_proposal(proposal_id: str, body: SignIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
-        return guard(s.sign_mandate, who, proposal_id, body.proposal_hash)
+    def sign_proposal(proposal_id: str, body: SignIn, request: Request, s: AppState = Depends(svc),
+                      who: Actor = Depends(actor)):
+        return guard(s.sign_mandate, who, proposal_id, body.proposal_hash,
+                     body.assertion.model_dump() if body.assertion else None, own_origin(request))
 
     # ---- the loop: year plan (plan), feed (sense + act), receipts (prove) --------------------
     @app.get("/plan/year")
@@ -469,6 +563,22 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     def runway(s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return s.runway()
 
+    @app.get("/value")
+    def value(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return s.value_summary()
+
+    @app.post("/judge/run")
+    def judge_run(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        """Judge mode: run every scripted task end to end in fresh sandboxes (this session is not touched)."""
+        user_only(who)
+        from app import judge
+
+        return judge.run_all(fx=s.fx, bank_rates=s.bank_rates)
+
+    @app.get("/calendar/week")
+    def calendar_week(days: int = 7, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return s.calendar_week(max(1, min(days, 14)))
+
     # ---- WhatsApp alerts for the family (notifications only) ------------------------------
     @app.get("/notify/whatsapp")
     def whatsapp_status(s: AppState = Depends(svc), who: Actor = Depends(actor)):
@@ -486,6 +596,106 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     @app.get("/receipts")
     def receipts(s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return s.receipts()
+
+    @app.get("/receipts/{draft_id}/iso20022")
+    def get_receipt_iso20022(draft_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        try:
+            return s.get_iso20022(draft_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="draft not found")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @app.get("/receipts/{draft_id}/pain001.xml")
+    def get_receipt_pain001_xml(draft_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        try:
+            rec = s.get_iso20022(draft_id)
+            return Response(content=rec["xml"], media_type="application/xml; charset=utf-8")
+        except KeyError:
+            raise HTTPException(status_code=404, detail="draft not found")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @app.get("/security/fuzz-results")
+    def get_fuzz_results(who: Actor = Depends(actor)):
+        """The saved safety-fuzzing report (scripts/fuzz_safety_invariants.py writes it)."""
+        report_path = Path(__file__).resolve().parents[2] / "docs" / "evidence" / "fuzzing_report.json"
+        if not report_path.exists():
+            raise HTTPException(status_code=404, detail="no fuzzing report yet: run scripts/fuzz_safety_invariants.py")
+        return json.loads(report_path.read_text(encoding="utf-8"))
+
+    @app.post("/security/fuzz/run")
+    def run_fuzz(iterations: int = 2000, seed: int | None = None, who: Actor = Depends(actor)):
+        """A live fuzzing run in its own sandbox (this session is not touched); small, and rate-limited online."""
+        user_only(who)
+        from app.security.fuzzer import run_invariant_fuzzer
+
+        return run_invariant_fuzzer(iterations=max(200, min(iterations, 5000)), seed=seed).to_dict()
+
+    @app.get("/security/taint/status")
+    def get_taint_status(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        """Taint tracking: how many outside values are labelled, and the payments it stopped."""
+        user_only(who)
+        return s.taint_ledger.get_status()
+
+    @app.post("/security/cop/verify")
+    def cop_verify(body: CopVerifyIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        """Confirmation of Payee: does the name on the receiving account match who you mean to pay?"""
+        return s.cop_service.verify_payee(body.payee_id, body.intended_name).to_dict()
+
+    @app.get("/security/firewall/status")
+    def get_firewall_status(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        """The output firewall's counters: replies checked, codes and private data hidden."""
+        user_only(who)
+        return s.output_firewall.telemetry()
+
+    @app.post("/security/firewall/test")
+    def test_firewall(body: FirewallTestIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        """Try the output firewall on a sample reply, as the parent or the student would read it."""
+        user_only(who)
+        target_actor = Actor(body.actor) if body.actor in ("parent", "student") else who
+        verdict = s.filter_agent_output(body.text, target_actor, body.lang)
+        return {"verdict": verdict.to_dict(), "telemetry": s.output_firewall.telemetry()}
+
+    # ---- open banking: read-only bank connections, only with the holder's consent ---------------
+    @app.get("/banks")
+    def banks(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return s.banks_view(who)
+
+    @app.post("/banks/consents")
+    def bank_consent(body: BankConsentIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.bank_consent_request, who, body.connector, body.permissions, body.days)
+
+    @app.post("/banks/consents/{consent_id}/authorise")
+    def bank_consent_authorise(consent_id: str, body: ConsentAuthoriseIn, request: Request, s: AppState = Depends(svc),
+                               who: Actor = Depends(actor)):
+        return guard(s.bank_consent_authorise, who, consent_id, body.assertion.model_dump() if body.assertion else None,
+                     own_origin(request))
+
+    @app.delete("/banks/consents/{consent_id}")
+    def bank_consent_revoke(consent_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.bank_consent_revoke, who, consent_id)
+
+    @app.get("/banks/{connector_id}/accounts")
+    def bank_accounts(connector_id: str, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.bank_read, who, connector_id)
+
+    # ---- privacy and data rights (PIPL) -----------------------------------------------------------
+    @app.get("/privacy")
+    def privacy_view(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.privacy_view, who)
+
+    @app.get("/privacy/export")
+    def privacy_export(s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.privacy_export, who)
+
+    @app.post("/privacy/delete")
+    def privacy_delete(body: PrivacyDeleteIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.privacy_delete, who, body.categories)
+
+    @app.post("/privacy/ai")
+    def privacy_ai(body: AiConsentIn, s: AppState = Depends(svc), who: Actor = Depends(actor)):
+        return guard(s.set_ai_consent, who, body.allowed)
 
     @app.get("/emergency")
     def emergency(lang: str = "en", s: AppState = Depends(svc), who: Actor = Depends(actor)):
@@ -519,7 +729,8 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     def reset_sandbox(who: Actor = Depends(actor)):
         """Start the demo again from 12 Oct 2026 (sandbox only). The previous session's log stays on disk."""
         user_only(who)
-        app.state.svc = AppState(audit_path=audit_path, llm=the_llm, settings=settings)
+        app.state.svc = AppState(audit_path=audit_path, llm=the_llm, settings=settings, fx=app.state.svc.fx,
+                                 bank_rates=app.state.svc.bank_rates, passkeys=app.state.svc.passkeys)
         return {"reset": True, "now": app.state.svc.now.isoformat()}
 
     @app.post("/sandbox/advance")

@@ -51,13 +51,19 @@ so Sathi turns part of it into a **Shield** for the days the legal channel from 
 - **Dollar crisis (Earn & Save):** banks send no student transfer for 4 weeks, tried at all 33 start weeks of the plan (Oct 2026 – Jun 2027). Start weeks with no day without money: **0%** with today's habits, **39%** with Sathi, **94%** with Sathi + a Shield built from a ¥1,500/month campus job at 50%. Typical crisis: **20 → 4 → 0** days without money.
 - **Hundi, honestly:** $500 at ৳124.5 costs ৳623 above the market by hundi and ৳3,701 by one bank transfer (fees). Sathi shows that gap and closes it legally: fewer, planned transfers and the student's own Shield (৳0).
 - See [docs/evidence/scenario_summary.md](docs/evidence/scenario_summary.md).
+- **Judge mode:** 20 of 20 scripted tasks pass end to end, each in a fresh sandbox, every approval signed by a simulated phone's passkey: task completion 9/9, security 7/7 (including a *compromised-AI drill*: a malicious model drives the agent's tools and moves no money; and exactly-once payments), interaction 4/4. Every task shows its steps, checks, value and the log entry that proves it: [docs/evidence/judge_tasks.md](docs/evidence/judge_tasks.md), or Settings → Judge mode in the app.
 
 **Security** (details in the [security self-assessment](docs/SECURITY_SELF_ASSESSMENT.md)):
 - Permission levels L0–L3; the AI can never approve, sign, unfreeze or widen a limit.
 - Signatures and approvals are bound to the exact proposal or draft. What people read and hear is generated from those exact fields, never by the AI.
 - Numbers from the AI must appear in the user's text.
 - The student's savings rule is signed by the student only; Shield money only moves between the student's own accounts; the parent never sees income or purchases.
-- Two-person rule from ৳1 lakh; hash-chained audit log; 332 tests, including the red-team cases.
+- **Passkey-signed approvals:** a payment, a mandate or a bank connection counts only with the person's passkey signature over its exact hash, checked by the server (WebAuthn: challenge, origin, user verified, replay). No private key in the code.
+- **Bank-grade books:** double-entry ledger (balanced per currency, reconciled after every operation), `Idempotency-Key` on payment writes (a retried tap pays once), ISO 20022 `pain.001` with a SWIFT gpi UETR on every receipt.
+- **AI-specific defences:** taint tracking (amounts from messages cannot become payments the AI drafts), an output firewall on every reply, Confirmation of Payee.
+- **Safety fuzzing:** 50,000 random honest and hostile steps with 9 rules checked after each: 0 broken, 492 payments still went through, 3 of 3 deliberate bugs caught ([evidence](docs/evidence/safety_fuzzing_evidence.md)).
+- **Your data (PIPL):** what is kept and where it goes (DeepSeek is in China), copy, delete, and a per-person AI switch; read-only bank connections with a 90-day consent and revoke; Bangla voice input in the chat.
+- Two-person rule from ৳1 lakh; hash-chained audit log; 407 tests, including the red-team cases and Judge mode.
 
 ## Run it
 
@@ -83,7 +89,8 @@ On a phone, the app looks for the backend on the same computer at port 8000 (the
 
 ## Test it
 ```bash
-cd backend && .venv/Scripts/python -m pytest -q        # 332 tests: bank prices, year plan, mandates + autopilot, Earn & Save, security, engines, agent, inbox, FX, cards, renewals, passport, documents
+cd backend && .venv/Scripts/python -m pytest -q        # 407 tests: bank prices, year plan, mandates + autopilot, Earn & Save, security, engines, agent, inbox, FX, cards, renewals, passport, documents
+cd backend && .venv/Scripts/python scripts/judge_tasks.py   # Judge mode: 18 scripted tasks → docs/evidence/judge_tasks.md
 cd mobile && npx tsc --noEmit && npx expo lint   # a fresh clone needs expo-env.d.ts first: run `npx expo start` once (it is git-ignored)
 ```
 
@@ -91,6 +98,7 @@ cd mobile && npx tsc --noEmit && npx expo lint   # a fresh clone needs expo-env.
 - [Technical documentation](docs/TECHNICAL_DOCUMENTATION.md): architecture, core algorithms, security design, data, API, deployment, tests
 - [Security self-assessment](docs/SECURITY_SELF_ASSESSMENT.md): permission-tier implementation, threat model, red-team results, known-risk list
 - [Execution evidence](docs/evidence/scenario_summary.md): hash-chained sandbox operation log from a full end-to-end run
+- [Judge mode report](docs/evidence/judge_tasks.md): every scripted task with its steps, checks, value and log evidence
 
 ## Repository map
 ```
@@ -100,7 +108,8 @@ docs/02_build_plan.md        organiser expectations → scope → architecture �
 backend/app/corridors/       rule pack (every number has a source + confidence)
 backend/app/engines/         year plan (bank calendars, look-ahead rule), cost + cost truth, living optimiser, tuition planner, FX ranges,
                              earnings (income, work rules, savings rule, Shield, taka lens), hundi (honest comparison), stress (incl. dollar crisis)
-backend/app/agent/           autopilot, mandate compiler, chat agent (DeepSeek) + offline fallback
+backend/app/agent/           autopilot, mandate compiler, chat agent (DeepSeek) + offline fallback, turn signals + quick replies
+backend/app/judge.py         Judge mode: the scripted tasks end to end in fresh sandboxes, incl. a compromised-AI drill
 backend/app/data/            bank holidays (BD + CN), bank quotes + real payment, FX history, demo messages
 backend/app/security/        permissions, compliance checks, scam/injection detection
 backend/app/sandbox/         simulated bank with clock, delays and fees

@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { Mascot, type MascotMood } from '@/components/mascot';
+import { Kicker, Panel, SpaceText } from '@/components/neo';
 import { ThemedText } from '@/components/themed-text';
 import { Badge, Button, Card, ErrorBox, H2, Muted, Screen } from '@/components/ui';
 import { Tone } from '@/constants/theme';
@@ -60,11 +62,19 @@ export default function EmergencyScreen() {
     }
   }
 
+  const calmMood: MascotMood = situation === 'scam_call' || situation === 'family_call' || situation === 'card_lost' ? 'protect' : done ? 'happy' : 'idle';
   return (
     <Screen>
+      <Panel tone="red">
+        <Kicker dark color={Tone.block.neon}>{t('emKicker')}</Kicker>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <Mascot size={88} mood={calmMood} />
+          <SpaceText style={{ flex: 1 }}>{done ?? t('emSay')}</SpaceText>
+        </View>
+      </Panel>
       {role === 'student' && openCheck && (
         <Card tone="warn">
-          <H2>🙋 {t('emFamilyAsks')}</H2>
+          <H2 icon="hand-left">{t('emFamilyAsks')}</H2>
           <Button title={t('emImSafe')} onPress={() => act(`/emergency/safety-checks/${openCheck.id}/safe`, t('emToldSafe'), true)} loading={busy} />
         </Card>
       )}
@@ -76,7 +86,7 @@ export default function EmergencyScreen() {
       )}
 
       <Card tone="block">
-        <H2>🆘 {t('emWhat')}</H2>
+        <H2 icon="alert-circle">{t('emWhat')}</H2>
         {CHOICES[role].map(([key, label]) => (
           <Button key={key} title={t(label)} variant={situation === key ? 'primary' : 'secondary'} onPress={() => { setSituation(key); setDone(null); }} />
         ))}
@@ -107,7 +117,7 @@ export default function EmergencyScreen() {
           {em.card.status === 'active' ? (
             <Button title={t('emFreezeNow')} onPress={() => act('/emergency/card-lost', t('emFrozen'))} loading={busy} />
           ) : (
-            <Badge tone="ok">🔒 {t('emFrozen')}</Badge>
+            <Badge tone="ok" icon="lock-closed">{t('emFrozen')}</Badge>
           )}
           <Steps steps={em.guides.card_lost.steps} />
           {em.card.status !== 'active' && em.text.options.map((o) => <Row2 key={o.kind} text={o.text} />)}

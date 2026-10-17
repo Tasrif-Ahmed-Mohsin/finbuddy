@@ -7,7 +7,7 @@
   so links into the app work. Only files inside the build folder are ever served.
 * Rate limits per address, because anyone can open a public demo and the AI calls cost money:
   AI-backed writes (chat, documents, mandate proposals, inbox) 20 per 10 minutes, other writes 120 per 10 minutes,
-  and the CPU-heavy stress test (a read) 30 per 10 minutes, so a few visitors cannot freeze a small server.
+  and the CPU-heavy stress test, judge run and live fuzzing 30 per 10 minutes, so a few visitors cannot freeze a small server.
   The DeepSeek client also has a daily budget (SATHI_LLM_DAILY_CALLS); past it the agent answers with its rules.
 """
 from __future__ import annotations
@@ -22,16 +22,16 @@ from fastapi.responses import FileResponse, JSONResponse
 
 DEFAULT_WEB_DIR = Path(__file__).resolve().parents[2] / "mobile" / "dist"
 AI_PATHS = ("/api/agent/chat", "/api/documents", "/api/mandates/proposals", "/api/inbox")
-HEAVY_PATHS = ("/api/plan/stress",)  # reads that cost seconds of CPU each
+HEAVY_PATHS = ("/api/plan/stress", "/api/judge", "/api/security/fuzz")  # calls that cost seconds of CPU each
 LIMITS = {"ai": (20, 600.0), "write": (120, 600.0), "heavy": (30, 600.0)}  # (requests, seconds) per address
 
 
 def limit_kind(request: Request) -> str | None:
     path = request.url.path
+    if request.method in ("GET", "POST") and path.startswith(HEAVY_PATHS):
+        return "heavy"
     if request.method == "POST" and path.startswith("/api/"):
         return "ai" if path.startswith(AI_PATHS) else "write"
-    if request.method == "GET" and path.startswith(HEAVY_PATHS):
-        return "heavy"
     return None
 
 

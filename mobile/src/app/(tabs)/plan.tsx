@@ -6,6 +6,7 @@ import { FxChart } from '@/components/fx-chart';
 import { RateWatchCard } from '@/components/rate-watch';
 import { YearPlanView } from '@/components/year-plan';
 import { ThemedText } from '@/components/themed-text';
+import { Kicker } from '@/components/neo';
 import { Badge, Button, Card, ErrorBox, H1, H2, Meter, Muted, Row, Screen, Segmented, Field, styles } from '@/components/ui';
 import { post, type BankPrices, type Draft, type FxOverview, type FxPoint, type LivingPlan, type QuoteBasis, type Timeline, type TuitionPlan } from '@/lib/api';
 import type { StringKey } from '@/lib/i18n';
@@ -28,6 +29,7 @@ function PlanBody({ initial }: { initial: Mode }) {
 
   return (
     <Screen>
+      <Kicker>{t('planKicker')}</Kicker>
       <H1>{t('tabPlan')}</H1>
       <Segmented<Mode>
         value={mode}

@@ -1,0 +1,108 @@
+{
+  "total_attacks": 50000,
+  "hostile_steps": 26339,
+  "honest_steps": 23661,
+  "violations_detected": 0,
+  "invariant_checks_passed": 450000,
+  "payments_completed": 492,
+  "payments_under_mandate": 161,
+  "refusals": 30982,
+  "duration_seconds": 19.97,
+  "attacks_per_second": 2503.6,
+  "seed": 42,
+  "deepseek_tokens_consumed": 0,
+  "deepseek_cost_usd": 0.0,
+  "attacks_by_vector": {
+    "agent_approves": 2654,
+    "agent_executes": 2654,
+    "agent_passkey": 2654,
+    "approve_without_passkey": 2692,
+    "change_draft_after_signing": 2651,
+    "days_pass_autopilot_runs": 1343,
+    "execute_with_idempotency_key": 5293,
+    "family_mandate": 1277,
+    "forged_or_replayed_passkey": 5191,
+    "honest_draft": 7811,
+    "honest_passkey_approval": 7937,
+    "injected_memo_and_origin": 2593,
+    "mandate_signature_attacks": 1296,
+    "message_check": 2593,
+    "reused_key_other_request": 1244,
+    "rogue_tool_calls": 2657,
+    "sms_planted_amount": 1338,
+    "unsigned_raw_mandate": 1339,
+    "unverified_payee": 2679
+  },
+  "invariant_status": {
+    "INV_NO_UNAUTHORIZED_TRANSFER": {
+      "desc": "No money moved without people's passkey approval or a signed mandate",
+      "violations": 0
+    },
+    "INV_NO_UNVERIFIED_PAYEE": {
+      "desc": "No money went to an account that is not allow-listed and verified",
+      "violations": 0
+    },
+    "INV_AGENT_PRIVILEGE_CEILING": {
+      "desc": "The agent never approved, signed, or executed outside a mandate",
+      "violations": 0
+    },
+    "INV_TWO_PERSON_RULE": {
+      "desc": "Every payment of ৳1,00,000 or more had both the parent and the student",
+      "violations": 0
+    },
+    "INV_PASSKEY_BINDING": {
+      "desc": "Every approval behind a payment is a verified passkey signature over that exact draft",
+      "violations": 0
+    },
+    "INV_BOOKS_BALANCED": {
+      "desc": "Double-entry books balanced in each currency and reconciled with every account",
+      "violations": 0
+    },
+    "INV_EXACTLY_ONCE": {
+      "desc": "No payment was booked twice, whatever was retried or replayed",
+      "violations": 0
+    },
+    "INV_TAINTED_AMOUNT_BLOCKED": {
+      "desc": "The agent never got a payable draft for an amount planted in outside text",
+      "violations": 0
+    },
+    "INV_AUDIT_HASH_CHAIN": {
+      "desc": "The hash-chained audit log stayed unbroken",
+      "violations": 0
+    }
+  },
+  "first_violations": [],
+  "timestamp": "2026-10-17T19:14:57+00:00",
+  "mutants": [
+    {
+      "mutant": "double_booking",
+      "doc": "Bug: the bank forgets which drafts it already booked, and a retried send of a paid draft books it again.",
+      "expected": "INV_EXACTLY_ONCE",
+      "caught": true,
+      "invariants_hit": [
+        "INV_EXACTLY_ONCE"
+      ],
+      "first_seen_at_step": 166
+    },
+    {
+      "mutant": "plain_approvals_allowed",
+      "doc": "Bug: people can approve without a passkey signature (the server stops checking).",
+      "expected": "INV_NO_UNAUTHORIZED_TRANSFER",
+      "caught": true,
+      "invariants_hit": [
+        "INV_NO_UNAUTHORIZED_TRANSFER"
+      ],
+      "first_seen_at_step": 200
+    },
+    {
+      "mutant": "taint_check_off",
+      "doc": "Bug: the payment sink stops looking at where the amount came from.",
+      "expected": "INV_TAINTED_AMOUNT_BLOCKED",
+      "caught": true,
+      "invariants_hit": [
+        "INV_TAINTED_AMOUNT_BLOCKED"
+      ],
+      "first_seen_at_step": 18
+    }
+  ]
+}

@@ -155,3 +155,23 @@ def test_audit_export_is_a_valid_hash_chain(client):
     lines = [l for l in text.splitlines() if l]
     assert len(lines) >= 2
     assert client.get("/audit", headers=H["parent"]).json()["verify"]["valid"]
+
+
+def test_calendar_week_shows_both_countries_bank_days(client):
+    week = client.get("/calendar/week", headers=H["parent"]).json()
+    assert len(week) == 7 and week[0]["today"] and week[0]["date"] == "2026-10-12"
+    by_day = {d["date"]: d for d in week}
+    assert not by_day["2026-10-16"]["bd"]["open"] and by_day["2026-10-16"]["cn"]["open"]  # Friday: BD weekend only
+    assert not by_day["2026-10-17"]["bd"]["open"] and not by_day["2026-10-17"]["cn"]["open"]  # Saturday: both closed
+    assert by_day["2026-10-18"]["bd"]["open"] and by_day["2026-10-18"]["cn"]["reason"] == "weekend"  # Sunday: CN only
+    assert len(client.get("/calendar/week?days=99", headers=H["parent"]).json()) == 14
+    assert client.get("/calendar/week").status_code == 401
+
+
+def test_value_counts_days_saved_money_saved_and_unsafe_moves_stopped(client):
+    v = client.get("/value", headers=H["parent"]).json()
+    assert v["stuck_days_today"] > v["stuck_days_sathi"] == 0 and float(v["saved_bdt"]) > 0 and v["stopped"] == 0
+    new_draft(client, kind="tt_living", amount_cny="1000", payee_id="attacker_9999")  # blocked: not on the allow-list
+    client.post("/mandates", json={"payee_id": "student_own_cn", "max_bdt_per_payment": "900000",
+                                   "max_bdt_per_period": "900000"}, headers=H["parent"])  # two-person rule
+    assert client.get("/value", headers=H["parent"]).json()["stopped"] == 2

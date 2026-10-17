@@ -2,13 +2,14 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { ThemedText } from '@/components/themed-text';
-import { Badge, Button, Card, ErrorBox, Muted, Row, styles } from '@/components/ui';
+import { Badge, Button, Card, ErrorBox, Label, Muted, Row, styles } from '@/components/ui';
+import { Tone } from '@/constants/theme';
 import { post, type Draft, type NeedItem, type Note } from '@/lib/api';
 import { bdt, cny, shortDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
 const TONE = { did: 'ok', needs_you: 'warn', warning: 'block', info: 'info' } as const;
-const ICON = { did: '🤖', needs_you: '✋', warning: '⚠️', info: 'ℹ️' } as const;
+const ICON = { did: 'sparkles', needs_you: 'hand-left', warning: 'warning', info: 'information-circle' } as const;
 
 /** One entry of the family feed: what Sathi did, saw, or needs. Text comes from server templates in the user's language. */
 export function NoteCard({ note }: { note: Note }) {
@@ -35,9 +36,9 @@ export function NoteCard({ note }: { note: Note }) {
   return (
     <Card tone={TONE[note.kind]}>
       <Row style={styles.between}>
-        <ThemedText type="smallBold" style={{ flex: 1 }}>
-          {ICON[note.kind]} {note.title}
-        </ThemedText>
+        <Label icon={ICON[note.kind]} color={Tone[TONE[note.kind]].fg}>
+          {note.title}
+        </Label>
         <Muted>{shortDate(note.at, lang)}</Muted>
       </Row>
       <ThemedText type="small">{note.body}</ThemedText>

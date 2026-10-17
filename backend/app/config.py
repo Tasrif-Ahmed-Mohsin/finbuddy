@@ -41,6 +41,10 @@ class Settings:
     whatsapp_phone_number_id: str | None = None
     whatsapp_graph_version: str = "v21.0"
     whatsapp_demo_to: str | None = None
+    # A person's approval of a payment or mandate counts only with a passkey signature over its hash. Tests that are
+    # about other rules switch it off (SATHI_PASSKEY_REQUIRED=0) and approve with a plain call.
+    passkey_required: bool = True
+    passkey_origins: tuple[str, ...] = ()  # extra web origins allowed to sign (the public site), besides localhost
 
     @property
     def imap_configured(self) -> bool:
@@ -68,4 +72,6 @@ def load_settings() -> Settings:
         whatsapp_phone_number_id=os.environ.get("WHATSAPP_PHONE_NUMBER_ID") or None,
         whatsapp_graph_version=os.environ.get("WHATSAPP_GRAPH_VERSION") or "v21.0",
         whatsapp_demo_to=os.environ.get("WHATSAPP_DEMO_TO") or None,
+        passkey_required=os.environ.get("SATHI_PASSKEY_REQUIRED", "1") != "0",
+        passkey_origins=tuple(o.strip().rstrip("/") for o in os.environ.get("SATHI_PASSKEY_ORIGINS", "").split(",") if o.strip()),
     )

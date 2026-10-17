@@ -10,3 +10,5 @@ os.environ["SATHI_LLM_ENABLED"] = "0"
 os.environ["SATHI_FX_MODE"] = "fixture"
 # Never send WhatsApp messages from tests; tests that need it build their own notifier with a fake transport.
 os.environ["WHATSAPP_MODE"] = "off"
+# Most tests are about other rules and approve with a plain call; the passkey tests switch the requirement back on.
+os.environ["SATHI_PASSKEY_REQUIRED"] = "0"

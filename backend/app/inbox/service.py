@@ -27,6 +27,7 @@ from app.inbox.parsers import ParsedTxn, parse
 from app.inbox.redact import redact
 from app.money import q2
 from app.security.scam import has_high_risk, scan_text
+from app.security.taint import TaintSource
 
 if TYPE_CHECKING:
     from app.service import AppState
@@ -100,6 +101,11 @@ class Inbox:
         if not text:
             raise ValueError("empty message")
         when = received_at or self.app.now
+        # Taint tracking: label the money amounts in ALL outside text at the door, before any filtering, so the
+        # defence never depends on how a message was classified (the safety fuzzer found that gap).
+        self.app.taint_ledger.register_untrusted_text(
+            {"email": TaintSource.UNTRUSTED_EMAIL, "webhook": TaintSource.UNTRUSTED_WEBHOOK}.get(source, TaintSource.UNTRUSTED_SMS),
+            f"{source}-{self._n + 1:04d}", sender[:60] or "unknown", text, when)
         flags = scan_text(text)
         risky = has_high_risk(flags)
         if not is_financial(sender, text) and not risky:
@@ -115,8 +121,9 @@ class Inbox:
         txn = None
         if not red.otp and not risky:
             parsed = parse(red.text)
-            if (parsed is None or parsed.confidence < 0.75) and self.app.llm is not None:
-                parsed = llm_extract(self.app.llm, red.text) or parsed
+            llm = self.app.llm_for(actor) if actor in ("parent", "student") else self.app.llm
+            if (parsed is None or parsed.confidence < 0.75) and llm is not None:
+                parsed = llm_extract(llm, red.text) or parsed
             if parsed is not None:
                 txn = self._track(msg, parsed)
                 msg.txn_id = txn.id

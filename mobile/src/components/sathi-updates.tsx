@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { ThemedText } from '@/components/themed-text';
 import { Badge, Button, Card, ErrorBox, H2, Muted, Row, styles } from '@/components/ui';
+import { Tone } from '@/constants/theme';
 import { post, type InboxSummary, type InboxTxn, type Insight } from '@/lib/api';
 import { bdt, cny, shortDate } from '@/lib/format';
 import { confirmPresence } from '@/lib/presence';
@@ -96,7 +97,7 @@ export function SathiUpdates() {
                 <ThemedText type="smallBold" style={{ flex: 1 }}>
                   {x.counterparty ?? x.kind} {x.counted_on_card ? '· 💳' : ''}
                 </ThemedText>
-                <ThemedText type="smallBold" style={{ color: x.direction === 'credit' ? '#15803D' : undefined }}>
+                <ThemedText type="smallBold" style={{ color: x.direction === 'credit' ? Tone.ok.fg : undefined }}>
                   {x.direction === 'credit' ? '+' : x.direction === 'debit' ? '−' : ''}
                   {x.currency === 'CNY' ? cny(x.amount, lang) : bdt(x.amount, lang)}
                 </ThemedText>

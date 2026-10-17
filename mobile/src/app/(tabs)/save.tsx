@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 
 import { CrisisCard, HundiCard, IncomeCard, SavingsRuleCard, ShieldCard, ShieldHistory, WantsCard } from '@/components/save';
+import { Kicker } from '@/components/neo';
 import { ErrorBox, H1, Muted, Screen } from '@/components/ui';
 import type { CrisisTest, SavingsView } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -23,6 +24,7 @@ export default function SaveScreen() {
 
   return (
     <Screen refreshing={loading} onRefresh={reload}>
+      <Kicker>{t('saveKicker')}</Kicker>
       <H1>{t('saveTitle')}</H1>
       <Muted>{role === 'student' ? t('saveIntro') : t('saveIntroParent')}</Muted>
       <ErrorBox error={error} />

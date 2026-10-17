@@ -310,6 +310,14 @@ class ChatAgent:
                 return {"error": "missing or unclear amount or purpose: ask the user one short question (tuition to the "
                                  "university, or living money to the student's own Chinese account, and how much)"}
             payee = str(args.get("payee_id") or ("univ_demo" if kind == "tt_tuition" else "student_own_cn"))
+            verdict = a.taint_ledger.check_sink("create_payment_draft", amount_cny=amount, payee_id=payee,
+                                                trusted_amounts=a.trusted_amounts())
+            if not verdict.allowed:
+                a.bank.log("taint_blocked", self._actor, "DRAFT", {"sink": "create_payment_draft",
+                                                                    "amount_cny": str(amount), "payee": payee,
+                                                                    "source": verdict.violating_entity.provenance.source.value})
+                return {"error": f"refused: {verdict.reason} Ask the person to type the amount they want to send.",
+                        "blocked_by": "taint_tracking"}
             return self._draft(kind, amount, payee, str(args.get("memo") or "")[:60], actions)
         if name == "revise_payment_draft":
             old_id = self.last_draft.get(self._actor)
@@ -351,18 +359,40 @@ class ChatAgent:
         lang = lang if lang in LANG_NAMES else "en"
         self._lang = lang
         self._actor = actor.value
+        # Taint tracking: the amounts the person types are theirs; amounts only seen in outside text are not.
+        self.app.taint_ledger.endorse_user_text(message, actor)
         actions: list[dict] = []
         tools_used: list[str] = []
-        if self.app.llm is not None:
+        mode = "fallback"
+        reply = ""
+        if self.app.llm_for(actor) is not None:  # off when the person withdrew consent for the AI (PIPL Art. 39)
             try:
                 reply = self._llm_chat(message, history, lang, actions, tools_used)
-                self._log(actor, "llm", tools_used, actions, len(message))
-                return {"reply": reply, "mode": "llm", "actions": actions, "tools_used": tools_used}
+                mode = "llm"
             except LLMUnavailable:
-                pass  # fall through to the deterministic answer
-        reply = self._fallback(message, lang, actions, tools_used)
-        self._log(actor, "fallback", tools_used, actions, len(message))
-        return {"reply": reply, "mode": "fallback", "actions": actions, "tools_used": tools_used}
+                reply = self._fallback(message, lang, actions, tools_used)
+        else:
+            reply = self._fallback(message, lang, actions, tools_used)
+
+        self._log(actor, mode, tools_used, actions, len(message))
+
+        # Egress Guard: AI Output Firewall inspects reply before display
+        verdict = self.app.filter_agent_output(reply, actor, lang)
+        safe_reply = verdict.filtered_text
+
+        signals = turn_signals(message, safe_reply, mode, actions, tools_used)
+        if not verdict.passed and verdict.action_taken.value == "block" and "refused" not in signals:
+            signals.append("refused")
+
+        return {
+            "reply": safe_reply,
+            "mode": mode,
+            "actions": actions,
+            "tools_used": tools_used,
+            "signals": signals,
+            "choices": turn_choices(message, signals),
+            "firewall": verdict.to_dict(),
+        }
 
     def _log(self, actor: Actor, mode: str, tools: list[str], actions: list[dict], length: int) -> None:
         self.app.bank.log("agent_chat", actor.value, "READ", {"mode": mode, "tools": tools, "actions": actions, "message_length": length})
@@ -583,6 +613,44 @@ class ChatAgent:
         who = dlg.WHO.get(tuple(sorted(r["required_approvers"])), dlg.WHO[("parent",)])[lang]
         return D["drafted"].format(amount=_cny(r["amount_cny"]), purpose=dlg.PURPOSE[kind][lang], payee=r["payee_name"],
                                    total=_bdt(r["total_bdt"]), who=who[0].upper() + who[1:] if lang == "en" else who)
+
+
+def turn_signals(message: str, reply: str, mode: str, actions: list[dict], tools: list[str]) -> list[str]:
+    """What kind of turn this was, for the app to show (and for Sathi's face): one question to clarify, a corrected or
+    cancelled draft, a refusal for safety, a scam check, a locked card, or the offline rules answering."""
+    drafted = any(a.get("type") == "draft" for a in actions)
+    out = []
+    if "refuse_escalation" in tools or dlg.has_any(message, dlg.ESCALATE) or dlg.asks_for_secrets(message):
+        out.append("refused")
+    if "revise_payment_draft" in tools:
+        out.append("corrected")
+    elif drafted:
+        out.append("drafted")
+    if "cancel_payment_draft" in tools:
+        out.append("cancelled")
+    if "check_message" in tools or "check_hundi_offer" in tools:
+        out.append("checked")
+    if any(a.get("type") == "card" for a in actions):
+        out.append("card_locked")
+    asked = "clarify" in tools or (dlg.is_send_intent(message) and reply.rstrip().endswith(("?", "？")))
+    if asked and not drafted and "refused" not in out:
+        out.append("clarify")
+    if mode == "fallback":
+        out.append("offline")
+    return out
+
+
+def turn_choices(message: str, signals: list[str]) -> list[dict]:
+    """One-tap answers for the app (dialogue efficiency): the missing detail when Sathi asked a question, or a way out
+    of the draft it just made. The app shows them in the user's language; tapping one sends that answer."""
+    if "clarify" in signals:
+        amount, _ = dlg.find_amount(message)
+        if amount is not None and dlg.find_purpose(message) is None:
+            return [{"kind": "purpose", "value": "tt_tuition"}, {"kind": "purpose", "value": "tt_living"}]
+        return [{"kind": "amount", "value": v} for v in ("2000", "3000", "5000")]
+    if "drafted" in signals or "corrected" in signals:
+        return [{"kind": "cancel"}]
+    return []
 
 
 def _bdt(v) -> str:

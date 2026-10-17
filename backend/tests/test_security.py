@@ -137,3 +137,14 @@ def test_audit_log_persists_and_reloads(tmp_path):
     log.append("b", "parent", "EXECUTE", {"y": "২"})
     reloaded = AuditLog(path)
     assert len(reloaded.entries) == 2 and reloaded.verify()["valid"]
+
+
+def test_two_processes_sharing_one_log_keep_one_chain(tmp_path):
+    # The API and the web site both running write to the same file: neither may fork the chain (it would look tampered).
+    path = tmp_path / "audit.jsonl"
+    api, site = AuditLog(path), AuditLog(path)
+    api.append("a", "parent", "READ", {})
+    site.append("b", "student", "READ", {})
+    api.append("c", "parent", "READ", {})
+    reloaded = AuditLog(path)
+    assert [e["seq"] for e in reloaded.entries] == [1, 2, 3] and reloaded.verify()["valid"]

@@ -37,7 +37,7 @@ export function RunwayCard({ runway }: { runway: Runway }) {
       </Muted>
       {m ? (
         <>
-          <Badge tone="ok">🤖 {t('autopilotOn')}</Badge>
+          <Badge tone="ok" icon="sync">{t('autopilotOn')}</Badge>
           <Meter
             label={t('usedThisMonth')}
             used={Number(m.spent_in_period_bdt)}

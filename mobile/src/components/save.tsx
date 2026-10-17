@@ -4,8 +4,9 @@ import { Pressable, View } from 'react-native';
 
 import { ListenButton } from '@/components/listen-button';
 import { ThemedText } from '@/components/themed-text';
-import { Badge, Banner, Button, Card, ErrorBox, Field, H2, Meter, Muted, Row, Segmented, styles } from '@/components/ui';
-import { Tone } from '@/constants/theme';
+import { BigNumber, Kicker, Panel, RingGauge, SpaceText } from '@/components/neo';
+import { Badge, Banner, Button, Card, ErrorBox, Field, H2, Label, Meter, Muted, Row, Segmented, styles } from '@/components/ui';
+import { Space, Tone } from '@/constants/theme';
 import {
   post,
   type CrisisTest,
@@ -47,7 +48,7 @@ export function ShieldMini({ shield }: { shield: ShieldSummary }) {
     <Pressable accessibilityRole="button" onPress={() => router.push('/save')}>
       <Card tone={shield.rule_on ? 'ok' : 'neutral'}>
         <Row style={styles.between}>
-          <ThemedText type="smallBold">🛡️ {t('shieldTitle')}</ThemedText>
+          <Label icon="shield-checkmark">{t('shieldTitle')}</Label>
           <Badge tone={shield.rule_on ? 'ok' : 'neutral'}>
             {localDigits(shield.days_of_living, lang)} {t('daysOfLiving')}
           </Badge>
@@ -73,7 +74,7 @@ export function ShieldCard({ v, onChanged }: { v: SavingsView; onChanged: () => 
   if (!s) {
     return (
       <Card>
-        <H2>🛡️ {t('shieldTitle')}</H2>
+        <H2 icon="shield-checkmark">{t('shieldTitle')}</H2>
         <Muted>{t('shieldPrivate')}</Muted>
       </Card>
     );
@@ -101,24 +102,28 @@ export function ShieldCard({ v, onChanged }: { v: SavingsView; onChanged: () => 
   }
 
   return (
+    <>
+      {/* Shield bay: the Shield as a reactor ring, how much is in it, and how many days of living it buys. */}
+      <Panel>
+        <Row style={styles.between}>
+          <Kicker dark>{t('shieldTitle')}</Kicker>
+          {s.full && <Badge tone="ok">{t('shieldFull')}</Badge>}
+        </Row>
+        <Row style={{ flexWrap: 'nowrap', gap: 16 }}>
+          <RingGauge pct={s.pct_of_target / 100} value={`${num(s.pct_of_target, lang)}%`} label={t('targetLabel')} sub={cny(s.target_cny, lang)} size={136} />
+          <View style={{ flex: 1, gap: 6 }}>
+            <BigNumber value={Number(s.balance_cny)} size={34} weight="600" color={Space.text} format={(n) => cny(Math.round(n), lang)} />
+            <SpaceText neon small>
+              {localDigits(s.days_of_living, lang)} {t('daysOfLiving')}
+            </SpaceText>
+            <SpaceText muted small>
+              {v.rule ? fill(t('ruleOnFmt'), { pct: num(v.rule.shield_pct, lang) }) : t('ruleOff')}
+            </SpaceText>
+          </View>
+        </Row>
+      </Panel>
     <Card tone={s.full ? 'ok' : v.rule ? 'info' : 'neutral'}>
-      <Row style={styles.between}>
-        <H2>🛡️ {t('shieldTitle')}</H2>
-        {s.full && <Badge tone="ok">{t('shieldFull')}</Badge>}
-      </Row>
-      <Row style={styles.between}>
-        <ThemedText style={{ fontSize: 30, lineHeight: 36, fontWeight: '700' }}>{cny(s.balance_cny, lang)}</ThemedText>
-        <Badge tone="info">
-          {localDigits(s.days_of_living, lang)} {t('daysOfLiving')}
-        </Badge>
-      </Row>
-      <Meter label={t('targetLabel')} used={Number(s.balance_cny)} cap={Number(s.target_cny)} display={`${num(s.pct_of_target, lang)}% · ${cny(s.target_cny, lang)}`} />
       <Muted>{role === 'parent' ? t('shieldExplainParent') : t('shieldExplain')}</Muted>
-      {v.rule ? (
-        <ThemedText type="smallBold">✅ {fill(t('ruleOnFmt'), { pct: num(v.rule.shield_pct, lang) })}</ThemedText>
-      ) : (
-        <Muted>{t('ruleOff')}</Muted>
-      )}
 
       {v.releases.map((r) => (
         <Banner key={r.id} tone="warn">
@@ -146,6 +151,7 @@ export function ShieldCard({ v, onChanged }: { v: SavingsView; onChanged: () => 
       {done && <Badge tone="ok">{done}</Badge>}
       <ErrorBox error={error} />
     </Card>
+    </>
   );
 }
 

@@ -1,73 +1,46 @@
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
+import { StyleSheet, Text, type TextProps, type TextStyle } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
+import { Brand, Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { fontFamilyFor, useFontState } from '@/lib/fonts';
+import { useSession } from '@/lib/session';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
   themeColor?: ThemeColor;
+  /** Use the display face (headings, big numbers). Text of 22px or more uses it automatically. */
+  display?: boolean;
 };
 
-export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
-  const theme = useTheme();
+function weightOf(w: TextStyle['fontWeight']): number {
+  if (w == null || w === 'normal') return 400;
+  if (w === 'bold') return 700;
+  const n = Number(w);
+  return Number.isFinite(n) ? n : 400;
+}
 
-  return (
-    <Text
-      style={[
-        { color: theme[themeColor ?? 'text'] },
-        type === 'default' && styles.default,
-        type === 'title' && styles.title,
-        type === 'small' && styles.small,
-        type === 'smallBold' && styles.smallBold,
-        type === 'subtitle' && styles.subtitle,
-        type === 'link' && styles.link,
-        type === 'linkPrimary' && styles.linkPrimary,
-        type === 'code' && styles.code,
-        style,
-      ]}
-      {...rest}
-    />
-  );
+export function ThemedText({ style, type = 'default', themeColor, display, ...rest }: ThemedTextProps) {
+  const theme = useTheme();
+  const { lang } = useSession();
+  const { bangla } = useFontState();
+  const flat: TextStyle = StyleSheet.flatten([{ color: theme[themeColor ?? 'text'] }, styles[type], style]) ?? {};
+
+  if (type === 'code') return <Text style={flat} {...rest} />;
+  const isDisplay = display ?? (type === 'title' || type === 'subtitle' || (flat.fontSize ?? 16) >= 22);
+  const family = fontFamilyFor(weightOf(flat.fontWeight), isDisplay, lang, bangla);
+  const fix: TextStyle = family ? { fontFamily: family, fontWeight: 'normal' } : {};
+  // Bangla glyphs are taller: give lines a little more room.
+  if (lang === 'bn' && flat.lineHeight) fix.lineHeight = Math.round(flat.lineHeight * 1.12);
+  return <Text style={[flat, fix]} {...rest} />;
 }
 
 const styles = StyleSheet.create({
-  small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
-  },
-  smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
-  },
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
-  },
-  subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
-  },
-  link: {
-    lineHeight: 30,
-    fontSize: 14,
-  },
-  linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
-  },
-  code: {
-    fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
-    fontSize: 12,
-  },
+  default: { fontSize: 16, lineHeight: 24, fontWeight: '400' },
+  small: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
+  smallBold: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  title: { fontSize: 34, lineHeight: 40, fontWeight: '800' },
+  subtitle: { fontSize: 24, lineHeight: 30, fontWeight: '700' },
+  link: { fontSize: 14, lineHeight: 22, fontWeight: '600' },
+  linkPrimary: { fontSize: 14, lineHeight: 22, fontWeight: '600', color: Brand.primary },
+  code: { fontFamily: Fonts.mono, fontSize: 12 },
 });

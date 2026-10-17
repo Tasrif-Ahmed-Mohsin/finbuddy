@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from app.corridors.loader import Corridor
 from app.money import q2
-from app.security.permissions import Draft
+from app.security.permissions import Actor, Draft
 from app.security.scam import Flag, contains_term, has_high_risk
 
 
@@ -51,6 +51,10 @@ class ComplianceContext:
     student_file_expiry: date | None = None
     origin_flags: list[Flag] | None = None
     card_status: str | None = None  # status of the Bangladeshi card used for ATM plans
+    taint_ledger: Any | None = None
+    cop_service: Any | None = None
+    trusted_amounts: frozenset = frozenset()  # amounts a person confirmed in the app (the tuition invoice)
+    cop_names: dict | None = None  # who should hold each payee account (the student's own account → the student)
 
 
 def run_draft_checks(draft: Draft, ctx: ComplianceContext) -> list[Check]:
@@ -129,6 +133,66 @@ def run_draft_checks(draft: Draft, ctx: ComplianceContext) -> list[Check]:
         checks.append(Check("origin_message_safe", not risky, "block" if risky else "info",
                             f"The request contains scam/injection signals ({cats})" if risky else "Request looks safe",
                             "Scam & injection rules (app/security/scam.py)"))
+
+    # 8. Taint tracking (after DeepMind's CaMeL, 2025): when the AI drafts a payment, its amount must not come only
+    #    from outside text (SMS, email, photo). A person's own drafts are theirs and are not checked here.
+    if ctx.taint_ledger is not None and draft.created_by == Actor.AGENT:
+        verdict = ctx.taint_ledger.check_sink(
+            sink_name="create_payment_draft",
+            amount_cny=draft.amount_cny,
+            payee_id=draft.payee_id,
+            trusted_amounts=ctx.trusted_amounts,
+        )
+        if not verdict.allowed:
+            checks.append(Check(
+                "taint_flow_control",
+                False,
+                "block",
+                verdict.reason,
+                "Taint tracking (app/security/taint.py)",
+            ))
+        else:
+            checks.append(Check(
+                "taint_flow_control",
+                True,
+                "info",
+                "The amount did not come from outside text",
+                "Taint tracking (app/security/taint.py)",
+            ))
+
+    # 9. Confirmation of Payee (CoP) verification (UK PSR & EU VoP 2024/886 standard).
+    #    Queries the receiving bank simulator to verify that the name on the account matches.
+    #    CoP applies to bank account transfers (tt_tuition, tt_living), not ATM card cash withdrawals.
+    if ctx.cop_service is not None and draft.payee_id and draft.kind != "atm_plan":
+        from app.security.cop import CopStatus
+        payee_rec = ctx.payees.get(draft.payee_id)
+        intended = (ctx.cop_names or {}).get(draft.payee_id) or (payee_rec.name if payee_rec else draft.payee_id)
+        cop = ctx.cop_service.verify_payee(draft.payee_id, intended)
+        if cop.status == CopStatus.MATCH:
+            checks.append(Check(
+                "cop_verification",
+                True,
+                "info",
+                f"Confirmation of Payee: MATCHED '{cop.registered_name}' ({cop.bank_name})",
+                "UK PSR / EU VoP Confirmation of Payee",
+            ))
+        elif cop.status == CopStatus.CLOSE_MATCH:
+            checks.append(Check(
+                "cop_verification",
+                True,
+                "warn",
+                f"Confirmation of Payee: CLOSE MATCH. Registered legal name: '{cop.registered_name}'",
+                "UK PSR / EU VoP Confirmation of Payee",
+            ))
+        else:
+            checks.append(Check(
+                "cop_verification",
+                False,
+                "block",
+                f"Confirmation of Payee FAILED: Account belongs to '{cop.registered_name}', NOT '{intended}'. Authorised Push Payment (APP) fraud risk.",
+                "UK PSR / EU VoP Confirmation of Payee",
+            ))
+
     return checks
 
 

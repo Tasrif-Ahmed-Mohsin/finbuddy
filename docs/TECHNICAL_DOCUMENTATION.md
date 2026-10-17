@@ -156,7 +156,7 @@ sequenceDiagram
 | `backend/app/corridors/bd_cn.yaml` | Rule pack: every number with value, confidence (official / secondary / field / assumption) and source |
 | `backend/app/data/` | `bank_holidays.yaml` (BD + CN closures), `bank_quotes.yaml` (estimates + real payment), `fx_history.csv`, `demo_messages.yaml` |
 | `backend/scripts/` | `fetch_fx_history.py` (data pipeline), `demo_scenario.py` (end-to-end run + evidence export) |
-| `backend/tests/` | 332 automated test cases (20 files) |
+| `backend/tests/` | 407 automated test cases (29 files) |
 | `mobile/src/` | Expo Router screens (`app/`), components, API client, i18n (bn/en/zh), formatting (lakh, Bengali digits) |
 | `docs/` | Research, plans, this document, security self-assessment, `evidence/` (sandbox operation logs) |
 
@@ -450,7 +450,7 @@ Full details, the permission-tier implementation and the known-risk list are in 
 
 - **Permission levels:**
   - L0 Read, L1 Draft (the agent proposes mandates here).
-  - L2 Execute: needs a user approval token.
+  - L2 Execute: needs the person's **passkey signature over the exact draft**, checked by the server, then a single-use approval token.
   - L3 Mandate: the autopilot works only inside a signed, capped, revocable mandate that covers living money only.
   - Hard blocks that nobody can override.
 - **Signatures and approvals are bound to what people saw:**
@@ -464,6 +464,30 @@ Full details, the permission-tier implementation and the known-risk list are in 
   - a hash-chained audit log for every action;
   - grounded numbers everywhere the AI reads text;
   - rule-based fallbacks when the AI is unavailable.
+
+## 5b. Bank-grade engineering
+
+Each piece below is small, standard in banking, and tested; together they make the sandbox behave like a system a
+bank could plug into.
+
+| Piece | What it is | Code | Evidence |
+|---|---|---|---|
+| **Passkey-signed approvals** | WebAuthn assertion (ES256) over the draft hash, mandate proposal hash or bank consent hash; server checks challenge, origin, rpId, User Verified, signature, replay and counter before the approval counts. Web: real platform passkeys; phone: a device key in secure storage, used after fingerprint / PIN. No private key in code or on the server | `security/passkey.py`, `mobile/src/lib/passkey.ts` | `tests/test_passkey.py` (13), judge T1, S3 |
+| **Double-entry books** | Every movement of money is a journal entry whose legs sum to zero per currency (FX desk and transit accounts for BDT → CNY); balances change only through entries; trial balance and reconciliation checked | `sandbox/ledger.py`, `sandbox/bank.py` | `tests/test_ledger.py`, `GET /ledger` |
+| **Exactly-once payments** | `Idempotency-Key` on create / approve / execute (a retry returns the first answer; the same key for another request → 422); the bank never books one draft twice | `service.idempotent`, `bank.booked` | judge S7, `test_a_retried_send_with_the_same_key_pays_once` |
+| **ISO 20022 + UETR** | `pain.001.001.09` for every transfer: UETR, purpose `EDUC`/`FAMI`, charge bearer `DEBT`/`SHAR`, Bangladesh Bank reporting; rule checks from the schema (lengths, code lists, BIC) | `integrations/iso20022.py` | `tests/test_iso20022.py`, [FINTECH_STANDARDS_ISO20022.md](FINTECH_STANDARDS_ISO20022.md) |
+| **Open-banking connectors** | Read-only account access in the AIS model (UK Open Banking / Berlin Group shape): the holder signs a consent of at most 90 days with their passkey, every read is logged, revoke or expiry stops it, nothing can move money. BRAC Bank and Bank of China adapters are simulated | `integrations/open_banking.py`, app → Settings → Connected banks | `tests/test_open_banking_privacy.py`, judge T9 |
+| **Taint tracking** | Amounts in outside text are labelled at the door; an amount the AI drafts that came only from outside text is refused, however phrased (after DeepMind's CaMeL) | `security/taint.py` | [taint_tracking_evidence.md](evidence/taint_tracking_evidence.md) |
+| **Confirmation of Payee** | Before a transfer, the name on the receiving account is checked against who should hold it (UK / EU anti-scam check, simulated directory) | `security/cop.py` | `tests/test_cop.py` |
+| **Output firewall** | Every reply is checked before display: one-time codes, card and account numbers, the other person's private money and the system prompt are hidden, in the reader's language | `security/firewall.py` | [ai_output_firewall_evidence.md](evidence/ai_output_firewall_evidence.md) |
+| **Safety-invariant fuzzing** | 50,000 random honest and hostile steps on the real code with 9 invariants checked after every step; 0 violations, 492 payments still went through; 3 deliberate bugs (mutants) all caught; it found one real gap, now fixed | `security/fuzzer.py`, `security/mutants.py` | [safety_fuzzing_evidence.md](evidence/safety_fuzzing_evidence.md) |
+| **Your data (PIPL)** | What is kept and why, where it goes (DeepSeek in China), copy, delete, and a per-person AI switch (off = rules only, nothing sent) | `privacy.py`, app → Settings → Your data | `test_switching_the_ai_off_means_nothing_goes_to_deepseek` |
+| **Bangla voice input** | Speak instead of typing (bn-BD, en-US, zh-CN): Android's speech service in the app, the Web Speech API in the browser; the words land in the box to check before sending | `mobile/src/components/voice-button.tsx` | manual (needs a microphone) |
+
+**Review on 18 Oct.** A first version of several of these overclaimed; the review fixed them before submission:
+passkey demo keys were fixed numbers in the app bundle (anyone could sign as the parent) and a plain approval still
+worked; taint tracking labelled every number and blocked people's own payments; the firewall hid years and words;
+the ISO message used values the schema rejects and wrong BICs; the security status endpoints were open to anyone.
 
 ## 6. Data, sources and licences
 
@@ -507,10 +531,16 @@ Full details, the permission-tier implementation and the known-risk list are in 
 
 | Area | Endpoints |
 |---|---|
-| **Loop** | `GET /plan/year`, `GET /plan/stress?runs=`, `GET /runway`, `GET /feed?lang=`, `GET /receipts`, `POST /sandbox/advance` (day by day, autopilot runs) |
-| **Family mandate** | `POST /mandates/proposals`, `GET /mandates/proposals/{id}`, `POST /mandates/proposals/{id}/sign` (`proposal_hash`), `GET /mandates`, `DELETE /mandates/{id}` |
+| **Loop** | `GET /plan/year`, `GET /plan/stress?runs=`, `GET /runway`, `GET /feed?lang=`, `GET /receipts`, `POST /sandbox/advance` (day by day, autopilot runs), `GET /calendar/week` (bank days in both countries), `GET /value` (days saved, money saved, unsafe moves stopped) |
+| **Judge mode** | `POST /judge/run`: every scripted task end to end in fresh sandboxes (this session untouched), with steps, checks, value and log evidence |
+| **Family mandate** | `POST /mandates/proposals`, `GET /mandates/proposals/{id}`, `POST /mandates/proposals/{id}/sign` (`proposal_hash` + passkey `assertion`), `GET /mandates`, `DELETE /mandates/{id}` |
 | Rates and plans | `GET /market`, `POST /market/quotes`, `GET /fx`, `GET /fx/history`, `POST /plan/tuition`, `POST /plan/living` |
-| Drafts and execution | `POST /drafts`, `GET /drafts[/{id}]`, `POST /drafts/{id}/approve`, `POST /drafts/{id}/execute`, `POST /drafts/{id}/execute-under-mandate/{m}`, `POST /mandates` (raw, parent only) |
+| Drafts and execution | `POST /drafts`, `GET /drafts[/{id}]`, `POST /drafts/{id}/passkey-approve` (WebAuthn assertion), `POST /drafts/{id}/approve` (refused when passkeys are required), `POST /drafts/{id}/execute`, `POST /drafts/{id}/execute-under-mandate/{m}`, `POST /mandates` (raw, parent only; refused when passkeys are required). Writes accept an `Idempotency-Key` header |
+| **Passkeys** | `GET /auth/passkey/credentials`, `POST /auth/passkey/register` (public key only), `DELETE /auth/passkey/credentials/{id}` |
+| **Books** | `GET /ledger` (trial balance, reconciliation, entries, payments booked once, retries answered) |
+| **Bank connections** | `GET /banks`, `POST /banks/consents`, `POST /banks/consents/{id}/authorise` (passkey), `DELETE /banks/consents/{id}`, `GET /banks/{connector}/accounts` |
+| **Your data** | `GET /privacy`, `GET /privacy/export`, `POST /privacy/delete`, `POST /privacy/ai` |
+| **Security evidence** | `GET /security/fuzz-results`, `POST /security/fuzz/run`, `GET /security/taint/status`, `GET /security/firewall/status`, `POST /security/firewall/test`, `POST /security/cop/verify`, `GET /receipts/{id}/iso20022`, `GET /receipts/{id}/pain001.xml` |
 | Agent | `POST /agent/chat`, `GET /agent/status`, `POST /check/message` |
 | Inbox | `POST /inbox/messages`, `POST /inbox/webhook`, `POST /inbox/email/sync`, `POST /inbox/demo/seed`, `GET /inbox/*`, `GET /insights?lang=` |
 | **Emergency** | `GET /emergency?lang=`, `POST /emergency/no-money`, `POST /emergency/card-lost`, `POST /emergency/safety-checks` (parent), `POST /emergency/safety-checks/{id}/safe` and `POST /emergency/safe` (student only), `POST /sandbox/expense` (a surprise bill, sandbox only) |
@@ -557,20 +587,20 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
 
 ## 10. Testing and execution evidence
 
-- `cd backend && .venv/Scripts/python -m pytest -q` runs **332 test cases** (254 test functions, some parameterised), all passing:
+- `cd backend && .venv/Scripts/python -m pytest -q` runs **407 test cases**, all passing:
 
   | Area | Test cases |
   |---|---|
   | Living optimiser (incl. 30-combination limit check) | 36 |
   | **Earn & Save: income and work rules, savings rule (3 languages, hash, signers), Shield, cooling-off, family lock, emergencies, privacy on every door, taka lens, hundi honesty, dollar crisis, inbox, chat** | **40** |
-  | **Dialogue: clarification, correction, refusal (EN/BN/ZH)** | **31** |
+  | **Dialogue: clarification, correction, refusal, quick replies (EN/BN/ZH)** | **33** |
   | **Family mandate, signatures and autopilot** | **28** |
   | **Bank prices: published sheets, fee schedules, rate watch** | **23** |
   | **Emergency mode, fake emergencies, "Are you safe?"** | **22** |
-  | Security and permissions | 20 |
+  | Security and permissions | 21 |
   | Inbox and privacy | 17 |
   | FX and card controls | 16 |
-  | End-to-end API scenarios | 13 |
+  | End-to-end API scenarios (incl. bank-day week, value summary) | 15 |
   | **Year plan, bank calendar, cost truth** | **12** |
   | **Stress test, what-if, spending pace, late margin** | **12** |
   | Payment passport | 10 |
@@ -581,8 +611,20 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
   | Documents | 5 |
   | Tuition and FX method | 5 |
   | Cost engine | 4 |
+  | **Judge mode: 20 scripted tasks, compromised-AI drill, no real messages** | **4** |
+  | **Output firewall** | **15** |
+  | **Passkeys: signatures, replay, wrong payment, phishing origin, two people, mandates** | **13** |
+  | **ISO 20022 and UETR, schema rules** | **8** |
+  | **Double-entry books and exactly-once** | **7** |
+  | **Bank connections and your data (PIPL)** | **7** |
+  | **Taint tracking** | **6** |
+  | **Safety fuzzer and its mutants** | **5** |
+  | **Confirmation of Payee** | **5** |
 
   Tests never call the real AI (a fake DeepSeek server is used) or the network.
+
+- **Judge mode** (`app/judge.py`; `POST /judge/run`; `python scripts/judge_tasks.py` → `docs/evidence/judge_tasks.md`; in the app: Settings → Judge mode) runs the 20 scripted tasks of the brief through the real API, each in a fresh sandbox, with every approval signed by a simulated phone's passkey: 9 money tasks (tuition with two-person approval, rates and living money, the Bangla family mandate and 125 days of autopilot, the year plan, emergency, lost card, Earn & Save, Chinese and Bangla requests, a read-only bank connection with consent), 7 security tasks (scam, prompt injection in an SMS, a document and a mandate, privilege escalation, data extraction, a tamper-evident log, a **compromised-AI drill** where a malicious model drives the agent's tools, and exactly-once payments) and 4 interaction tasks (clarification, correction and cancel, fallback while the AI is down, honest hundi check). The offline rules answer the chat, so a run is free and gives the same result every time; it shares the server's rate sources (about 1.5 s) and never sends real WhatsApp messages.
+- **Every chat turn** also returns `signals` (refused, clarify, corrected, drafted, cancelled, checked, card_locked, offline) and `choices` (one-tap answers: the missing amount or purpose, or cancel). The app shows them as chips, a "How Sathi did it" step list built from `tools_used`, and Sathi's mood.
 - `cd mobile && npx tsc --noEmit && npx expo lint`: clean.
 - **Execution evidence:** `python scripts/demo_scenario.py` runs the whole loop through the real API, one sandbox day at a time, from 12 Oct 2026 to 21 Feb 2027:
   1. Sense: SMS and money in China.
@@ -614,4 +656,4 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
 - **Stress-test ranges are assumptions** (70–130% spending, 0–3 days late, ±2 days for lunar holidays), chosen to be pessimistic; they are not measured from data yet.
 - **On-chain anchoring is not used yet.** The hash chain is ready: anchoring daily chain heads on a permissioned chain such as FISCO BCOS would let a bank verify the receipts without trusting our server.
 - **Earn & Save:** income is declared by the student (or seen in bank alerts) and cannot be verified with an employer; the China hour cap is from conflicting secondary sources (Sathi warns at the stricter one); need/want categories come from merchant keywords and the student can override them; the dollar-crisis test assumes the rest of the pay is spent (conservative) and models a full stop of Student File transfers, not partial limits; in production the Shield would be a real sub-account or time deposit at the student's Chinese bank, moved through a bank API.
-- **Production hardening** (real authentication, device-bound keys, KMS, TLS, rate limits): see the security report.
+- **Production hardening** (real authentication, identity proofing before a new passkey, platform passkeys with attestation in the app, the official ISO 20022 XSD, a durable idempotency store, KMS, TLS, rate limits): see the security report.

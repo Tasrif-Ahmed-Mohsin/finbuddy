@@ -1,10 +1,12 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 
 import { DataBanner } from '@/components/data-banner';
+import { BigNumber, Kicker, Panel, SpaceText } from '@/components/neo';
 import { ThemedText } from '@/components/themed-text';
 import { Badge, Button, Card, ErrorBox, H2, Muted, Row, styles } from '@/components/ui';
-import { Tone } from '@/constants/theme';
+import { Space, Tone } from '@/constants/theme';
 import type { StressTest, YearEvent, YearPlan } from '@/lib/api';
 import { bdt, cny, localDigits, num, shortDate } from '@/lib/format';
 import type { Lang } from '@/lib/i18n';
@@ -27,16 +29,29 @@ export function YearPlanView() {
   return (
     <>
       <DataBanner dq={yp.data_quality} />
-      <Card>
-        <H2>{t('yearTitle')}</H2>
-        <Row style={{ alignItems: 'stretch' }}>
-          <BigStat label={t('stuckToday')} value={num(h.stuck_days_today, lang)} unit={t('stuckDays')} tone="block" />
-          <BigStat label={t('stuckSathi')} value={num(h.stuck_days_sathi, lang)} unit={t('stuckDays')} tone="ok" />
+      {/* Flight plan: days without money this year, today's habits → with Sathi, as two big neon numbers. */}
+      <Panel>
+        <Kicker dark>{t('yearHeroKicker')}</Kicker>
+        <SpaceText style={{ fontWeight: '600' }}>{t('yearTitle')}</SpaceText>
+        <Row style={{ flexWrap: 'nowrap', alignItems: 'center', gap: 8 }}>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <BigNumber value={h.stuck_days_today} size={72} color={Tone.block.neon} format={(n) => num(Math.round(n), lang)} />
+            <SpaceText muted small>
+              {t('yearToday')}
+            </SpaceText>
+          </View>
+          <Ionicons name="arrow-forward" size={28} color={Space.neon} />
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <BigNumber value={h.stuck_days_sathi} size={72} color={Tone.ok.neon} format={(n) => num(Math.round(n), lang)} />
+            <SpaceText muted small>
+              {t('yearSathi')}
+            </SpaceText>
+          </View>
         </Row>
-        <Muted>
-          {shortDate(yp.horizon.from, lang)} → {shortDate(yp.horizon.to, lang)}
-        </Muted>
-      </Card>
+        <SpaceText muted small style={{ textAlign: 'center' }}>
+          {t('stuckDays')} · {shortDate(yp.horizon.from, lang)} → {shortDate(yp.horizon.to, lang)}
+        </SpaceText>
+      </Panel>
 
       {today.stuck_periods.length > 0 && (
         <Card tone="block">
@@ -197,16 +212,6 @@ function StressCard() {
         );
       })}
     </Card>
-  );
-}
-
-function BigStat({ label, value, unit, tone }: { label: string; value: string; unit: string; tone: 'ok' | 'block' }) {
-  return (
-    <View style={{ flex: 1, minWidth: 140, borderRadius: 12, padding: 12, backgroundColor: Tone[tone].bg, gap: 2 }}>
-      <ThemedText type="small">{label}</ThemedText>
-      <ThemedText style={{ fontSize: 34, lineHeight: 40, fontWeight: '700', color: Tone[tone].fg }}>{value}</ThemedText>
-      <ThemedText type="small">{unit}</ThemedText>
-    </View>
   );
 }
 

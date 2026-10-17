@@ -6,8 +6,11 @@ bypass it.
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
+import json
 import os
+import re
 import secrets
 from dataclasses import dataclass, replace
 from datetime import date, datetime, time, timedelta
@@ -61,8 +64,21 @@ from app.security.permissions import (
     required_approvers,
 )
 from app.security.scam import has_high_risk, scan_text
+from app.security.passkey import DEFAULT_ORIGINS, PasskeyService
+from app.integrations.open_banking import CONNECTORS, PERMISSIONS, OpenBanking
+from app import privacy
+from app.security.taint import TaintLedger, TaintSource
+from app.security.cop import ConfirmationOfPayeeService
+from app.security.firewall import OutputFirewall, OutputFirewallVerdict
 
 DEMO_START = datetime(2026, 10, 12, 9, 0)
+IDEMPOTENCY_KEEP = 500  # how many recent Idempotency-Keys are remembered
+# Book entries the parent does not see unless the student shares their savings (the student's own pay and Shield).
+PRIVATE_LEDGER_EVENTS = {"income_received", "shield_saved", "shield_released", "shield_cover", "spending_logged"}
+
+
+class IdempotencyConflict(ValueError):
+    """The same Idempotency-Key was sent again with a different request."""
 
 
 @dataclass
@@ -76,13 +92,16 @@ class DraftSpec:
 
 class AppState:
     def __init__(self, audit_path: Path | None = None, start: datetime = DEMO_START,
-                 llm: DeepSeekClient | None = None, settings: Settings | None = None):
+                 llm: DeepSeekClient | None = None, settings: Settings | None = None, fx: FxProvider | None = None,
+                 bank_rates: BankRateStore | None = None, passkeys: PasskeyService | None = None):
         self.settings = settings or load_settings()
         self.llm = llm
         self.corridor = load_corridor("bd_cn")
-        self.fx = FxProvider()  # real mid-market rate (live → saved history → fixture in tests)
+        # The real mid-market rate (live → saved history → fixture in tests). A sandbox made for a judge run shares the
+        # server's providers (rate and bank sheets), so it does not fetch them again.
+        self.fx = fx or FxProvider()
         self.quote_cfg = load_quote_config()
-        self.bank_rates = BankRateStore()  # banks' own published daily rate sheets (saved + live)
+        self.bank_rates = bank_rates or BankRateStore()  # banks' own published daily rate sheets (saved + live)
         self.real_quotes: list[BankQuote] = []
         self._stress_cache: tuple | None = None
         self.audit = AuditLog(audit_path)
@@ -96,9 +115,20 @@ class AppState:
         self.calendar = load_calendar()  # bank days in both countries (sending in BD, crediting in CN)
         self.bank.calendar = self.calendar
         self.approvals = ApprovalService()
+        # Registered passkeys outlive a sandbox reset (the devices are still the same devices).
+        self.passkeys = passkeys or PasskeyService(DEFAULT_ORIGINS + self.settings.passkey_origins)
+        self.taint_ledger = TaintLedger()
+        self.cop_service = ConfirmationOfPayeeService()
+        self.output_firewall = OutputFirewall()
         self.drafts: dict[str, Draft] = {}
         self.specs: dict[str, DraftSpec] = {}
         self.tokens: dict[str, list[dict]] = {}
+        self.passkey_approvals: dict[str, list[dict]] = {}
+        self.idempotency: dict[tuple[str, str], dict] = {}  # (person, key) → the first answer
+        self.open_banking = OpenBanking()
+        # PIPL Art. 39: a separate consent before personal data goes to the AI in China. Each person can switch it off.
+        self.ai_consent = {"parent": True, "student": True}
+        self.iso_records: dict[str, dict] = {}
         self.mandates: dict[str, Mandate] = {}
         # Demo profile (fictional). Endorsement until December mirrors Interview #1 (N-05).
         self.profile = {
@@ -249,7 +279,215 @@ class AppState:
             student_file_expiry=self.profile["student_file_expiry"],
             origin_flags=scan_text(origin_message) if origin_message else None,
             card_status=self.student_card.status,
+            taint_ledger=self.taint_ledger,
+            cop_service=self.cop_service,
+            trusted_amounts=self.trusted_amounts(),
+            cop_names=self.cop_names(),
         )
+
+    def cop_names(self) -> dict:
+        """Who should hold each payee account, for Confirmation of Payee (the student's own account → the student)."""
+        return {"student_own_cn": self.profile["student_name"]}
+
+    # ---- exactly-once requests and the books ----------------------------------------
+    def idempotent(self, actor: Actor, key: str | None, request: dict, fn):
+        """Run `fn` once per (person, Idempotency-Key). A retry with the same key (the phone lost the answer and taps
+        again) gets the first answer back and nothing runs twice; the same key with a different request is refused."""
+        if not key:
+            return fn()
+        if not re.fullmatch(r"[A-Za-z0-9_\-:.]{8,80}", key):
+            raise ValueError("Idempotency-Key must be 8 to 80 letters, digits or - _ : .")
+        fp = hashlib.sha256(json.dumps(request, sort_keys=True, default=str).encode()).hexdigest()
+        slot = (actor.value, key)
+        hit = self.idempotency.get(slot)
+        if hit is not None:
+            if hit["fp"] != fp:
+                raise IdempotencyConflict("this Idempotency-Key was already used for a different request")
+            self._log("idempotent_replay", actor, None, {"op": request.get("op"), "key": key[:12]})
+            return hit["response"]
+        response = fn()
+        self.idempotency[slot] = {"fp": fp, "response": response}
+        while len(self.idempotency) > IDEMPOTENCY_KEEP:
+            self.idempotency.pop(next(iter(self.idempotency)))
+        return response
+
+    def ledger_view(self, actor: Actor, limit: int = 40) -> dict:
+        """The double-entry books: are they balanced and reconciled, and the latest entries. The parent does not see
+        the student's own pay or Shield unless the student shares it."""
+        books = self.bank.check_books()
+        hide = actor == Actor.PARENT and not self._shares_with_family()
+        accounts = [{"id": a.id, "label": a.label, "currency": a.currency, "owner": a.owner,
+                     "books": str(q2(self.bank.ledger.balance(a.id, a.currency))), "shown": str(q2(a.balance))}
+                    for a in self.bank.accounts.values() if not (hide and a.id == "student_shield")]
+        entries = [e.to_dict() for e in self.bank.ledger.entries if not (hide and e.event in PRIVATE_LEDGER_EVENTS)]
+        replays = sum(1 for e in self.audit.entries if e["event"] == "idempotent_replay" and e["seq"] > self.session_start_seq)
+        return {"books": books, "accounts": accounts, "entries": entries[-limit:][::-1],
+                "payments_booked": len(self.bank.ledger.refs_of("payment_sent")), "idempotent_replays": replays}
+
+    # ---- the AI switch (consent to send data to DeepSeek) --------------------------------
+    def llm_for(self, actor: Actor | str) -> DeepSeekClient | None:
+        """The AI model for this person, or None when they switched the AI off (then the rules answer)."""
+        who = actor.value if isinstance(actor, Actor) else actor
+        return self.llm if self.ai_consent.get(who, True) else None
+
+    def set_ai_consent(self, actor: Actor, allowed: bool) -> dict:
+        if actor not in (Actor.PARENT, Actor.STUDENT):
+            raise PermissionError("only a person can give or withdraw consent")
+        self.ai_consent[actor.value] = bool(allowed)
+        self._log("ai_consent_changed", actor, None, {"allowed": bool(allowed)})
+        return {"ai": self.ai_consent[actor.value]}
+
+    # ---- open-banking connections (read-only, with consent) -----------------------------
+    def banks_view(self, actor: Actor) -> dict:
+        mine = [c for c in CONNECTORS.values() if actor == Actor.AGENT or c.holder == actor.value]
+        return {"connectors": [{"id": c.id, "bank": c.bank, "country": c.country, "standard": c.standard,
+                                "holder": c.holder, "yours": c.holder == actor.value,
+                                "active": (self.open_banking.active(c.id, self.now) or None) and
+                                self.open_banking.active(c.id, self.now).to_dict(self.now)} for c in mine],
+                "consents": self.open_banking.for_holder(actor.value, self.now),
+                "permissions": [{"id": k, "text": v} for k, v in PERMISSIONS.items()], "max_days": 90}
+
+    def bank_consent_request(self, actor: Actor, connector_id: str, permissions: list[str], days: int) -> dict:
+        if actor not in (Actor.PARENT, Actor.STUDENT):
+            raise PermissionError("only the account holder can connect a bank")
+        c = self.open_banking.request(actor.value, connector_id, permissions, days, self.now)
+        self._log("bank_consent_requested", actor, None, {"consent_id": c.id, "connector": connector_id,
+                                                           "permissions": list(c.permissions), "days": days})
+        return c.to_dict(self.now)
+
+    def bank_consent_authorise(self, actor: Actor, consent_id: str, assertion: dict | None,
+                               extra_origins: tuple[str, ...] = ()) -> dict:
+        c = self.open_banking.consents[consent_id]
+        if actor.value != c.holder:
+            raise PermissionError("only the account holder can allow this connection")
+        signed = None
+        if assertion or self.settings.passkey_required:
+            ok, reason, record = self.passkeys.verify_assertion(actor.value, c.hash(), assertion or {}, self.now, extra_origins)
+            if not ok or record is None:
+                self._log("bank_consent_denied", actor, None, {"consent_id": consent_id, "reason": reason})
+                raise PermissionError(f"allow it with your passkey: {reason}")
+            signed = record.thumbprint
+        self.open_banking.authorise(consent_id, self.now)
+        self._log("bank_consent_authorised", actor, None, {"consent_id": consent_id, "connector": c.connector_id,
+                                                            "expires_at": c.expires_at.isoformat(), "passkey": signed})
+        return c.to_dict(self.now)
+
+    def bank_consent_revoke(self, actor: Actor, consent_id: str) -> dict:
+        c = self.open_banking.revoke(consent_id, actor.value, self.now)
+        self._log("bank_consent_revoked", actor, None, {"consent_id": consent_id, "connector": c.connector_id})
+        return c.to_dict(self.now)
+
+    def bank_read(self, actor: Actor, connector_id: str) -> dict:
+        """Sathi (or the holder) reads a connected bank. Only through an active consent; every read is logged."""
+        c = CONNECTORS[connector_id]
+        if actor not in (Actor.AGENT, Actor(c.holder)):
+            raise PermissionError(f"this is the {c.holder}'s bank connection")
+        try:
+            data = self.open_banking.read(connector_id, self.bank, self.now)
+        except PermissionError as e:
+            self._log("bank_read_denied", actor, None, {"connector": connector_id, "reason": str(e)})
+            raise
+        self._log("bank_data_read", actor, None, {"connector": connector_id, "consent_id": data["consent_id"]})
+        return data
+
+    # ---- privacy & data rights (PIPL) -------------------------------------------------
+    def privacy_view(self, actor: Actor) -> dict:
+        if actor not in (Actor.PARENT, Actor.STUDENT):
+            raise PermissionError("the privacy page is for people")
+        who = actor.value
+        held = [
+            {"id": "profile", "count": 1, "deletable": False,
+             "what": "Names, university, deadlines, and the last 4 digits of accounts (demo values)",
+             "why": "to plan payments on time"},
+            {"id": "messages", "count": len(self.inbox.messages), "deletable": True,
+             "what": "Forwarded SMS and emails, redacted (codes and long numbers removed)",
+             "why": "to track money and spot scams"},
+            {"id": "transactions", "count": len(self.inbox.txns), "deletable": True,
+             "what": "Transactions read from those messages", "why": "to know what was spent"},
+            {"id": "passkeys", "count": len(self.passkeys.list_credentials(who)), "deletable": True,
+             "what": "Your passkeys' public keys (the private key stays on your device)",
+             "why": "to check that you approved a payment"},
+            {"id": "bank_connections", "count": len(self.open_banking.for_holder(who, self.now)), "deletable": True,
+             "what": "Bank connections you allowed, and when Sathi read them", "why": "to read balances"},
+            {"id": "whatsapp", "count": int(bool(self.profile.get("parent_whatsapp"))), "deletable": True,
+             "what": "The family WhatsApp number for alerts", "why": "to send alerts"},
+            {"id": "audit_log", "count": sum(1 for e in self.audit.entries if e["actor"] == who), "deletable": False,
+             "what": "The log of what happened (no message text, no full numbers)",
+             "why": "payment records must be kept, and the chain proves nothing was changed"},
+        ]
+        if actor == Actor.STUDENT:
+            held.insert(3, {"id": "earnings", "count": len(self.income_sources) + len(self.bank.wants_log),
+                            "deletable": True, "what": "Your own pay, stipend and purchases (never shown to the parent "
+                            "unless you share)", "why": "Earn & Save"})
+        return {"held": held, "recipients": privacy.RECIPIENTS, "not_stored": privacy.NOT_STORED,
+                "switches": {"ai": self.ai_consent.get(who, True), "ai_available": self.llm is not None,
+                             "whatsapp": bool(self.profile.get("parent_whatsapp")),
+                             "banks": any(c["status"] == "Authorised" for c in self.open_banking.for_holder(who, self.now))},
+                "rights": ["know", "copy", "correct", "delete", "withdraw consent"], "law": "PIPL Art. 17, 39, 44-47"}
+
+    def privacy_export(self, actor: Actor) -> dict:
+        """A copy of what Sathi holds about this person (PIPL Art. 45), as JSON."""
+        if actor not in (Actor.PARENT, Actor.STUDENT):
+            raise PermissionError("the export is for people")
+        who = actor.value
+        out = {"exported_at": self.now.isoformat(), "person": who,
+               "profile": {k: str(v) for k, v in self.profile.items() if k != "parent_whatsapp"},
+               "whatsapp": mask(self.profile.get("parent_whatsapp")),
+               "messages": [m.to_dict() for m in self.inbox.messages],
+               "transactions": [{"id": t.id, "amount": str(t.amount), "currency": t.currency, "kind": t.kind,
+                                 "at": t.received_at.isoformat()} for t in self.inbox.txns],
+               "passkeys": self.passkeys.list_credentials(who),
+               "bank_connections": self.open_banking.for_holder(who, self.now),
+               "ai_consent": self.ai_consent.get(who, True),
+               "audit_log": [e for e in self.audit.entries if e["actor"] == who][-500:]}
+        if actor == Actor.STUDENT:
+            out["earnings"] = {"income_sources": [s.to_dict() if hasattr(s, "to_dict") else str(s)
+                                                  for s in self.income_sources.values()],
+                               "purchases": [{"at": w[0].isoformat(), "amount": str(w[1]), "category": w[2], "kind": w[3]}
+                                             for w in self.bank.wants_log]}
+        self._log("data_exported", actor, None, {"sections": sorted(out)})
+        return out
+
+    def privacy_delete(self, actor: Actor, categories: list[str]) -> dict:
+        """Delete what the person asks (PIPL Art. 47). The payment log stays (see app/privacy.py)."""
+        if actor not in (Actor.PARENT, Actor.STUDENT):
+            raise PermissionError("only a person can delete their data")
+        done: dict[str, int] = {}
+        for cat in categories:
+            if cat not in privacy.DELETABLE:
+                raise ValueError(f"'{cat}' cannot be deleted here")
+            if actor.value not in privacy.WHO_CAN_DELETE[cat]:
+                raise PermissionError(f"only the student can delete '{cat}'")
+        for cat in categories:
+            if cat == "messages":
+                done[cat] = len(self.inbox.messages) + len(self.inbox.txns)
+                self.inbox.messages.clear()
+                self.inbox.txns.clear()
+                done["taint_text_scrubbed"] = self.taint_ledger.scrub_text()
+            elif cat == "earnings":
+                done[cat] = len(self.income_sources) + len(self.bank.wants_log)
+                self.income_sources.clear()
+                self.bank.wants_log.clear()
+            elif cat == "whatsapp":
+                done[cat] = int(bool(self.profile.get("parent_whatsapp")))
+                self.profile["parent_whatsapp"] = None
+            elif cat == "passkeys":
+                creds = self.passkeys.list_credentials(actor.value)
+                for c in creds:
+                    self.passkeys.remove(actor.value, c["credential_id"])
+                done[cat] = len(creds)
+            elif cat == "bank_connections":
+                mine = [c for c in self.open_banking.consents.values() if c.holder == actor.value]
+                for c in mine:
+                    self.open_banking.revoke(c.id, actor.value, self.now)
+                    del self.open_banking.consents[c.id]
+                done[cat] = len(mine)
+        self._log("data_deleted", actor, None, {"deleted": done})
+        return {"deleted": done, "kept": "the payment log (no message text), because payment records must be kept"}
+
+    def trusted_amounts(self) -> frozenset:
+        """Amounts a person set or confirmed in the app (the tuition invoice): the AI may draft these."""
+        return frozenset({self.profile["tuition_invoice_cny"]})
 
     # ---- read-only (L0) ---------------------------------------------------
     def plan_tuition(self, actor: Actor, amount_cny: Decimal, deadline: date, current_quote_id: str | None = None) -> dict:
@@ -290,6 +528,40 @@ class AppState:
         self._log("message_checked", actor, "check_message", {"flags": [f["category"] for f in flags], "length": len(text)})
         return {"flags": flags, "high_risk": any(f["severity"] == "high" for f in flags)}
 
+    def filter_agent_output(self, text: str, actor: Actor, lang: str = "en") -> OutputFirewallVerdict:
+        """AI Output Firewall: inspects and sanitizes agent outbound text before egress."""
+        import re
+        known_otps: set[str] = set()
+        if hasattr(self, "inbox") and hasattr(self.inbox, "messages"):
+            for m in self.inbox.messages:
+                if getattr(m, "otp", False) and getattr(m, "text", ""):
+                    for d in re.findall(r"\b\d{4,8}\b", m.text):
+                        known_otps.add(d)
+
+        context = {
+            "income_sources": list(self.income_sources.values()),
+            "shares_with_family": self._shares_with_family(),
+            "shield_cny": self.shield_cny,
+            "parent_accounts": [a for a in self.bank.accounts.values() if "parent" in a.id or a.id == "parent_bd"],
+            "student_accounts": [a for a in self.bank.accounts.values() if "student" in a.id],
+            "known_otps": known_otps,
+            "lang": lang,
+        }
+        verdict = self.output_firewall.inspect_and_filter(text, actor, context)
+        if not verdict.passed:
+            self._log(
+                "output_firewall_interception",
+                actor,
+                "output_firewall",
+                {
+                    "action": verdict.action_taken.value,
+                    "violations": [v.to_dict() for v in verdict.violations],
+                    "original_length": verdict.original_length,
+                    "filtered_length": verdict.filtered_length,
+                },
+            )
+        return verdict
+
     # ---- drafts (L1) ------------------------------------------------------
     def create_draft(self, actor: Actor, kind: str, amount_cny: Decimal, payee_id: str, quote_id: str | None = None,
                      memo: str = "", origin_message: str | None = None, withdrawals: list[Decimal] | None = None) -> dict:
@@ -325,6 +597,7 @@ class AppState:
         draft.checks = [c.to_dict() for c in checks]
         draft.status = "blocked" if is_blocked(checks) else "draft"
         self.drafts[draft.id], self.specs[draft.id], self.tokens[draft.id] = draft, spec, []
+        self.passkey_approvals[draft.id] = []
         self._log("draft_created", actor, "create_draft", {
             "draft_id": draft.id, "kind": kind, "amount_cny": str(amount), "total_bdt": str(draft.total_bdt),
             "payee": payee_id, "status": draft.status,
@@ -342,6 +615,7 @@ class AppState:
             d.status = "cancelled"
             self.approvals.consume(self.tokens[draft_id])
             self.tokens[draft_id] = []
+            self.passkey_approvals[draft_id] = []
             self._log("draft_cancelled", actor, "cancel_draft", {"draft_id": draft_id, "reason": reason[:80]})
         return self.draft_view(draft_id)
 
@@ -349,6 +623,7 @@ class AppState:
         d = self.drafts[draft_id]
         needed = required_approvers(d, self.corridor.v("two_person_threshold_bdt"))
         have = sorted({t["approver"] for t in self.tokens[draft_id]})
+        iso = self.iso_records.get(draft_id)
         return {
             **d.binding_fields(), "status": d.status, "checks": d.checks, "created_by": d.created_by.value,
             "required_approvers": sorted(a.value for a in needed), "approved_by": have,
@@ -356,6 +631,19 @@ class AppState:
             "payee_name": self.bank.payees[d.payee_id].name if d.payee_id in self.bank.payees else "Unknown payee",
             "summary": draft_summaries(d, self.bank.payees.get(d.payee_id), self.specs[draft_id].withdrawals),
             "draft_hash": d.hash(),
+            "passkey_approvals": self.passkey_approvals.get(draft_id, []),
+            "is_passkey_signed": bool(self.passkey_approvals.get(draft_id)),
+            "uetr": iso["uetr"] if iso else None,
+            "iso_msg_id": iso["msg_id"] if iso else None,
+            "cop_verification": (
+                self.cop_service.verify_payee(
+                    d.payee_id,
+                    self.cop_names().get(d.payee_id)
+                    or (self.bank.payees[d.payee_id].name if d.payee_id in self.bank.payees else d.payee_id),
+                ).to_dict()
+                if d.kind != "atm_plan"
+                else None
+            ),
         }
 
     # ---- approvals and execution (L2) -------------------------------------
@@ -366,6 +654,9 @@ class AppState:
         d = self.drafts[draft_id]
         if d.status in ("blocked", "executed", "cancelled"):
             raise ValueError(f"draft is {d.status} and cannot be approved")
+        if self.settings.passkey_required:
+            self._log("permission_denied", actor, "execute_draft", {"draft_id": draft_id, "reason": "no passkey signature"})
+            raise PermissionError("approve with your passkey: the server needs your device's signature over this exact payment")
         token = self.approvals.issue(d, actor, self.now)
         self.tokens[draft_id] = [t for t in self.tokens[draft_id] if t["approver"] != actor.value] + [token]
         decision = self.approvals.verify(d, self.tokens[draft_id], self.now, self.corridor.v("two_person_threshold_bdt"))
@@ -375,6 +666,44 @@ class AppState:
             "draft_id": draft_id, "approver": actor.value, "fully_approved": decision.allowed,
             "missing": decision.missing_approvers, "draft_hash": d.hash()[:16],
         })
+        return self.draft_view(draft_id)
+
+    def register_passkey(self, actor: Actor, credential_id: str, public_key: str, label: str, kind: str) -> dict:
+        """A person's device registers its passkey (public key only). Only people can: never the agent."""
+        if actor not in (Actor.PARENT, Actor.STUDENT):
+            raise PermissionError("only the student or the parent can register a passkey")
+        before = {c["credential_id"] for c in self.passkeys.list_credentials(actor.value)}
+        cred = self.passkeys.register(actor.value, credential_id, public_key, label, kind, self.now)
+        if cred.credential_id not in before:
+            self._log("passkey_registered", actor, "register_passkey", {
+                "credential_id": cred.credential_id[:40], "thumbprint": cred.thumbprint, "kind": cred.kind,
+                "label": cred.label})
+        return cred.to_dict()
+
+    def approve_passkey(self, actor: Actor, draft_id: str, assertion: dict, extra_origins: tuple[str, ...] = ()) -> dict:
+        """Approve a draft with a passkey signature over its hash (checked here before the approval counts)."""
+        if actor == Actor.AGENT:
+            self._log("permission_denied", actor, "execute_draft", {"draft_id": draft_id, "reason": "agent cannot approve"})
+            raise PermissionError("the agent can never approve a payment")
+        d = self.drafts[draft_id]
+        if d.status in ("blocked", "executed", "cancelled"):
+            raise ValueError(f"draft is {d.status} and cannot be approved")
+        ok, reason, record = self.passkeys.verify_assertion(actor.value, d.hash(), assertion, self.now, extra_origins)
+        if not ok or record is None:
+            self._log("passkey_verification_failed", actor, "execute_draft", {
+                "draft_id": draft_id, "reason": reason, "draft_hash": d.hash()[:16]})
+            raise PermissionError(reason)
+        self.passkey_approvals[draft_id] = [p for p in self.passkey_approvals.get(draft_id, [])
+                                            if p["actor"] != actor.value] + [record.to_dict()]
+        token = self.approvals.issue(d, actor, self.now)
+        self.tokens[draft_id] = [t for t in self.tokens[draft_id] if t["approver"] != actor.value] + [token]
+        decision = self.approvals.verify(d, self.tokens[draft_id], self.now, self.corridor.v("two_person_threshold_bdt"))
+        if decision.allowed:
+            d.status = "approved"
+        self._log("draft_approved", actor, "execute_draft", {
+            "draft_id": draft_id, "approver": actor.value, "fully_approved": decision.allowed,
+            "missing": decision.missing_approvers, "draft_hash": d.hash()[:16],
+            "passkey": {"thumbprint": record.thumbprint, "kind": record.kind, "uv": record.biometric_uv, "alg": record.alg}})
         return self.draft_view(draft_id)
 
     def execute(self, actor: Actor, draft_id: str) -> dict:
@@ -396,14 +725,82 @@ class AppState:
         result = self._run(d, spec, actor.value, Level.EXECUTE.name)
         self.approvals.consume(self.tokens[draft_id])
         d.status = "executed"
-        self.execution_auth[draft_id] = {"type": "approvals", "level": "EXECUTE", "executed_by": actor.value,
-                                         "approved_by": sorted(t["approver"] for t in self.tokens[draft_id]),
-                                         "draft_hash": d.hash()}
+        self.execution_auth[draft_id] = {
+            "type": "approvals", "level": "EXECUTE", "executed_by": actor.value,
+            "approved_by": sorted(t["approver"] for t in self.tokens[draft_id]),
+            "draft_hash": d.hash(),
+            "passkey_approvals": self.passkey_approvals.get(draft_id, []),
+            "passkey_signed": bool(self.passkey_approvals.get(draft_id, [])),
+        }
         return {"draft": self.draft_view(draft_id), "bank_event": result}
+
+    def _generate_iso_record(self, d: Draft, spec: DraftSpec, actor: str, level: str) -> dict:
+        from app.integrations.iso20022 import (
+            build_pain001_xml, validate_pain001,
+            resolve_origin_bic, resolve_dest_bic
+        )
+        payee = self.bank.payees.get(d.payee_id)
+        payee_name = payee.name if payee else ("University Finance Office" if d.kind == "tt_tuition" else "Living Allowance")
+        payee_iban = payee.credit_account_id if payee else "CN04BKCH0000000000000000"
+        orig_info = resolve_origin_bic(self.profile.get("home_bank"))
+        dest_info = resolve_dest_bic(payee.bank if payee else None)
+        msg_id, uetr, xml_str = build_pain001_xml(
+            draft_id=d.id,
+            kind=d.kind,
+            amount_cny=d.amount_cny,
+            total_bdt=d.total_bdt,
+            rate_bdt_per_cny=d.rate_bdt_per_cny,
+            payer_name=self.profile.get("parent_name", "Demo Parent"),
+            payee_name=payee_name,
+            payee_account=payee_iban,
+            memo=d.memo or ("Tuition Remittance" if d.kind == "tt_tuition" else "Living Remittance"),
+            timestamp=self.now,
+            origin_bank=orig_info["name"],
+            dest_bank=dest_info["name"],
+        )
+        val_report = validate_pain001(xml_str)
+        rec = {
+            "uetr": uetr,
+            "msg_id": msg_id,
+            "draft_id": d.id,
+            "xml": xml_str,
+            "schema": "pain.001.001.09",
+            "validation": val_report,
+            "origin_bic": orig_info["bic"],
+            "origin_bank_name": orig_info["name"],
+            "dest_bic": dest_info["bic"],
+            "dest_bank_name": dest_info["name"],
+            "created_at": self.now.isoformat(),
+            "regulatory_reporting": "STUDTUIT" if d.kind == "tt_tuition" else "STUDLIVE",
+        }
+        self.iso_records[d.id] = rec
+        act = Actor(actor) if actor in Actor._value2member_map_ else Actor.SYSTEM
+        self._log("iso20022_generated", act, level, {
+            "draft_id": d.id,
+            "uetr": uetr,
+            "schema": "pain.001.001.09",
+            "origin_bic": orig_info["bic"],
+            "dest_bic": dest_info["bic"],
+            "is_valid": val_report["valid"],
+        })
+        return rec
+
+    def get_iso20022(self, draft_id: str) -> dict:
+        if draft_id not in self.drafts:
+            raise KeyError(f"draft '{draft_id}' not found")
+        d = self.drafts[draft_id]
+        if d.kind not in ("tt_tuition", "tt_living"):
+            raise ValueError(f"draft '{draft_id}' of kind '{d.kind}' does not use ISO 20022 wire instructions")
+        iso = self.iso_records.get(draft_id)
+        if not iso:
+            raise ValueError("the bank instruction is made when the transfer is sent; this one has not been sent")
+        return iso
 
     def _run(self, d: Draft, spec: DraftSpec, actor: str, level: str) -> dict:
         if d.kind in ("tt_tuition", "tt_living"):
-            return self.bank.execute_tt(d.id, spec.from_account, d.payee_id, d.amount_cny, d.total_bdt, actor, level, spec.purpose)
+            bank_event = self.bank.execute_tt(d.id, spec.from_account, d.payee_id, d.amount_cny, d.total_bdt, actor, level, spec.purpose)
+            self._generate_iso_record(d, spec, actor, level)  # the bank instruction for this transfer, with its UETR
+            return bank_event
         return self.bank.execute_atm_withdrawals(d.id, spec.from_account, "student_cash", spec.withdrawals, d.total_bdt, actor, level)
 
     # ---- mandates (L3) ----------------------------------------------------
@@ -415,6 +812,10 @@ class AppState:
             raise PermissionError("only the parent, who pays, can create a mandate")
         if payee_id not in self.bank.payees or not self.bank.payees[payee_id].verified:
             raise ValueError("mandates are only allowed for verified payees")
+        if self.settings.passkey_required:  # a raw standing order would carry no signature at all
+            self._log("permission_denied", actor, "execute_under_mandate", {"reason": "no passkey signature"})
+            raise PermissionError("a standing order needs your signature: write it as a family mandate and sign it with "
+                                  "your passkey")
         threshold = self.corridor.v("two_person_threshold_bdt")
         if D(max_bdt_per_payment) >= threshold:  # the two-person rule: big caps go through a proposal both people sign
             self._log("permission_denied", actor, "execute_under_mandate", {
@@ -485,7 +886,8 @@ class AppState:
     def propose_mandate(self, actor: Actor, text: str, lang: str = "en") -> dict:
         """Turn a standing instruction ("up to ৳1,20,000 a month") into a proposal. Nothing is active yet."""
         self._require(actor, "propose_mandate")
-        prop = compile_mandate(self._id("proposal"), text, lang, self.now, actor.value, self._mandate_policy(), self.llm)
+        prop = compile_mandate(self._id("proposal"), text, lang, self.now, actor.value, self._mandate_policy(),
+                               self.llm_for(actor))
         flags = scan_text(text)
         if has_high_risk(flags):
             prop.errors.append("This text contains scam or prompt-injection signals ("
@@ -500,8 +902,10 @@ class AppState:
             "required_signers": list(prop.required_signers), "errors": len(prop.errors), "hash": prop.hash()[:16]})
         return prop.to_dict()
 
-    def sign_mandate(self, actor: Actor, proposal_id: str, proposal_hash: str) -> dict:
-        """A user signs EXACTLY the proposal they read (its hash). Once everyone required has signed, it is active."""
+    def sign_mandate(self, actor: Actor, proposal_id: str, proposal_hash: str, assertion: dict | None = None,
+                     extra_origins: tuple[str, ...] = ()) -> dict:
+        """A user signs EXACTLY the proposal they read (its hash), with a passkey signature over that hash when passkeys
+        are required. Once everyone required has signed, it is active."""
         self._require(actor, "sign_mandate")
         if actor == Actor.AGENT:
             raise PermissionError("the agent can never sign a mandate")
@@ -513,11 +917,20 @@ class AppState:
         if not hmac.compare_digest(str(proposal_hash), prop.hash()):
             self._log("mandate_sign_denied", actor, "sign_mandate", {"proposal_id": proposal_id, "reason": "hash mismatch"})
             raise PermissionError("the mandate is not the one you read; open it again before signing")
+        signed_with = None
+        if assertion or self.settings.passkey_required:
+            ok, reason, record = self.passkeys.verify_assertion(actor.value, prop.hash(), assertion or {}, self.now,
+                                                                extra_origins)
+            if not ok or record is None:
+                self._log("mandate_sign_denied", actor, "sign_mandate", {"proposal_id": proposal_id, "reason": reason})
+                raise PermissionError(f"sign with your passkey: {reason}")
+            signed_with = {"thumbprint": record.thumbprint, "kind": record.kind, "uv": record.biometric_uv}
         if self.now - prop.created_at > timedelta(days=2):
             prop.status = "superseded"
             raise ValueError("this proposal is more than 2 days old; write the instruction again")
         prop.signatures[actor.value] = self.now.isoformat()
-        self._log("mandate_signed", actor, "sign_mandate", {"proposal_id": proposal_id, "hash": prop.hash()[:16]})
+        self._log("mandate_signed", actor, "sign_mandate", {"proposal_id": proposal_id, "hash": prop.hash()[:16],
+                                                            **({"passkey": signed_with} if signed_with else {})})
         missing = [x for x in prop.required_signers if x not in prop.signatures]
         if missing:
             summary = prop.summary()
@@ -621,6 +1034,31 @@ class AppState:
                   {k: plan["headline"][k] for k in ("stuck_days_today", "stuck_days_sathi", "saved_bdt")})
         return plan
 
+    STOPPED_EVENTS = ("permission_denied", "execution_blocked", "execution_denied", "mandate_execution_denied",
+                      "mandate_sign_denied", "savings_rule_sign_denied")
+
+    def value_summary(self) -> dict:
+        """What Sathi delivers, in numbers: days without money avoided this year, money saved, unsafe moves stopped."""
+        h = plan_year(self._year_situation(), self.policy, self.calendar, self.corridor, self.market)["headline"]
+        session = [e for e in self.audit.entries if e["seq"] > self.session_start_seq]
+        stopped = sum(1 for e in session if e["event"] in self.STOPPED_EVENTS
+                      or (e["event"] == "draft_created" and e["data"].get("status") == "blocked"))
+        flagged = sum(1 for m in self.inbox.messages if m.flags)
+        return {"stuck_days_today": h["stuck_days_today"], "stuck_days_sathi": h["stuck_days_sathi"],
+                "saved_bdt": h["saved_bdt"], "stopped": stopped, "flagged_messages": flagged,
+                "payments": sum(1 for d in self.drafts.values() if d.status == "executed")}
+
+    def calendar_week(self, days: int = 7) -> list[dict]:
+        """The coming bank days in both countries (the day strip on Home): open, or why closed."""
+        today = self.now.date()
+        out = []
+        for i in range(days):
+            d = today + timedelta(days=i)
+            bd, cn = self.calendar.closed_because("BD", d), self.calendar.closed_because("CN", d)
+            out.append({"date": d.isoformat(), "today": i == 0,
+                        "bd": {"open": bd is None, "reason": bd}, "cn": {"open": cn is None, "reason": cn}})
+        return out
+
     def runway(self) -> dict:
         pol, today = self.planning_policy, self.now.date()
         bal, transit = self.student_money()
@@ -673,10 +1111,25 @@ class AppState:
             sent = next((e for e in entries if e["event"] in ("transfer_sent", "atm_withdrawals")
                          and e["data"].get("draft_id") == d.id), None)
             landed = next((e for e in entries if e["event"] == "transfer_arrived" and e["data"].get("draft_id") == d.id), None)
+            iso = self.iso_records.get(d.id)
             out.append({"draft": self.draft_view(d.id), "authority": self.execution_auth.get(d.id),
                         "sent": ({k: sent[k] for k in ("seq", "hash", "sim_time", "permission_level")}
                                  | {"arrives_at": sent["data"].get("arrives_at")}) if sent else None,
-                        "landed": {k: landed[k] for k in ("seq", "hash", "sim_time")} if landed else None})
+                        "landed": {k: landed[k] for k in ("seq", "hash", "sim_time")} if landed else None,
+                        "uetr": iso["uetr"] if iso else None,
+                        "iso20022": {
+                            "uetr": iso["uetr"],
+                            "msg_id": iso["msg_id"],
+                            "schema": iso["schema"],
+                            "valid": iso["validation"]["valid"],
+                            "checks_passed": iso["validation"]["checks_passed"],
+                            "origin_bic": iso["origin_bic"],
+                            "origin_bank_name": iso["origin_bank_name"],
+                            "dest_bic": iso["dest_bic"],
+                            "dest_bank_name": iso["dest_bank_name"],
+                            "created_at": iso["created_at"],
+                            "regulatory_reporting": iso.get("regulatory_reporting"),
+                        } if iso else None})
         return list(reversed(out))
 
     # ---- emergency mode ----------------------------------------------------------------------
@@ -1035,9 +1488,20 @@ class AppState:
         self._require(actor, "read_document")
         if actor == Actor.AGENT:
             raise PermissionError("only the student or parent can upload a document")
-        if self.llm is None:
-            raise RuntimeError("reading photos needs the AI service, which is not available right now")
+        if self.llm_for(actor) is None:
+            raise RuntimeError("reading photos needs the AI, which is off or not available right now")
         result = read_document_photo(self.llm, image_base64, lang)
+        for a_cny in result.get("amounts", []):
+            try:
+                self.taint_ledger.register_untrusted_text(
+                    TaintSource.UNTRUSTED_PHOTO_OCR,
+                    "ocr-photo",
+                    "user_photo_upload",
+                    f"{a_cny} CNY",
+                    self.now,
+                )
+            except Exception:
+                pass
         self._log("document_read", actor, "read_document", {"doc_type": result["doc_type"], "amounts": len(result["amounts"]),
                   "amounts_dropped": result["amounts_dropped"], "deadlines": len(result["deadlines"]),
                   "flags": [f["category"] for f in result["flags"]], "stored_image": False})
@@ -1054,6 +1518,7 @@ class AppState:
             raise ValueError("the deadline is in the past")
         old = {"amount": str(self.profile["tuition_invoice_cny"]), "deadline": self.profile["tuition_deadline"].isoformat()}
         self.profile["tuition_invoice_cny"], self.profile["tuition_deadline"] = amount, deadline
+        self.taint_ledger.endorse(amount, "amount", actor, "user_confirmed_fee_notice")
         self._log("fee_notice_applied", actor, "apply_document", {"old": old, "new": {"amount": str(amount), "deadline": deadline.isoformat()}})
         return {"tuition_invoice_cny": str(amount), "tuition_deadline": deadline.isoformat()}
 
