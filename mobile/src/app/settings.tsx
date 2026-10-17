@@ -119,6 +119,8 @@ export default function SettingsScreen() {
 
       {(
         [
+          { href: '/story', icon: 'play', title: 'storyOpen', sub: 'storyTileBody' },
+          { href: '/welcome', icon: 'sparkles', title: 'settingsWelcome', sub: 'settingsWelcomeSub' },
           { href: '/banks', icon: 'business', title: 'settingsBanks', sub: 'settingsBanksSub' },
           { href: '/privacy', icon: 'lock-closed', title: 'settingsPrivacy', sub: 'settingsPrivacySub' },
         ] as const

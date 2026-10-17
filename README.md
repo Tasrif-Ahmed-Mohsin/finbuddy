@@ -15,6 +15,15 @@ Hero corridor: **Bangladesh → China**.
 >
 > Anything not published is labelled as an assumption in the app.
 
+## Evaluate it in 5 minutes
+
+- **Story mode:** open the app → **See the whole story**: ten steps on the live sandbox, Sense → Plan → Act → Prove
+  (bank messages, the year plan, a mandate spoken in Bangla, two passkey signatures, an attack refused, four months
+  passing, receipts and balanced books, the proof). The demo video follows the same steps.
+- **Judge mode:** Settings → Judge mode, or `python backend/scripts/judge_tasks.py`: 20/20 scripted tasks.
+- **Tests:** `cd backend && .venv/Scripts/python -m pytest -q`: 408 pass.
+- **Everything for the submission, item by item:** [SUBMISSION.md](SUBMISSION.md).
+
 ## The problem in one paragraph
 
 Money leaving Bangladesh for study can only go through a bank **Student File**: there is no Wise for outbound
@@ -36,11 +45,11 @@ so Sathi turns part of it into a **Shield** for the days the legal channel from 
 
 | | What happens | App |
 |---|---|---|
-| **Sense** | Money in China, transfers on the way, card status; shared bank SMS/email (OTP removed, numbers masked); photographed documents; the real exchange rate | **Today**, **Sathi** |
+| **Sense** | Money in China, transfers on the way, card status; shared bank SMS/email (OTP removed, numbers masked); photographed documents; the real exchange rate; read-only bank connections with consent | **Home**, **Sathi** (type or speak) |
 | **Plan** | **"Never stuck" year plan**: a day-by-day simulation across both countries' bank calendars, the endorsement end and card limits; today's habits vs Sathi (stuck days, fees vs rate markup); tuition send-by and living-money optimisers | **Plan → Year / Tuition / Living** |
 | **Emergency** | 🆘 on Today: "I have no money" gives every way money can reach the student, with real dates and the exact bridge amount, and prepares one urgent transfer for the parent's fingerprint. "Card lost" freezes first. Fake police / embassy / courier calls get a fixed guide, and the parent can ask **"Are you safe?"**, which only the student can answer | **Emergency** |
-| **Act** | The parent writes a **family mandate in their own words** ("প্রতি মাসে ১ লাখ ২০ হাজার টাকা পর্যন্ত…", up to 1.2 lakh taka a month) → a strict proposal → read aloud → signed with fingerprint (both people for large caps). The **autopilot** then sends living money to the student's own account **before** it runs out, counting Eid, Spring Festival and weekends, and **asks** whenever a limit would be exceeded. Card freeze, renewal plan for a student abroad, scam blocking | **Family** |
-| **Prove** | A receipt for every payment: approved by people (EXECUTE) or by the autopilot under the signed mandate (MANDATE, with the proposal hash). Hash-chained log, payment passport | **Proof** |
+| **Act** | The parent writes or **says** a **family mandate in their own words** ("প্রতি মাসে ১ লাখ ২০ হাজার টাকা পর্যন্ত…", up to 1.2 lakh taka a month) → a strict proposal → read aloud → signed with the phone's passkey after a fingerprint (both people for large caps). The **autopilot** then sends living money to the student's own account **before** it runs out, counting Eid, Spring Festival and weekends, and **asks** whenever a limit would be exceeded. Card freeze, renewal plan for a student abroad, scam blocking | **Family** |
+| **Prove** | The **trust center**: a receipt for every payment (approved by people with passkeys, or sent by the autopilot under the signed mandate, with its bank tracking number), double-entry books, the payment passport; six safety shields with their evidence; the hash-chained log in plain words | **Family → Proof** |
 | **Earn & Save** | The student's own money abroad: a stipend or an **approved** campus job (China's work rules checked; unauthorised work is flagged and never planned on). A **savings rule the student signs** ("প্রতি বেতনের ৫০% জমাবো…", keep 50% of every pay until ¥6,000) fills the **Shield** on each pay day; when the money in China runs out it is used at once; anything else waits a cooling-off the student chose. The **taka lens** shows every "want" as what it costs the family to send. An **honest hundi check** shows the legal options, and says so when one bank transfer costs more on paper. The parent sees the Shield level only if the student shares it | **Save** |
 
 **Results** (saved real rates):

@@ -489,6 +489,25 @@ passkey demo keys were fixed numbers in the app bundle (anyone could sign as the
 worked; taint tracking labelled every number and blocked people's own payments; the firewall hid years and words;
 the ISO message used values the schema rejects and wrong BICs; the security status endpoints were open to anyone.
 
+## 5c. One experience, one loop
+
+The app tells the same story the documents do, in the same order:
+
+- **First launch** (`app/welcome.tsx`): four short cards. Meet Sathi (Sense → Plan → Act → Prove); who uses the phone
+  and in which language; your data and the AI (a separate consent before anything goes to DeepSeek in China, PIPL
+  Art. 39); your fingerprint key (the phone's passkey is made and registered here, not at the first payment).
+- **Story mode** (`app/story.tsx`, Home → "See Sathi's whole story"): ten steps on the live sandbox, each calling the
+  real API: bank messages arrive, money in China, the year plan, the father's mandate **spoken in Bangla**, both passkey
+  signatures, an attack refused and a scam flagged, four months through the card stop and Spring Festival, receipts and
+  balanced books, the proof. The demo video and the deck follow these steps.
+- **Trust center** (Family → Proof): *your money* (receipts with their bank tracking number, the double-entry books, the
+  payment passport), *safety* (six shields, each with live numbers and one tap to its evidence: passkeys, two people from
+  ৳1 lakh, taint tracking, output firewall, Confirmation of Payee, safety fuzzing), and the *black box* (the hash-chained
+  log in plain words).
+- **Connected to the loop:** the bank connection shows on Home (Sense); the microphone sits in the chat and on the
+  mandate; permission levels read as words ("approved by people", "within the mandate"), with the technical term in
+  the documents.
+
 ## 6. Data, sources and licences
 
 | Data | Source | Confidence / licence |

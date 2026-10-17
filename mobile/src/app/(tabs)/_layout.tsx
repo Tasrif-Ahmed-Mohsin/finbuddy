@@ -1,3 +1,4 @@
+import { Redirect } from 'expo-router';
 import { Tabs } from 'expo-router/js-tabs';
 
 import { Dock } from '@/components/dock';
@@ -9,7 +10,8 @@ import { useSession } from '@/lib/session';
  * Family (act, and the proof of everything that was done).
  */
 export default function TabsLayout() {
-  const { t } = useSession();
+  const { t, ready, onboarded } = useSession();
+  if (ready && !onboarded) return <Redirect href="/welcome" />;  // first launch: four short cards first
   return (
     <Tabs tabBar={(props) => <Dock {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: Colors.light.background } }}>
       <Tabs.Screen name="index" options={{ title: t('tabHome') }} />

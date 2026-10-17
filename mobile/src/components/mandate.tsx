@@ -6,6 +6,7 @@ import { Badge, Banner, Button, Card, ErrorBox, Field, H2, Meter, Muted, Row } f
 import { post, type MandateView, type Proposal } from '@/lib/api';
 import { bdt, cny, num, shortDate } from '@/lib/format';
 import { signWithPasskey } from '@/lib/passkey';
+import { VoiceButton } from '@/components/voice-button';
 import { useSession } from '@/lib/session';
 
 /** Act, step 1: the parent says in their own words what Sathi may do. Sathi turns it into a strict proposal. */
@@ -33,6 +34,8 @@ export function MandateComposer({ onProposal }: { onProposal: (p: Proposal) => v
       <Field label={t('yourInstruction')} value={text} onChangeText={setText} placeholder={t('mandateExample')} multiline />
       <Row>
         <Button title={t('useExample')} variant="secondary" onPress={() => setText(t('mandateExample'))} />
+        {/* Older parents can say it instead of typing it, in Bangla */}
+        <VoiceButton onText={setText} onError={setError} />
       </Row>
       <Button title={t('writeMandate')} onPress={write} loading={busy} disabled={text.trim().length < 3} />
       <ErrorBox error={error} />

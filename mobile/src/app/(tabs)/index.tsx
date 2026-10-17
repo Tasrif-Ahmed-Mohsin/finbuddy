@@ -1,18 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useCallback } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { BuddyBubble, BuddyLoading } from '@/components/buddy';
 import { DataBanner } from '@/components/data-banner';
 import type { MascotMood } from '@/components/mascot';
-import { Battery, BigNumber, Bento, DayStrip, Kicker, LiquidCapsule, RingGauge, RoundButton, RouteBeam, Seal, SectionHeader, Tile, useBentoColumn, type DayInfo } from '@/components/neo';
+import { Battery, BigNumber, Bento, DayStrip, Kicker, LiquidCapsule, Panel, RingGauge, RoundButton, RouteBeam, Seal, SectionHeader, SpaceText, Tile, useBentoColumn, type DayInfo } from '@/components/neo';
 import { NeedCard, NoteCard } from '@/components/note-card';
 import { InsightCard } from '@/components/sathi-updates';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorBox, H1, Muted, Row, Screen, Segmented } from '@/components/ui';
 import { Brand, Space } from '@/constants/theme';
-import type { Feed, FxOverview, Insight, Role, Timeline, ValueSummary } from '@/lib/api';
+import type { BanksView, Feed, FxOverview, Insight, Role, Timeline, ValueSummary } from '@/lib/api';
 import { cny, fill, localDigits, num, shortDate } from '@/lib/format';
 import type { Lang, StringKey } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
@@ -62,6 +62,23 @@ export default function HomeScreen() {
           { value: 'student', label: t('student') },
         ]}
       />
+      <Muted style={{ textAlign: 'center' }}>{t('roleHint')}</Muted>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('storyTileTitle')} onPress={() => router.push('/story')}>
+        <Panel>
+          <Row style={{ flexWrap: 'nowrap', gap: 12 }}>
+            <View style={local.play}>
+              <Ionicons name="play" size={22} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <SpaceText style={local.storyTitle}>{t('storyTileTitle')}</SpaceText>
+              <SpaceText muted small>
+                {t('storyTileBody')}
+              </SpaceText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Space.neon} />
+          </Row>
+        </Panel>
+      </Pressable>
       <ErrorBox error={error} />
       {!data && loading && <BuddyLoading text={t('todayLoading')} />}
 
@@ -109,6 +126,7 @@ export default function HomeScreen() {
               </View>
             </Tile>
             <BatteryTile feed={data.feed} />
+            <BanksTile />
           </Bento>
 
           {needs.length > 0 && (
@@ -258,6 +276,34 @@ function hasBattery(feed: Feed): boolean {
 }
 
 /** The Shield (the student's own savings) as a battery, or the autopilot's budget left this month. */
+/** Sense: the bank connections (read-only, with consent). One line: connected and how often Sathi read it, or how to connect. */
+function BanksTile() {
+  const { t, lang, call } = useSession();
+  const { data } = useLoad(useCallback(() => call<BanksView>('/banks'), [call]));
+  const active = data?.connectors.find((c) => c.active)?.active ?? null;
+  return (
+    <Tile span={2} label={t('settingsBanks')} onPress={() => router.push('/banks')}>
+      <Row style={{ flexWrap: 'nowrap', gap: 12 }}>
+        <View style={local.bankIcon}>
+          <Ionicons name="business" size={22} color={Space.neon} />
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Kicker>{t('banksKicker')}</Kicker>
+          <ThemedText type="smallBold">
+            {active ? `${active.bank} · ${t('status_Authorised')}` : t('banksTileConnect')}
+          </ThemedText>
+          <Muted>
+            {active
+              ? `${fill(t('banksReads'), { n: num(active.reads, lang) })} · ${fill(t('banksDaysLeft'), { d: num(active.days_left, lang) })}`
+              : t('banksNeverPay')}
+          </Muted>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={Brand.ink} />
+      </Row>
+    </Tile>
+  );
+}
+
 function BatteryTile({ feed }: { feed: Feed }) {
   const { t, lang } = useSession();
   const s = feed.shield;
@@ -320,6 +366,9 @@ function greeting(feed: Feed, needs: number, t: (k: StringKey) => string, lang: 
 }
 
 const local = StyleSheet.create({
+  play: { width: 44, height: 44, borderRadius: 22, backgroundColor: Brand.primary, alignItems: 'center', justifyContent: 'center', boxShadow: '0px 0px 14px rgba(77, 163, 255, 0.6)' },
+  storyTitle: { fontSize: 17, lineHeight: 22, fontWeight: '700' },
+  bankIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: Space.bg, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   heroBalance: { fontSize: 24, lineHeight: 30, fontWeight: '600' },

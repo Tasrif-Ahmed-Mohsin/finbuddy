@@ -50,6 +50,8 @@ export default function RootLayout() {
             <Stack.Screen name="judge" options={modal('Judge mode')} />
             <Stack.Screen name="banks" options={modal('Banks')} />
             <Stack.Screen name="privacy" options={modal('Privacy')} />
+            <Stack.Screen name="story" options={modal('Story')} />
+            <Stack.Screen name="welcome" />
             <Stack.Screen name="emergency" options={modal('Emergency · জরুরি · 紧急')} />
           </Stack>
         </ThemeProvider>

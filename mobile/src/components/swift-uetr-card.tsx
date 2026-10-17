@@ -28,8 +28,8 @@ type Props = {
 export function SwiftUetrCard({
   draftId,
   uetr,
-  originBic = 'BRACBDDHXXX',
-  originBankName = 'BRAC Bank Limited',
+  originBic = 'BRAKBDDHXXX',
+  originBankName = 'BRAC Bank PLC',
   destBic = 'BKCHCNBJXXX',
   destBankName = 'Bank of China',
   regulatoryReporting = 'FE-CIRCULAR-37-TUITION',
@@ -102,7 +102,7 @@ export function SwiftUetrCard({
             {originBankName || 'BRAC Bank'}
           </SpaceText>
           <ThemedText type="code" style={styles.bicText}>
-            {originBic || 'BRACBDDHXXX'}
+            {originBic || 'BRAKBDDHXXX'}
           </ThemedText>
         </View>
         <View style={styles.arrowWrap}>

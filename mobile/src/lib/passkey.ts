@@ -233,3 +233,18 @@ export async function signWithPasskey(role: Role, hashHex: string, prompt: strin
 export function idempotencyKey(): string {
   return `tap-${toHex(getRandomBytes(12))}`;
 }
+
+/** First launch: make this device's passkey for `role` and register it (the phone asks for the fingerprint or PIN
+ * first; the web makes a real passkey). Returns the key's label, or null when the person cancels. */
+export async function setupPasskey(role: Role, prompt: string, call: Call): Promise<string | null> {
+  if (!isWeb) {
+    const { ok } = await verifyPerson(prompt);
+    if (!ok) return null;
+  }
+  try {
+    return (await ensurePasskey(role, call)).label;
+  } catch (e) {
+    if (e instanceof Error && e.message === 'cancelled') return null;
+    throw e;
+  }
+}
