@@ -10,7 +10,7 @@ autopilot, the sandbox bank (with both countries' bank calendars) and the hash-c
 Passkeys are required, as in the app: every approval, mandate signature and bank consent is a signature by the
 person's phone (simulated devices with fresh random keys) over the exact hash, checked by the server. Every Send
 carries an Idempotency-Key, and the sandbox bank keeps double-entry books.
-Exchange rates: real saved history (mode `offline`); bank prices are estimates except the one real payment.
+Exchange rates: real saved history (mode `offline`); bank prices: Eastern Bank's published daily rate sheets, the banks' published schedules of charges, and one real BRAC Bank payment (BRAC's own fee schedule is not published, so its fees are labelled an assumption).
 
 **Result:** 0 stuck days in the live sandbox with Bluefin, versus 20 simulated with today's habits over the same year.
 

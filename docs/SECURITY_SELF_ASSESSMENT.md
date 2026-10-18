@@ -1,6 +1,7 @@
 # Bluefin: Security Self-Assessment
 
-**FinTechathon 2026 · International Track · Topic C** · Version: 16 Oct 2026 · Companion: [TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md)
+**FinTechathon 2026 · International Track · Topic C** · Team inki_ponki · Version: 18 Oct 2026
+Companions: [TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md) · [EXECUTION_EVIDENCE.md](EXECUTION_EVIDENCE.md)
 
 This report covers the two items the rules ask for: the **permission-tier implementation** (§4) and the **known-risk list** (§10). It also covers the threat model, the controls, AI-specific safeguards, privacy, and the attacks we tested. File references are to `backend/app/` at the time of writing (line numbers may drift).
 
@@ -32,8 +33,8 @@ This report covers the two items the rules ask for: the **permission-tier implem
 | T7 | **Data leakage** | OTPs or account numbers sent to an AI provider or logged | Redaction before storage and AI; logs without content; photos never stored |
 | T8 | **Stale or wrong data** | Old rate, expired rule, outdated bank fee, estimated holiday date | Quote freshness check; every rule and holiday has source + confidence; live → saved-rate fallback |
 | T9 | **Over-reaching autopilot** | The agent acting alone sends too much, too often, or to someone else | Only inside a signed mandate: student's own account, living money only, per-payment + calendar-month caps, Bangladesh's living cap, expiry; every payment re-checked; the family is asked instead when anything does not fit |
-| T11 | **Fake emergencies and fake officials** | "Your son has been arrested, pay 2 lakh now"; "DHL: your parcel contains passports, police case"; a "police officer" on video asking for a "safe account" transfer | Scam rules for fake emergencies and courier/customs pretexts (EN/BN/ZH); Emergency guides; **"Are you safe?"** that only the student can answer; payments only to the student's own account or the university, whatever anyone says |
 | T10 | **A manipulated standing instruction** | An injected or misread "send 10 lakh every month to account 9999"; a changed mandate between reading and signing | Rules parser + grounded AI numbers; payee fixed by policy; injection refused; signatures bound to the proposal hash; two signers for large caps |
+| T11 | **Fake emergencies and fake officials** | "Your son has been arrested, pay 2 lakh now"; "DHL: your parcel contains passports, police case"; a "police officer" on video asking for a "safe account" transfer | Scam rules for fake emergencies and courier/customs pretexts (EN/BN/ZH); Emergency guides; **"Are you safe?"** that only the student can answer; payments only to the student's own account or the university, whatever anyone says |
 | T12 | **Pressure on the student's savings** (impulse, a "pay right now" scam, someone else deciding) | "Move your savings to this safe account now"; the parent or the agent emptying or locking the student's money; an injected "send my Shield to account 9999" | Shield money only moves between the student's own pockets (`move_cny` refuses any other account); planned withdrawals wait the cooling-off the student signed (emergencies, proven by the balance, are instant); only the student signs the rule or takes money out; the parent approves only if the student chose a family lock; the destination is fixed in the rule's hash |
 | T13 | **Illegal work or misleading income** | A cash tutoring job without the work-study annotation; income that can stop any day | Work rules in the rule pack (Exit and Entry Law Art. 43/80); unauthorised income is flagged, never planned on and never simulated; the agent never suggests extra hours or cash jobs |
 | T14 | **Pushing families toward hundi** | "Hundi te rate bhalo" messages; a family facing a closed legal channel | Hundi is flagged as a scam signal; the hundi check shows the legal options with real costs (and says when the bank costs more on paper) plus the risks with sources; no route to hundi exists in the code |
@@ -192,17 +193,21 @@ The same model as family mandates, with the **student** as the one who signs (it
   person and why, every place data goes (DeepSeek in China, WhatsApp, banks) and when, what is never stored; a copy
   of one's data (`GET /privacy/export`); deleting messages, earnings, the WhatsApp number, passkeys or bank
   connections (`POST /privacy/delete`; the payment log stays, it holds no message text); and a **per-person AI
-  switch** (`POST /privacy/ai`): off, the chat, inbox reading, documents and mandates use the rules only and nothing
+  choice** (`POST /privacy/ai`), asked on first launch with two buttons and nothing pre-selected (Skip still asks;
+  not asked yet = off): off, the chat, inbox reading, documents and mandates use the rules only and nothing
   goes to DeepSeek (tested). Deleting messages keeps the amounts the taint check needs, without text or sender.
 - **Bank connections (open banking, read-only):** the account holder allows reading for at most 90 days, signed
   with their passkey over the consent; every read is logged; revoke or expiry stops reading at once; no permission
   can move money; the agent can read only through an active consent and can never create one.
 - **Passport:** amounts can be hidden; the public page needs the verification code; 90-day validity; revocable; holder data shown only with a valid code.
-- **Third-party AI:** DeepSeek is a China-based provider; only redacted text and user-chosen photos are sent. A production consent screen is needed (§10, R8).
+- **Third-party AI:** DeepSeek is a China-based provider; only redacted text and user-chosen photos are sent, and only
+  after the person said yes (PIPL Art. 14 and 39: separate, explicit consent). Messages forwarded through the family's
+  webhook use the AI only when someone said yes and nobody said no. The answer is kept on the phone and survives a
+  server restart or a demo reset.
 
 ## 8. Integrity
 
-- **Audit log:** each entry stores the SHA-256 of the previous entry. `verify()` (`audit/log.py:55`) recomputes the chain and reports the first broken entry. Tested: editing one entry is detected at its exact position.
+- **Audit log:** each entry stores the SHA-256 of the previous entry. `verify()` (`audit/log.py:55`) recomputes the chain and reports the first broken entry. Tested: editing one entry is detected at its exact position. An exported log can be checked without our server or code: `python backend/scripts/verify_audit_log.py docs/evidence/sandbox_operation_log.jsonl` (standard library only; `--tamper N` shows an edited entry being caught).
 - **Payment passport:** HMAC-signed. Each entry references `audit_seq` + `audit_hash`. Verification (`passport.py:108`) fails on signature mismatch, an entry not in the log, a tampered log, revocation or expiry. Only the current sandbox session is used, a bug we found and fixed (ids repeat after a restart).
 - **Receipts** (`service.py:534`): for every executed payment, what was checked, who approved it (EXECUTE) or which signed mandate covered it (MANDATE, with signers and proposal hash), and the log entries for sending and landing.
 - **Exported evidence:** `docs/evidence/sandbox_operation_log.jsonl`, 255 entries over four sandbox months, chain valid. Passkeys are required in the run: every approval, mandate signature and bank consent is a phone's signature over the exact hash (an unsigned approval, an unsigned mandate signature and a signature for another payment are refused in the log); a retried Send is answered without paying again; the double-entry books end balanced and reconciled; plus Earn & Save (savings rule, Shield moves, a top-up refused by the living cap and covered by the Shield).
@@ -214,6 +219,7 @@ The same model as family mandates, with the **student** as the one who signs (it
 - **Exactly-once payments:** the bank never books one draft twice, and payment requests accept an `Idempotency-Key`
   (create draft, approve, execute): a retry returns the first answer, the same key with another request is refused
   (422). The app sends one key per tap on Send.
+
 ## 9. Red-team results (all automated, all passing)
 
 | Attack | Expected | Result | Test |
@@ -352,12 +358,14 @@ Likelihood and impact are rated for a **production** deployment (L = low, M = me
 | R36 | **Taint tracking matches amounts, not data flow** (a pasted scam counts as typed) | M | M | Scam checks, payee allow-list and the person's passkey approval still apply | Accepted | Run agent plans in a CaMeL-style interpreter that tracks values |
 | R37 | **ISO 20022 checks are rules written from the schema**, not the official XSD | M | L | Lengths, code lists, BIC and UETR formats tested | Open | Validate against the published XSD before a bank pilot |
 | R38 | **Idempotency keys live in memory** (lost on restart) | M | M | The bank layer still never books a draft twice | Accepted for demo | Durable idempotency store with a 24 h window |
+| R39 | **The student's savings rule and Shield withdrawals are confirmed by the phone's fingerprint step, not by a server-checked passkey** (unlike payments, mandates and bank consents) | L | M | Only the student's session can sign or withdraw; Shield money only moves between the student's own pockets; the cooling-off and the optional family lock apply; every move is logged | Open | Passkey signatures over the rule hash and each release, as for payments |
+| R40 | **In the demo, one phone holds both the parent's and the student's keys**, so the two-person rule is shown on one device | n/a | H | Said on the first-launch card and on Home ("Demo: one phone switches between the parent and the student"); the server still requires two different registered keys | By design (demo) | Each person enrols their own phone; refuse both roles' keys from one attested device |
 
 **Not done yet (stated honestly):** an external penetration test, a formal STRIDE workshop, a privacy impact assessment, and a mobile app hardening review (root/jailbreak detection, certificate pinning).
 
 ## 11. Residual risk summary
 
-For the **sandbox demo**, the residual risk is low: no real money or data. Every money action needs either a human approval bound to the exact draft, or a family mandate whose exact terms people signed, and whose caps the autopilot cannot exceed. For a **production** launch, the priorities are R1/R2 (real identity and device-signed approvals), R6/R7 (key management and append-only storage), R8 (AI data consent) and R20 (licensed execution partners). The architecture already separates these concerns, so each can be upgraded without changing the agent's safety model.
+For the **sandbox demo**, the residual risk is low: no real money or data. Every money action needs either a human approval bound to the exact draft, or a family mandate whose exact terms people signed, and whose caps the autopilot cannot exceed. For a **production** launch, the priorities are R1/R2 (real identity and device-signed approvals), R6/R7 (key management and append-only storage), R8 (a data-processing agreement with the AI provider) and R20 (licensed execution partners). The architecture already separates these concerns, so each can be upgraded without changing the agent's safety model.
 
 ## 12. How to reproduce
 
@@ -365,4 +373,5 @@ For the **sandbox demo**, the residual risk is low: no real money or data. Every
 cd backend
 .venv/Scripts/python -m pytest -q                # 409 cases incl. all red-team tests above
 .venv/Scripts/python scripts/demo_scenario.py    # end-to-end run → docs/evidence/ (hash-chained log)
+python scripts/verify_audit_log.py ../docs/evidence/sandbox_operation_log.jsonl   # check the chain, standard library only
 ```

@@ -317,8 +317,9 @@ def main() -> int:
         "Passkeys are required, as in the app: every approval, mandate signature and bank consent is a signature by the",
         "person's phone (simulated devices with fresh random keys) over the exact hash, checked by the server. Every Send",
         "carries an Idempotency-Key, and the sandbox bank keeps double-entry books.",
-        f"Exchange rates: real saved history (mode `{os.environ.get('SATHI_FX_MODE')}`); bank prices are estimates "
-        "except the one real payment.",
+        f"Exchange rates: real saved history (mode `{os.environ.get('SATHI_FX_MODE')}`); bank prices: Eastern Bank's "
+        "published daily rate sheets, the banks' published schedules of charges, and one real BRAC Bank payment "
+        "(BRAC's own fee schedule is not published, so its fees are labelled an assumption).",
         "",
         f"**Result:** {stuck} stuck days in the live sandbox with Bluefin, versus {h['stuck_days_today']} simulated with "
         "today's habits over the same year.",

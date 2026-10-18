@@ -99,14 +99,14 @@ On a phone, the app looks for the backend on the same computer at port 8000 (the
 ## Test it
 ```bash
 cd backend && .venv/Scripts/python -m pytest -q        # 409 tests: bank prices, year plan, mandates + autopilot, Earn & Save, security, engines, agent, inbox, FX, cards, renewals, passport, documents
-cd backend && .venv/Scripts/python scripts/judge_tasks.py   # Judge mode: 18 scripted tasks → docs/evidence/judge_tasks.md
+cd backend && .venv/Scripts/python scripts/judge_tasks.py   # Judge mode: 20 scripted tasks → docs/evidence/judge_tasks.md
 cd mobile && npx tsc --noEmit && npx expo lint   # a fresh clone needs expo-env.d.ts first: run `npx expo start` once (it is git-ignored)
 ```
 
 ## Submission documents
 - [Technical documentation](docs/TECHNICAL_DOCUMENTATION.md): architecture, core algorithms, security design, data, API, deployment, tests
 - [Security self-assessment](docs/SECURITY_SELF_ASSESSMENT.md): permission-tier implementation, threat model, red-team results, known-risk list
-- [Execution evidence](docs/evidence/scenario_summary.md): hash-chained sandbox operation log from a full end-to-end run
+- [Execution evidence](docs/EXECUTION_EVIDENCE.md): the four-month sandbox run, its hash-chained operation log (check it with `backend/scripts/verify_audit_log.py`, no server needed), judge mode and fuzzing
 - [Judge mode report](docs/evidence/judge_tasks.md): every scripted task with its steps, checks, value and log evidence
 
 ## Repository map

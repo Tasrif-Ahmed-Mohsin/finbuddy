@@ -1,7 +1,10 @@
 # Bluefin: Technical Documentation
 
 **FinTechathon 2026 · International Track · Topic C: Cross-border & Student Finance Assistant**
-Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy · Version: 16 Oct 2026 · Companion: [SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md)
+Team inki_ponki · Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy · Version: 18 Oct 2026
+Companions: [SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md) · [EXECUTION_EVIDENCE.md](EXECUTION_EVIDENCE.md)
+
+**What this document covers** (the three items the rules ask for): the **system architecture** (§3), the **core algorithms** (§4) and the **security design** (§5, with the full permission-tier implementation and known-risk list in the security self-assessment). §1–2 give the problem and the product in one page; §6–11 give data, measured value, the API, deployment, tests and limitations.
 
 > **Sandbox:** no real money moves. All payments run in a simulated bank. The **exchange rate is real** (live, plus 953 days of saved daily history). **Bank prices are real or published**:
 > - Eastern Bank's own daily CNY rate sheets (`bank_rates.csv`, refreshed automatically).
@@ -28,10 +31,10 @@ When the channel breaks, families are pushed toward hundi, and in China, money f
 
 | Step | What Bluefin does | Where |
 |---|---|---|
-| **Sense** | Money in China and transfers on the way; bank SMS/email (redacted); photographed documents; the real exchange rate | Today tab, Bluefin tab |
+| **Sense** | Money in China and transfers on the way; bank SMS/email (redacted); photographed documents; the real exchange rate; a read-only bank connection | Home, Bluefin (chat) |
 | **Plan** | The **"never stuck" year plan**: a day-by-day simulation across both countries' bank calendars, the endorsement end and card limits; true cost (rate markup vs fees) | Plan → Year |
-| **Act** | The parent writes a **family mandate** in their own words → strict proposal → signed with fingerprint (both people for large caps) → the **autopilot** sends living money inside it and asks for anything else | Family tab |
-| **Prove** | A receipt for every payment (who or what authorised it), a hash-chained log, the payment passport | Proof tab |
+| **Act** | The parent writes or **says** a **family mandate** in their own words → strict proposal → signed with the phone's passkey after a fingerprint (both people for large caps) → the **autopilot** sends living money inside it and asks for anything else | Family → Act |
+| **Prove** | A receipt for every payment (who or what authorised it) with its bank tracking number, double-entry books, a hash-chained log, the payment passport | Family → Proof (trust center) |
 
 **Earn & Save (Interview #2, §4.14):** the second interviewee works part-time abroad. When the dollar is short the family uses hundi ("1–2 taka lost per dollar"), while the student's own pay leaks into wants. Bluefin treats the student's income as what it is, money that **never has to cross the border**, and turns part of it into a **Shield**: a savings rule the student signs keeps a share of each pay in their own Chinese account; emergencies use it at once; anything else waits a cooling-off. The same loop runs on it (Sense: income and wants in taka; Plan: dollar-crisis test, hundi check; Act: the autopilot inside the student's rule; Prove: every move in the log), in the **Save** tab.
 
@@ -56,42 +59,22 @@ Full research: [01_problem_research.md](01_problem_research.md) (34 problems wit
 
 ```mermaid
 flowchart TB
-  subgraph Phone["Mobile app (Expo SDK 57, React Native, TypeScript)"]
-    UI["Today · Plan (Year/Tuition/Living) · Family · Bluefin (chat, SMS, photo) · Proof<br/>Payment approval · Renewal · Passport · Settings"]
-    BIO["Fingerprint / PIN (expo-local-authentication) · read-back aloud (expo-speech)"]
-  end
-  subgraph API["Backend (Python 3.12, FastAPI)"]
-    SVC["Service layer (AppState): the ONLY path to drafts, approvals, mandates, execution"]
-    AP["Autopilot: look-ahead top-ups, acts only inside a signed mandate"]
-    MC["Mandate compiler: rules parser + grounded DeepSeek + policy validator + template read-back"]
-    YP["Year plan: day-by-day simulation, both bank calendars, endorsement end, card caps"]
-    AG["Chat agent: DeepSeek tool calling (read, plan, draft, propose) + offline fallback"]
-    ENG["Engines: cost (rate vs fee) · cost truth · living optimiser · tuition planner · FX ranges · renewal"]
-    EAS["Earn & Save: income + work rules · savings rule (student signs) · Shield · taka lens · hundi check · dollar-crisis test"]
-    SEC["Security: permission engine · approval tokens · compliance checks · scam/injection scan"]
-    INB["Inbox: filter → redact → scan → rules/AI extraction (grounded) → tracking → insights"]
-    FEED["Family feed: templated notes in bn/en/zh"]
-    BANK["Sandbox bank: accounts, cards, clock, daily spending, calendar-aware transfers"]
-    AUD["Audit log: append-only JSONL, SHA-256 hash chain"]
-  end
-  subgraph Data["Data"]
-    RULES["Rule pack bd_cn.yaml (value + source + confidence)"]
-    CAL["bank_holidays.yaml (BD + CN, confidence per date)"]
-    FX["fx_history.csv (953 days, CC0) + live rate"]
-    Q["bank_quotes.yaml (estimates + 1 real payment)"]
-  end
-  UI -- HTTPS JSON --> SVC
-  BIO -. proves presence .-> UI
-  AG --> SVC
-  AP --> SVC
-  SVC --> MC & YP & ENG & SEC & INB & FEED & BANK & EAS
-  EAS --> YP
-  AP --> YP
+  APP["<b>Mobile app</b> · Expo SDK 57, React Native<br/>Home · Plan · Bluefin (chat) · Save · Family<br/>passkey after fingerprint / PIN · voice input and read-back in Bengali, English, Chinese"]
+  WHO["<b>Who can ask</b><br/>parent or student (signed requests) · chat agent (DeepSeek tools, rules fallback)<br/>autopilot (only inside a mandate people signed)"]
+  SVC["<b>Service layer</b> (AppState)<br/>the only path to drafts, approvals, mandates and payments"]
+  GATE["<b>Security gate</b><br/>permission engine L0–L3 · passkey check (ES256 over the exact hash)<br/>compliance checks + Confirmation of Payee · taint tracking · output firewall"]
+  ENG["<b>Engines</b><br/>year plan (both bank calendars) · mandate compiler<br/>cost and living optimiser · tuition planner · FX ranges<br/>Earn & Save (Shield, hundi check) · inbox (redact, extract, insights)"]
+  BANK["<b>Sandbox bank</b><br/>double-entry ledger · exactly-once payments<br/>ISO 20022 pain.001 + UETR · open banking (read-only)"]
+  AUD["<b>Audit log</b><br/>SHA-256 hash chain of every action"]
+  DATA[("<b>Data</b>, each value with source and confidence<br/>rule pack · bank holidays BD + CN<br/>953 days of rates · bank rate sheets + fees")]
+  DS[("<b>DeepSeek API</b><br/>redacted text, only after consent")]
+  APP -- "HTTPS + passkey signatures" --> WHO
+  WHO --> SVC --> GATE
+  GATE --> ENG
+  GATE --> BANK
+  ENG --> DATA
   BANK --> AUD
-  SVC --> AUD
-  YP --> RULES & CAL & FX & Q
-  AG -. redacted text only .-> DS[(DeepSeek API)]
-  MC -. instruction text, numbers grounded .-> DS
+  WHO -. "AI only" .-> DS
 ```
 
 **Why a backend, not "all in the phone":** the permission checks, compliance rules, the autopilot and the audit log must run where neither a tampered app nor the AI can skip them. Every route goes through one service class (`backend/app/service.py`), and every action is logged.
@@ -108,10 +91,11 @@ sequenceDiagram
   participant L as Audit log
   P->>S: "প্রতি মাসে ১ লাখ ২০ হাজার টাকা পর্যন্ত…" (up to 1.2 lakh a month)
   S->>S: compile: rules parse → DeepSeek (numbers must be in the text) → policy limits
-  S-->>P: proposal + template read-back (bn/en/zh) + hash; ≥ ৳1 lakh → both must sign
-  P->>S: sign(hash) after fingerprint
+  S-->>P: proposal + template read-back (bn/en/zh) + hash, and from ৳1 lakh both must sign
+  P->>S: passkey signature over the hash (after fingerprint)
   S-->>St: "Needs you: sign the family mandate"
-  St->>S: sign(hash) after fingerprint
+  St->>S: passkey signature over the hash (after fingerprint)
+  S->>S: verify each signature (challenge = hash, origin, user verified, replay, counter)
   S->>L: mandate_created (signers, proposal hash)
   loop every sandbox day
     A->>A: topup_decision(balance, transfers on the way, BD + CN bank days)
@@ -137,10 +121,12 @@ sequenceDiagram
   A->>S: create draft (agent allowed: L1 DRAFT)
   S->>S: compliance checks (payee allow-list, fee notice, quote fresh, memo, Student File…)
   A->>S: execute → 403 (agent can never execute)
-  P->>S: hears the read-back, approves (fingerprint) → token bound to the draft hash
+  P->>S: hears the read-back, signs the draft hash with the phone's passkey → verified → single-use token
   Note over S: ≥ ৳1 lakh → student must approve too
-  P->>S: execute → re-run checks + verify tokens (hash, nonce, expiry, approvers)
-  S->>B: transfer; B->>L: transfer_sent … transfer_arrived
+  P->>S: execute (Idempotency-Key) → re-run checks + verify tokens (hash, nonce, expiry, approvers)
+  S->>B: book once in the double-entry ledger + ISO 20022 pain.001 with UETR
+  S->>B: transfer
+  B->>L: transfer_sent … transfer_arrived
 ```
 
 ### 3.3 Repository map
@@ -150,14 +136,15 @@ sequenceDiagram
 | `backend/app/service.py` | Service layer: plans, drafts, approvals, execution, mandates and proposals, year plan, feed, receipts, simulated time, cards, renewals, passport, documents |
 | `backend/app/engines/` | `year_plan.py` (calendar, look-ahead rule, simulation incl. income, Shield and a crisis window), `cost.py`, `cost_truth.py`, `living_planner.py`, `tuition_planner.py`, `fx_range.py`, `stress.py` (stress test, what-if, dollar crisis), **`earnings.py`** (income, work rules, savings rule, Shield, taka lens), **`hundi.py`** (honest hundi comparison) |
 | `backend/app/agent/` | `autopilot.py`, `mandate_compiler.py`, `chat.py` (tool-calling agent + fallback), `llm.py` (DeepSeek client), `explain.py` |
-| `backend/app/security/` | `permissions.py` (levels, tokens, mandates), `compliance.py` (checks), `scam.py` (scam/injection patterns) |
+| `backend/app/security/` | `permissions.py` (levels, tokens, mandates), `passkey.py` (WebAuthn ES256 verification), `compliance.py` (checks), `scam.py` (scam/injection patterns), `taint.py` (where each amount came from), `firewall.py` (checks every reply), `cop.py` (Confirmation of Payee), `fuzzer.py` + `mutants.py` (safety-invariant fuzzing) |
+| `backend/app/integrations/` | `iso20022.py` (pain.001 + UETR + schema rules), `open_banking.py` (read-only consents), `whatsapp.py` (family alerts) |
 | `backend/app/inbox/` | `filters.py`, `redact.py`, `parsers.py`, `extract_llm.py`, `insights.py`, `service.py`, `email_imap.py` |
-| `backend/app/` | `notify.py` (family feed, read-backs), `fx.py`, `market.py`, `renewal.py`, `passport.py`, `documents.py`, `sandbox/bank.py`, `audit/log.py` |
+| `backend/app/` | `notify.py` (family feed, read-backs), `fx.py`, `market.py`, `renewal.py`, `passport.py`, `documents.py`, `emergency.py`, `privacy.py` (PIPL), `judge.py` (scripted tasks), `sandbox/bank.py` + `sandbox/ledger.py` (double-entry books), `audit/log.py` |
 | `backend/app/corridors/bd_cn.yaml` | Rule pack: every number with value, confidence (official / secondary / field / assumption) and source |
 | `backend/app/data/` | `bank_holidays.yaml` (BD + CN closures), `bank_quotes.yaml` (estimates + real payment), `fx_history.csv`, `demo_messages.yaml` |
-| `backend/scripts/` | `fetch_fx_history.py` (data pipeline), `demo_scenario.py` (end-to-end run + evidence export) |
+| `backend/scripts/` | `fetch_fx_history.py`, `fetch_bank_rates.py` (data pipelines), `demo_scenario.py` (four-month run + evidence export), `judge_tasks.py`, `fuzz_safety_invariants.py`, `verify_audit_log.py` (checks an exported log with the standard library only) |
 | `backend/tests/` | 409 automated test cases (29 files) |
-| `mobile/src/` | Expo Router screens (`app/`), components, API client, i18n (bn/en/zh), formatting (lakh, Bengali digits) |
+| `mobile/src/` | Expo Router screens (`app/`: five tabs, Story mode, first launch, approvals, emergency, privacy, banks), components, API client, passkeys (`lib/passkey.ts`), i18n (bn/en/zh, 860+ strings each), formatting (lakh, Bengali digits) |
 | `docs/` | Research, plans, this document, security self-assessment, `evidence/` (sandbox operation logs) |
 
 ## 4. Core algorithms
@@ -176,7 +163,7 @@ A **stuck day** is a day the student cannot cover their spending. The **bank cal
 
 **Two strategies, same banks, same rate (no forecast):**
 - **today**: a careful family now: ATM while the card works (withdraw when ~2 days are left); once it stops, a transfer when about a week of money is left.
-- **sathi**: the look-ahead rule below, the same function the live autopilot uses.
+- **Bluefin** (strategy id `sathi` in the code): the look-ahead rule below, the same function the live autopilot uses.
 
 **Result for the demo student (saved real rates, 12 Oct 2026 → 29 Jun 2027):**
 
@@ -386,7 +373,7 @@ There is **no tool to approve, execute, sign, unfreeze or change a mandate**, an
 - **Passport:** HMAC-signed record of on-time payments, built from this session's audit entries. Late payments are shown as late. It can be revoked, expires after 90 days, and has a public QR page that needs a verification code. It is not an official credit score.
 - **Document reader:** DeepSeek vision reads fee notices, Chinese forms and checklists. Amounts are kept only if they appear in the transcription. The image is never stored. A fee notice is applied only after the user confirms.
 
-### 4.13 Emergency mode (`emergency.py`, `GET /emergency`, 🆘 on Today)
+### 4.13 Emergency mode (`emergency.py`, `GET /emergency`, the red button on Home)
 When something goes wrong, the fastest **safe** way through it. Nothing moves without the parent's fingerprint or the signed mandate.
 
 | Situation | What Bluefin does |
@@ -394,7 +381,7 @@ When something goes wrong, the fastest **safe** way through it. Nothing moves wi
 | **No money now** (a surprise bill, a late transfer) | Lists every way money can reach the student, soonest first, with dates from both bank calendars: the card (only if it still works abroad), money already on the way, an urgent transfer (sent today or on the next Bangladeshi bank day, landing on a Chinese bank day), and a short local bridge with the **exact amount** and repay date (a trusted friend via WeChat Pay / Alipay or the international office; never online lenders). "Ask my family" runs the autopilot first (the mandate may already allow it), otherwise prepares **one** urgent draft for the parent and alerts the family (feed + WhatsApp). Pressing twice does not create two payments. |
 | **Card lost or stolen** | Freezes the card first (protective, reversible), then re-plans without it. |
 | **"Police / court / embassy / courier" call** | A fixed five-step guide in BN/EN/ZH: hang up, never install apps or share codes, check by calling 110 or the anti-fraud line 96110 and the international office, tell the family "I'm safe" before the scammers call them. |
-| **"Your child was arrested / kidnapped / needs money now"** (to the parent) | The parent's guide plus **"Are you safe?"**: the student gets it on Today and answers in the app (fingerprint on the phone). Only the student can answer; the parent and the AI agent get 403, so a scammer who took over the chat cannot answer either. The answer reaches the parent in the feed and on WhatsApp. |
+| **"Your child was arrested / kidnapped / needs money now"** (to the parent) | The parent's guide plus **"Are you safe?"**: the student gets it on Home and answers in the app (fingerprint on the phone). Only the student can answer; the parent and the AI agent get 403, so a scammer who took over the chat cannot answer either. The answer reaches the parent in the feed and on WhatsApp. |
 
 Why the scams fail structurally: Bluefin can only ever pay the student's own Chinese account and the university, and a new payee needs both people. The scam rules also recognise fake emergencies ("has been arrested", "ransom", "অপহরণ", "绑架", "赎金") and courier/customs pretexts ("your parcel contains", "包裹里有").
 
@@ -444,12 +431,40 @@ At 30% of pay: 79% of starts, worst 17 days; at 70%: 97%, worst 5 days. A Shield
 
 **Live sandbox (evidence run):** on 22 Jan a ¥2,500 hospital bill pushed a ¥1,000 top-up past Bangladesh's USD 2,000/month living-money cap; the compliance check refused it (that is the law). The Shield covered ¥800 on its own in 2 moves, and the student had **0 stuck days** through Spring Festival.
 
-## 5. Security design (summary)
+## 5. Security design
 
-Full details, the permission-tier implementation and the known-risk list are in **[SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md)**.
+The design principle: **the AI can prepare anything and authorise nothing.** Money moves only with people's passkey
+signatures over the exact payment, or inside a standing rule people signed, and every check runs on the server where
+neither a tampered app nor the AI can skip it. The full permission-tier implementation, threat model, red-team results
+and known-risk list (40 risks) are in **[SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md)**.
+
+**Every payment passes the same layers, in this order:**
+
+```mermaid
+flowchart TB
+  IN["<b>A request</b><br/>from a person, the chat agent or the autopilot"]
+  PE["<b>1 · Permission engine</b><br/>is this actor allowed this level?<br/>L0 read · L1 draft · L2 execute · L3 mandate"]
+  CC["<b>2 · Compliance checks</b><br/>allow-listed payee · Confirmation of Payee · fee notice · living-money cap<br/>fresh quote · clean memo · valid Student File · scam and injection signals"]
+  TT["<b>3 · Taint tracking</b> (payments the AI drafts)<br/>did the amount come only from outside text?"]
+  AU["<b>4 · Authority</b><br/>passkey signatures over the draft hash (both people from ৳1 lakh)<br/>or inside the caps of a mandate people signed"]
+  EX["<b>5 · Execute once</b><br/>Idempotency-Key · every check runs again"]
+  BK["<b>6 · Book and record</b><br/>double-entry ledger · ISO 20022 + UETR · hash-chained log · receipt"]
+  NO["<b>Stopped</b><br/>403 or blocked, with the reason,<br/>written to the hash-chained log"]
+  IN --> PE
+  PE -- allowed --> CC
+  CC -- pass --> TT
+  TT -- clean --> AU
+  AU -- signed --> EX
+  EX --> BK
+  PE -. no .-> NO
+  CC -. fails .-> NO
+  TT -. tainted .-> NO
+  AU -. "missing, wrong or replayed" .-> NO
+```
+
 
 - **Permission levels:**
-  - L0 Read, L1 Draft (the agent proposes mandates here).
+  - L0 Read, L1 Draft (the agent drafts payments and proposes mandates here; it may also freeze a card, which only protects).
   - L2 Execute: needs the person's **passkey signature over the exact draft**, checked by the server, then a single-use approval token.
   - L3 Mandate: the autopilot works only inside a signed, capped, revocable mandate that covers living money only.
   - Hard blocks that nobody can override.
@@ -461,9 +476,10 @@ Full details, the permission-tier implementation and the known-risk list are in 
 - **The student's own money (Earn & Save):** the savings rule is signed by the student only (hash-bound read-back); the agent may propose it and act inside it (save a share of pay, cover a real shortfall), never sign it or withdraw for anything else; Shield money only moves between the student's own pockets; a cooling-off the student chose also keeps "pay right now" scams away from it; the parent sees the Shield level only if the student shares it, never income or purchases.
 - **Asymmetric friction:** the agent may freeze a card and propose; it may not unfreeze, approve, sign or widen a limit. Either person can cancel a mandate in one tap.
 - **Integrity and AI containment:**
-  - a hash-chained audit log for every action;
-  - grounded numbers everywhere the AI reads text;
-  - rule-based fallbacks when the AI is unavailable.
+  - a hash-chained audit log for every action (verifiable with `scripts/verify_audit_log.py`, no server needed);
+  - grounded numbers everywhere the AI reads text, and taint labels on every amount from outside text;
+  - an output firewall on every reply (one-time codes, card and account numbers, the other person's private money, the system prompt);
+  - rule-based fallbacks when the AI is unavailable or switched off; the AI is used only after the person says yes (PIPL), asked on first launch with nothing pre-selected.
 
 ## 5b. Bank-grade engineering
 
@@ -609,37 +625,38 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
 
 - `cd backend && .venv/Scripts/python -m pytest -q` runs **409 test cases**, all passing:
 
-  | Area | Test cases |
-  |---|---|
-  | Living optimiser (incl. 30-combination limit check) | 36 |
-  | **Earn & Save: income and work rules, savings rule (3 languages, hash, signers), Shield, cooling-off, family lock, emergencies, privacy on every door, taka lens, hundi honesty, dollar crisis, inbox, chat** | **40** |
-  | **Dialogue: clarification, correction, refusal, quick replies (EN/BN/ZH)** | **33** |
-  | **Family mandate, signatures and autopilot** | **28** |
-  | **Bank prices: published sheets, fee schedules, rate watch** | **23** |
-  | **Emergency mode, fake emergencies, "Are you safe?"** | **22** |
-  | Security and permissions | 21 |
-  | Inbox and privacy | 17 |
-  | FX and card controls | 16 |
-  | End-to-end API scenarios (incl. bank-day week, value summary) | 15 |
-  | **Year plan, bank calendar, cost truth** | **12** |
-  | **Stress test, what-if, spending pace, late margin** | **12** |
-  | Payment passport | 10 |
-  | Renewals (incl. endorsement from abroad) | 10 |
-  | WhatsApp alerts (dry run, template fallback) | 10 |
-  | Agent | 9 |
-  | **Public deployment: routing, path traversal, rate limits, AI budget, reset** | **9** |
-  | Documents | 5 |
-  | Tuition and FX method | 5 |
-  | Cost engine | 4 |
-  | **Judge mode: 20 scripted tasks, compromised-AI drill, no real messages** | **4** |
-  | **Output firewall** | **15** |
-  | **Passkeys: signatures, replay, wrong payment, phishing origin, two people, mandates** | **13** |
-  | **ISO 20022 and UETR, schema rules** | **8** |
-  | **Double-entry books and exactly-once** | **7** |
-  | **Bank connections and your data (PIPL)** | **7** |
-  | **Taint tracking** | **6** |
-  | **Safety fuzzer and its mutants** | **5** |
-  | **Confirmation of Payee** | **5** |
+  | Area | File | Test cases |
+  |---|---|---|
+  | Earn & Save: income and work rules, savings rule, Shield, cooling-off, family lock, privacy, taka lens, hundi, dollar crisis | `test_earn_save.py` | 40 |
+  | Living optimiser (incl. the 30-combination limit check) | `test_living_planner.py` | 36 |
+  | Dialogue: clarification, correction, refusal, quick replies (EN/BN/ZH) | `test_dialogue.py` | 33 |
+  | Family mandate, signatures and autopilot | `test_family_mandate.py` | 28 |
+  | Bank prices: published sheets, fee schedules, rate watch | `test_bank_prices.py` | 23 |
+  | Emergency mode, fake emergencies, "Are you safe?" | `test_emergency.py` | 22 |
+  | Security and permissions (red team) | `test_security.py` | 21 |
+  | Inbox and privacy of messages | `test_inbox.py` | 17 |
+  | FX and card controls | `test_fx_and_cards.py` | 16 |
+  | Output firewall | `test_firewall.py` | 15 |
+  | End-to-end API scenarios (incl. bank-day week, value summary) | `test_api_scenarios.py` | 15 |
+  | Passkeys: signatures, replay, wrong payment, phishing origin, two people, mandates | `test_passkey.py` | 13 |
+  | Year plan, bank calendar, cost truth | `test_year_plan.py` | 12 |
+  | Stress test, what-if, spending pace, late margin | `test_stress.py` | 12 |
+  | WhatsApp alerts (dry run, template fallback) | `test_whatsapp.py` | 10 |
+  | Renewals (incl. endorsement from abroad) | `test_renewal.py` | 10 |
+  | Payment passport | `test_passport.py` | 10 |
+  | Public deployment: routing, path traversal, rate limits, AI budget, reset | `test_web.py` | 9 |
+  | Agent (tool calling, fake model) | `test_agent.py` | 9 |
+  | Bank connections and your data (PIPL), AI consent | `test_open_banking_privacy.py` | 8 |
+  | ISO 20022 and UETR, schema rules | `test_iso20022.py` | 8 |
+  | Taint tracking | `test_taint.py` | 7 |
+  | Double-entry books and exactly-once | `test_ledger.py` | 7 |
+  | Tuition and FX method | `test_tuition_and_fx.py` | 5 |
+  | Safety fuzzer and its mutants | `test_fuzzer.py` | 5 |
+  | Documents | `test_documents.py` | 5 |
+  | Confirmation of Payee | `test_cop.py` | 5 |
+  | Judge mode: 20 scripted tasks, compromised-AI drill, no real messages | `test_judge.py` | 4 |
+  | Cost engine | `test_cost.py` | 4 |
+  | **Total** | **29 files** | **409** |
 
   Tests never call the real AI (a fake DeepSeek server is used) or the network.
 
