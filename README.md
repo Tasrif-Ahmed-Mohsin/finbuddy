@@ -47,7 +47,7 @@ so Bluefin turns part of it into a **Shield** for the days the legal channel fro
 |---|---|---|
 | **Sense** | Money in China, transfers on the way, card status; shared bank SMS/email (OTP removed, numbers masked); photographed documents; the real exchange rate; read-only bank connections with consent | **Home**, **Bluefin** (type or speak) |
 | **Plan** | **"Never stuck" year plan**: a day-by-day simulation across both countries' bank calendars, the endorsement end and card limits; today's habits vs Bluefin (stuck days, fees vs rate markup); tuition send-by and living-money optimisers | **Plan → Year / Tuition / Living** |
-| **Emergency** | 🆘 on Today: "I have no money" gives every way money can reach the student, with real dates and the exact bridge amount, and prepares one urgent transfer for the parent's fingerprint. "Card lost" freezes first. Fake police / embassy / courier calls get a fixed guide, and the parent can ask **"Are you safe?"**, which only the student can answer | **Emergency** |
+| **Emergency** | The red 🆘 button on Home: "I have no money" gives every way money can reach the student, with real dates and the exact bridge amount, and prepares one urgent transfer for the parent's fingerprint. "Card lost" freezes first. Fake police / embassy / courier calls get a fixed guide, and the parent can ask **"Are you safe?"**, which only the student can answer | **Emergency** |
 | **Act** | The parent writes or **says** a **family mandate in their own words** ("প্রতি মাসে ১ লাখ ২০ হাজার টাকা পর্যন্ত…", up to 1.2 lakh taka a month) → a strict proposal → read aloud → signed with the phone's passkey after a fingerprint (both people for large caps). The **autopilot** then sends living money to the student's own account **before** it runs out, counting Eid, Spring Festival and weekends, and **asks** whenever a limit would be exceeded. Card freeze, renewal plan for a student abroad, scam blocking | **Family** |
 | **Prove** | The **trust center**: a receipt for every payment (approved by people with passkeys, or sent by the autopilot under the signed mandate, with its bank tracking number), double-entry books, the payment passport; six safety shields with their evidence; the hash-chained log in plain words | **Family → Proof** |
 | **Earn & Save** | The student's own money abroad: a stipend or an **approved** campus job (China's work rules checked; unauthorised work is flagged and never planned on). A **savings rule the student signs** ("প্রতি বেতনের ৫০% জমাবো…", keep 50% of every pay until ¥6,000) fills the **Shield** on each pay day; when the money in China runs out it is used at once; anything else waits a cooling-off the student chose. The **taka lens** shows every "want" as what it costs the family to send. An **honest hundi check** shows the legal options, and says so when one bank transfer costs more on paper. The parent sees the Shield level only if the student shares it | **Save** |
@@ -96,32 +96,48 @@ npx expo start --web    # or open in a browser
 ```
 On a phone, the app looks for the backend on the same computer at port 8000 (the phone and computer must be on the same Wi-Fi, and the firewall must allow port 8000). Change the address in **Settings** if needed, or set `EXPO_PUBLIC_API_URL`.
 
+In Expo Go everything works except Bangla voice input, which needs a native build and says so when tapped. For the full app on Android, build it once with `npx expo run:android` (Android Studio and a USB-connected phone), or build a release APK with `EXPO_PUBLIC_API_URL=http://127.0.0.1:8000` and connect it to the computer's backend over USB with `adb reverse tcp:8000 tcp:8000`.
+
 ## Test it
 ```bash
 cd backend && .venv/Scripts/python -m pytest -q        # 409 tests: bank prices, year plan, mandates + autopilot, Earn & Save, security, engines, agent, inbox, FX, cards, renewals, passport, documents
 cd backend && .venv/Scripts/python scripts/judge_tasks.py   # Judge mode: 20 scripted tasks → docs/evidence/judge_tasks.md
+cd backend && .venv/Scripts/python scripts/fuzz_safety_invariants.py   # 50,000 random honest and hostile steps, 9 safety rules
+python backend/scripts/verify_audit_log.py docs/evidence/sandbox_operation_log.jsonl   # check the evidence log, standard library only
 cd mobile && npx tsc --noEmit && npx expo lint   # a fresh clone needs expo-env.d.ts first: run `npx expo start` once (it is git-ignored)
 ```
 
 ## Submission documents
-- [Technical documentation](docs/TECHNICAL_DOCUMENTATION.md): architecture, core algorithms, security design, data, API, deployment, tests
-- [Security self-assessment](docs/SECURITY_SELF_ASSESSMENT.md): permission-tier implementation, threat model, red-team results, known-risk list
-- [Execution evidence](docs/EXECUTION_EVIDENCE.md): the four-month sandbox run, its hash-chained operation log (check it with `backend/scripts/verify_audit_log.py`, no server needed), judge mode and fuzzing
+Ready-to-read PDFs are in [submission/](submission/); the Markdown sources are in `docs/`.
+- [Technical documentation](docs/TECHNICAL_DOCUMENTATION.md) ([PDF](submission/Bluefin_Technical_Documentation.pdf)): architecture, core algorithms, security design, data, API, deployment, tests
+- [Security self-assessment](docs/SECURITY_SELF_ASSESSMENT.md) ([PDF](submission/Bluefin_Security_Self_Assessment.pdf)): permission-tier implementation, threat model, red-team results, known-risk list
+- [Execution evidence](docs/EXECUTION_EVIDENCE.md) ([PDF](submission/Bluefin_Execution_Evidence.pdf)): the four-month sandbox run, its hash-chained operation log (check it with `backend/scripts/verify_audit_log.py`, no server needed), judge mode and fuzzing
 - [Judge mode report](docs/evidence/judge_tasks.md): every scripted task with its steps, checks, value and log evidence
 
 ## Repository map
 ```
+SUBMISSION.md                every deliverable, where to find it, and how it maps to the scoring
+submission/                  the written deliverables as PDFs
 docs/00_project_brief.md     competition rules, decisions, concept, plan
-docs/01_problem_research.md  34 problems + field interview, with sources and confidence labels
+docs/01_problem_research.md  34 problems + field interviews, with sources and confidence labels
 docs/02_build_plan.md        organiser expectations → scope → architecture → schedule
+docs/evidence/               sandbox operation log (hash-chained), scenario summary, judge tasks, fuzzing, AI defences
+backend/app/service.py       the service layer: the only path to drafts, approvals, mandates and payments
 backend/app/corridors/       rule pack (every number has a source + confidence)
 backend/app/engines/         year plan (bank calendars, look-ahead rule), cost + cost truth, living optimiser, tuition planner, FX ranges,
                              earnings (income, work rules, savings rule, Shield, taka lens), hundi (honest comparison), stress (incl. dollar crisis)
 backend/app/agent/           autopilot, mandate compiler, chat agent (DeepSeek) + offline fallback, turn signals + quick replies
-backend/app/judge.py         Judge mode: the scripted tasks end to end in fresh sandboxes, incl. a compromised-AI drill
-backend/app/data/            bank holidays (BD + CN), bank quotes + real payment, FX history, demo messages
-backend/app/security/        permissions, compliance checks, scam/injection detection
-backend/app/sandbox/         simulated bank with clock, delays and fees
+backend/app/security/        permissions, passkeys (WebAuthn), compliance checks, scam/injection detection, taint tracking,
+                             output firewall, Confirmation of Payee, safety fuzzer + mutants
+backend/app/integrations/    ISO 20022 pain.001 + UETR, open banking (read-only consents), WhatsApp alerts
+backend/app/sandbox/         simulated bank with clock, delays and fees, on double-entry books (ledger.py)
 backend/app/audit/           hash-chained operation log (execution evidence)
-mobile/src/app/              Expo Router screens (Today, Plan, Save, Family, Bluefin, Proof, payment approval, renewal, passport, settings)
+backend/app/judge.py         Judge mode: the scripted tasks end to end in fresh sandboxes, incl. a compromised-AI drill
+backend/app/privacy.py       your data (PIPL): what is kept, where it goes, copy, delete, the AI choice
+backend/app/data/            bank holidays (BD + CN), bank rate sheets and fee schedules, real payment, FX history, demo messages
+backend/scripts/             demo scenario, judge tasks, fuzzing, log verifier, rate and FX data pipelines
+backend/tests/               409 tests in 29 files
+mobile/src/app/              Expo Router screens: five tabs (Home, Plan, Bluefin, Save, Family with Proof), Story mode, first launch,
+                             payment approval, emergency, renewal, passport, connected banks, your data, judge mode, settings
+mobile/src/lib/              API client, passkeys, session, translations (Bengali, English, Chinese)
 ```
