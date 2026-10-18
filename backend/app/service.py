@@ -88,7 +88,7 @@ class DraftSpec:
     purpose: str
     origin_message: str | None
     deadline: date | None = None  # tuition: the university deadline the payment must arrive by
-    computed: bool = False  # the amount was computed by Sathi's own planner (autopilot, emergency), not read from text
+    computed: bool = False  # the amount was computed by Bluefin's own planner (autopilot, emergency), not read from text
 
 
 class AppState:
@@ -282,7 +282,7 @@ class AppState:
             card_status=self.student_card.status,
             taint_ledger=self.taint_ledger,
             cop_service=self.cop_service,
-            # an amount Sathi's planner computed (autopilot, emergency) is not from outside text, even if a message
+            # an amount Bluefin's planner computed (autopilot, emergency) is not from outside text, even if a message
             # happens to mention the same number
             trusted_amounts=self.trusted_amounts() | ({computed_amount} if computed_amount is not None else set()),
             cop_names=self.cop_names(),
@@ -381,7 +381,7 @@ class AppState:
         return c.to_dict(self.now)
 
     def bank_read(self, actor: Actor, connector_id: str) -> dict:
-        """Sathi (or the holder) reads a connected bank. Only through an active consent; every read is logged."""
+        """Bluefin (or the holder) reads a connected bank. Only through an active consent; every read is logged."""
         c = CONNECTORS[connector_id]
         if actor not in (Actor.AGENT, Actor(c.holder)):
             raise PermissionError(f"this is the {c.holder}'s bank connection")
@@ -411,7 +411,7 @@ class AppState:
              "what": "Your passkeys' public keys (the private key stays on your device)",
              "why": "to check that you approved a payment"},
             {"id": "bank_connections", "count": len(self.open_banking.for_holder(who, self.now)), "deletable": True,
-             "what": "Bank connections you allowed, and when Sathi read them", "why": "to read balances"},
+             "what": "Bank connections you allowed, and when Bluefin read them", "why": "to read balances"},
             {"id": "whatsapp", "count": int(bool(self.profile.get("parent_whatsapp"))), "deletable": True,
              "what": "The family WhatsApp number for alerts", "why": "to send alerts"},
             {"id": "audit_log", "count": sum(1 for e in self.audit.entries if e["actor"] == who), "deletable": False,
@@ -429,7 +429,7 @@ class AppState:
                 "rights": ["know", "copy", "correct", "delete", "withdraw consent"], "law": "PIPL Art. 17, 39, 44-47"}
 
     def privacy_export(self, actor: Actor) -> dict:
-        """A copy of what Sathi holds about this person (PIPL Art. 45), as JSON."""
+        """A copy of what Bluefin holds about this person (PIPL Art. 45), as JSON."""
         if actor not in (Actor.PARENT, Actor.STUDENT):
             raise PermissionError("the export is for people")
         who = actor.value
@@ -897,7 +897,7 @@ class AppState:
         if has_high_risk(flags):
             prop.errors.append("This text contains scam or prompt-injection signals ("
                                + ", ".join(sorted({f.category.replace("_", " ") for f in flags}))
-                               + "), so Sathi will not turn it into a mandate.")
+                               + "), so Bluefin will not turn it into a mandate.")
             prop.status = "needs_changes"
         self.proposals[prop.id] = prop
         self._log("mandate_proposed", actor, "propose_mandate", {
@@ -995,7 +995,7 @@ class AppState:
             sathi = simulate("sathi", sit, self.policy, self.calendar, self.corridor, market,
                              blocked=(date.fromisoformat(w["from"]), date.fromisoformat(w["to"])))
             # One line in the what-if list: the TYPICAL crisis (median over every start week). The worst start is
-            # reported next to it and in full in `crisis` (chosen against Sathi, so it is the honest worst case).
+            # reported next to it and in full in `crisis` (chosen against Bluefin, so it is the honest worst case).
             out["what_if"].append({"key": "dollar_crisis", "weeks": crisis["weeks"], "basis": "median_start",
                                    "stuck_days_sathi": med["sathi"], "stuck_days_today": med["today"],
                                    "stuck_days_sathi_shield": med["sathi_shield"],
@@ -1043,7 +1043,7 @@ class AppState:
                       "mandate_sign_denied", "savings_rule_sign_denied")
 
     def value_summary(self) -> dict:
-        """What Sathi delivers, in numbers: days without money avoided this year, money saved, unsafe moves stopped."""
+        """What Bluefin delivers, in numbers: days without money avoided this year, money saved, unsafe moves stopped."""
         h = plan_year(self._year_situation(), self.policy, self.calendar, self.corridor, self.market)["headline"]
         session = [e for e in self.audit.entries if e["seq"] > self.session_start_seq]
         stopped = sum(1 for e in session if e["event"] in self.STOPPED_EVENTS
@@ -1245,9 +1245,9 @@ class AppState:
     # ---- WhatsApp alerts ----------------------------------------------------------------------
     WA_KINDS = ("did", "needs_you", "warning")
     WA_ALWAYS = ("safety_confirmed",)
-    WA_FOOTER = {"bn": "অনুমোদন শুধু সাথী অ্যাপে, আঙুলের ছাপ দিয়ে। এই মেসেজের উত্তরে কিছু অনুমোদন হয় না, আর সাথী কখনো কোড বা পিন চায় না।",
-                 "en": "Approvals happen only in the Sathi app, with your fingerprint. Replying here approves nothing, and Sathi never asks for codes or PINs.",
-                 "zh": "只能在 Sathi 应用中用指纹批准。回复此消息不会批准任何操作，Sathi 也从不索要验证码或密码。"}
+    WA_FOOTER = {"bn": "অনুমোদন শুধু ব্লুফিন অ্যাপে, আঙুলের ছাপ দিয়ে। এই মেসেজের উত্তরে কিছু অনুমোদন হয় না, আর ব্লুফিন কখনো কোড বা পিন চায় না।",
+                 "en": "Approvals happen only in the Bluefin app, with your fingerprint. Replying here approves nothing, and Bluefin never asks for codes or PINs.",
+                 "zh": "只能在 Bluefin 应用中用指纹批准。回复此消息不会批准任何操作，Bluefin 也从不索要验证码或密码。"}
 
     def _on_note(self, note) -> None:
         if not self.whatsapp.enabled or not self.profile.get("parent_whatsapp"):
@@ -1259,7 +1259,7 @@ class AppState:
             return
         lang = self.profile.get("parent_lang", "bn")
         r = note.render(lang)
-        brand = "সাথী" if lang == "bn" else "Sathi"
+        brand = "ব্লুফিন" if lang == "bn" else "Bluefin"
         self._wa_send(f"{brand} · {r['title']}\n\n{r['body']}", "note", note.key)
 
     def _wa_send(self, text: str, kind: str, key: str):
@@ -1278,10 +1278,10 @@ class AppState:
         warn = sum(1 for n in notes if n.kind == "warning")
         tr = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
         if lang == "bn":
-            head = (f"সাথী · গত {str(days).translate(tr)} দিনের সারসংক্ষেপ: {str(did).translate(tr)}টি কাজ করেছে, "
+            head = (f"ব্লুফিন · গত {str(days).translate(tr)} দিনের সারসংক্ষেপ: {str(did).translate(tr)}টি কাজ করেছে, "
                     f"{str(need).translate(tr)}টিতে আপনার অনুমোদন দরকার, {str(warn).translate(tr)}টি সতর্কতা।")
         else:
-            head = f"Sathi · last {days} days: {did} done, {need} need you, {warn} warnings."
+            head = f"Bluefin · last {days} days: {did} done, {need} need you, {warn} warnings."
         lines = "\n".join(f"• {r['title']}" for r in rendered[-6:])
         self._wa_send(f"{head}\n{lines}", "digest", f"digest:{days}d")
 
@@ -1309,9 +1309,9 @@ class AppState:
         if not self.profile.get("parent_whatsapp"):
             raise ValueError("add the family's WhatsApp number first")
         lang = self.profile.get("parent_lang", "bn")
-        text = {"bn": "সাথী · টেস্ট মেসেজ। এখান থেকে আপনি জানতে পারবেন সাথী কী পাঠিয়েছে আর কোথায় আপনার অনুমোদন দরকার।",
-                "en": "Sathi · test message. You will get updates here on what Sathi sent and what needs your approval.",
-                "zh": "Sathi · 测试消息。你会在这里收到 Sathi 汇款和需要你批准的通知。"}[lang]
+        text = {"bn": "ব্লুফিন · টেস্ট মেসেজ। এখান থেকে আপনি জানতে পারবেন ব্লুফিন কী পাঠিয়েছে আর কোথায় আপনার অনুমোদন দরকার।",
+                "en": "Bluefin · test message. You will get updates here on what Bluefin sent and what needs your approval.",
+                "zh": "Bluefin · 测试消息。你会在这里收到 Bluefin 汇款和需要你批准的通知。"}[lang]
         return self._wa_send(text, "test", "test").to_dict()
 
     # ---- simulated time ----------------------------------------------------------------------
@@ -1336,10 +1336,10 @@ class AppState:
                     self.feed.add(self.now, "both", "warning", "stuck", {
                         "date_date": today.isoformat(),
                         "fix_en": "Check the payments waiting for approval." if on
-                        else "Sign a family mandate so Sathi sends living money before it runs out.",
+                        else "Sign a family mandate so Bluefin sends living money before it runs out.",
                         "fix_bn": "অনুমোদনের অপেক্ষায় থাকা পেমেন্টগুলো দেখুন।" if on
-                        else "পারিবারিক ম্যান্ডেটে সই করুন, যাতে টাকা শেষ হওয়ার আগেই সাথী মাসিক খরচ পাঠায়।",
-                        "fix_zh": "请查看待批准的付款。" if on else "签署家庭授权，让 Sathi 在钱用完之前汇生活费。",
+                        else "পারিবারিক ম্যান্ডেটে সই করুন, যাতে টাকা শেষ হওয়ার আগেই ব্লুফিন মাসিক খরচ পাঠায়।",
+                        "fix_zh": "请查看待批准的付款。" if on else "签署家庭授权，让 Bluefin 在钱用完之前汇生活费。",
                     }, {"screen": "family"})
             arrived = self.bank.next_day(actor.value)
             for e in arrived:
@@ -1364,11 +1364,11 @@ class AppState:
         if 0 <= (expiry - self.now.date()).days <= 21:
             on = self.autopilot.active_mandate() is not None
             plan = {
-                "en": "Sathi already sends living money by bank transfer to the Chinese account, so the card is not needed."
+                "en": "Bluefin already sends living money by bank transfer to the Chinese account, so the card is not needed."
                 if on else "Sign a family mandate before then, so living money comes by bank transfer instead of the card.",
-                "bn": "সাথী ইতিমধ্যে ব্যাংক ট্রান্সফারে চীনের অ্যাকাউন্টে মাসিক খরচ পাঠাচ্ছে, তাই কার্ড লাগবে না।"
+                "bn": "ব্লুফিন ইতিমধ্যে ব্যাংক ট্রান্সফারে চীনের অ্যাকাউন্টে মাসিক খরচ পাঠাচ্ছে, তাই কার্ড লাগবে না।"
                 if on else "তার আগেই পারিবারিক ম্যান্ডেটে সই করুন, যাতে কার্ডের বদলে ব্যাংক ট্রান্সফারে মাসিক খরচ আসে।",
-                "zh": "Sathi 已通过银行汇款把生活费汇到中国账户，不再需要这张卡。"
+                "zh": "Bluefin 已通过银行汇款把生活费汇到中国账户，不再需要这张卡。"
                 if on else "请在此之前签署家庭授权，让生活费改为银行汇款，而不是用卡取现。",
             }
             self.feed.add(self.now, "both", "info" if on else "warning", "card_stops",
@@ -1617,7 +1617,7 @@ class AppState:
                 (rule.id, rule.shield_pct, rule.target_cny) if rule else None, self.shield_cny)
 
     def _saving_for_plans(self) -> tuple[Saving | None, bool]:
-        """The savings rule simulations use: the student's active rule, else Sathi's suggestion when there is income."""
+        """The savings rule simulations use: the student's active rule, else Bluefin's suggestion when there is income."""
         rule = self._savings_rule()
         if rule:
             return Saving(rule.shield_pct, rule.target_cny, self.shield_cny), False
@@ -1629,7 +1629,7 @@ class AppState:
         return income_schedule(list(self.income_sources.values()), sit.start + timedelta(days=1), sit.end)
 
     def _may_see_student_money(self, actor: Actor) -> bool:
-        """The student and Sathi (for the student) see it; the parent only if the student shares the Shield."""
+        """The student and Bluefin (for the student) see it; the parent only if the student shares the Shield."""
         return actor != Actor.PARENT or self._shares_with_family()
 
     def _crisis(self, sit: Situation, weeks: int | None = None, with_student_money: bool = True) -> dict:
@@ -1951,7 +1951,7 @@ class AppState:
         """The student's words or form → a rule PROPOSAL. Nothing moves until the student signs its exact hash."""
         self._require(actor, "propose_savings_rule")
         if actor == Actor.PARENT:
-            raise PermissionError("a savings rule is the student's own choice: only the student (or Sathi for them) writes it")
+            raise PermissionError("a savings rule is the student's own choice: only the student (or Bluefin for them) writes it")
         rule = compile_savings_rule(self._id("saving"), self.now, actor.value, lang, self._default_shield_target(),
                                     self.corridor.i("shield_cooling_off_hours"), text, pct,
                                     D(target_cny) if target_cny is not None else None, cooling_off_hours, family_lock,
@@ -1960,7 +1960,7 @@ class AppState:
         if has_high_risk(flags):
             rule.errors.append("This text contains scam or prompt-injection signals ("
                                + ", ".join(sorted({f.category.replace("_", " ") for f in flags}))
-                               + "), so Sathi will not turn it into a rule.")
+                               + "), so Bluefin will not turn it into a rule.")
             rule.status = "needs_changes"
         for old in self.savings_rules.values():  # one proposal at a time
             if old.status in ("proposed", "needs_changes"):
@@ -2024,7 +2024,7 @@ class AppState:
         amount = min(D(amount), self.shield_cny - self._shield_waiting())
         if amount <= 0:
             raise ValueError("there is no free money in the Shield")
-        mover = actor if actor == Actor.STUDENT else Actor.AGENT  # only the student, or Sathi inside the student's rule
+        mover = actor if actor == Actor.STUDENT else Actor.AGENT  # only the student, or Bluefin inside the student's rule
         if mover == Actor.AGENT:
             self._require(Actor.AGENT, "shield_emergency_cover")
         terms = self._savings_terms()

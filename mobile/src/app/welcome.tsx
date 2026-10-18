@@ -20,7 +20,7 @@ const PAGES = ['meet', 'who', 'data', 'key'] as const;
 type Page = (typeof PAGES)[number];
 
 /**
- * First launch, four short cards: meet Sathi (the loop in one line), who you are (parent or student) and your
+ * First launch, four short cards: meet Bluefin (the loop in one line), who you are (parent or student) and your
  * language, your data and the AI (PIPL consent: off = the rules answer, nothing goes to DeepSeek in China), and your
  * fingerprint key (the passkey that signs every approval). Then the story, or straight to the app.
  */

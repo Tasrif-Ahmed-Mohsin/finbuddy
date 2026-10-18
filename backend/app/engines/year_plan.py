@@ -454,7 +454,7 @@ def plan_year(sit: Situation, policy: Policy, cal: BankCalendar, corridor: Corri
     events.sort(key=lambda e: (e["date"], e["type"]))
 
     rate_t, fees_t = D(t_cost["rate_bdt"]), D(t_cost["fees_bdt"])
-    # Compare costs for the SAME money: today's overhead rate applied to what the Sathi plan delivers.
+    # Compare costs for the SAME money: today's overhead rate applied to what the Bluefin plan delivers.
     sathi_mid = sum((c.mid_value_bdt for c in sathi.costs), Decimal(0))
     saved = D(t_cost["overhead_pct"]) / 100 * sathi_mid - D(s_cost["overhead_bdt"])
     return {
@@ -473,6 +473,6 @@ def plan_year(sit: Situation, policy: Policy, cal: BankCalendar, corridor: Corri
         "strategies": {"today": today.to_dict(), "sathi": sathi.to_dict()},
         "events": events,
         "method": ("Day-by-day simulation of the student's money in China. 'Today' = ATM while the card works, then a "
-                   "transfer when about a week of money is left. 'Sathi' = the autopilot's look-ahead rule, which counts "
+                   "transfer when about a week of money is left. 'Bluefin' = the autopilot's look-ahead rule, which counts "
                    "weekends and holidays in both countries. Same cheapest bank and today's exchange rate in both."),
     }

@@ -12,32 +12,32 @@ person's phone (simulated devices with fresh random keys) over the exact hash, c
 carries an Idempotency-Key, and the sandbox bank keeps double-entry books.
 Exchange rates: real saved history (mode `offline`); bank prices are estimates except the one real payment.
 
-**Result:** 0 stuck days in the live sandbox with Sathi, versus 20 simulated with today's habits over the same year.
+**Result:** 0 stuck days in the live sandbox with Bluefin, versus 20 simulated with today's habits over the same year.
 
 | # | Sandbox date | Step | Result |
 |---|---|---|---|
 | 1 | 2026-10-12 | Sense: bank SMS/email | 12/13 synthetic alerts kept (non-money message dropped, OTPs removed); 9 insights: atm_fee_leak, duplicate_charge, fx_markup, income_received, large_debit, otp_received, phishing_link, suspicious_message, wants_from_alerts |
 | 2 | 2026-10-12 | Sense: money in China | ¥2300.00 at ¥200.00/day: runs out 2026-10-23; card works abroad until 2026-12-31 |
-| 3 | 2026-10-12 | Plan: year plan | today's habits → 20 stuck days (2027-01-11→2027-01-11 (1d); 2027-02-11→2027-02-14 (4d); 2027-03-17→2027-03-21 (5d); 2027-04-21→2027-04-21 (1d); 2027-05-22→2027-05-30 (9d)); Sathi plan → 0; overhead 4.39% → 3.88% (saves ৳5125.92); fees are 89.42% of today's loss |
-| 4 | 2026-10-12 | Plan: stress test | 200 messy years (seed 2026): stuck days median 30.0 → 0.0, mean 30.1 → 0.9, worst 52 → 10; years with none 0.0% → 64.0%. What if (today→Sathi): taka_weakens_10 20→0; spending_plus_30 38→0; transfers_3_days_late 23→0; holidays_2_days_later 20→0; all_at_once 45→0; dollar_crisis 20→4 |
+| 3 | 2026-10-12 | Plan: year plan | today's habits → 20 stuck days (2027-01-11→2027-01-11 (1d); 2027-02-11→2027-02-14 (4d); 2027-03-17→2027-03-21 (5d); 2027-04-21→2027-04-21 (1d); 2027-05-22→2027-05-30 (9d)); Bluefin plan → 0; overhead 4.39% → 3.88% (saves ৳5125.92); fees are 89.42% of today's loss |
+| 4 | 2026-10-12 | Plan: stress test | 200 messy years (seed 2026): stuck days median 30.0 → 0.0, mean 30.1 → 0.9, worst 52 → 10; years with none 0.0% → 64.0%. What if (today→Bluefin): taka_weakens_10 20→0; spending_plus_30 38→0; transfers_3_days_late 23→0; holidays_2_days_later 20→0; all_at_once 45→0; dollar_crisis 20→4 |
 | 5 | 2026-10-12 | Plan: cost truth (real payment) | BRAC rate 18.35 vs market avg 18.31 → markup ৳1448.14 (0.22%); fixed charge ৳8000.00 = 5.52× the rate markup |
 | 6 | 2026-10-12 | Act: mandate from the parent's words | Bengali instruction → up to ৳120000.00 per calendar month, student's own account only, until 2027-04-10; signers ['parent', 'student'] (two-person rule); parser=rules |
 | 7 | 2026-10-12 | Act: signatures → autopilot | wrong hash → HTTP 403; agent signs → HTTP 403; no passkey → HTTP 403; parent + student signed with their phones' passkeys; autopilot sent ¥6100 at once (lands 2026-10-19) |
-| 8 | 2026-10-12 | Security: injected instruction | proposal status=needs_changes: This text contains scam or prompt-injection signals (prompt injection), so Sathi will not … |
+| 8 | 2026-10-12 | Security: injected instruction | proposal status=needs_changes: This text contains scam or prompt-injection signals (prompt injection), so Bluefin will no… |
 | 9 | 2026-10-12 | Earn & Save: income in China | approved campus job ¥1500.00/month → status ok; unauthorised tutoring → status at_risk (failed: work_permission, work_hours; never planned on); parent declares the student's income → HTTP 403 |
 | 10 | 2026-10-12 | Earn & Save: savings rule (student's words) | Bengali → keep 50% of every pay until ¥6000.00, 24 h cooling-off, emergencies instant; agent signs → HTTP 403; parent signs → HTTP 403; student signed → active |
 | 11 | 2026-10-12 | Earn & Save: hundi offer, honestly | $500 at ৳124.5: hundi +৳622.90 over the market vs one bank transfer +৳3700.68 (fees; says so: bank costs ৳3077.78 more on paper); risks listed: illegal_bd, illegal_cn, account_freeze, no_recourse, no_record; verdict bank |
 | 12 | 2026-10-12 | T4 scam blocked | draft draft-0008 status=blocked; failed checks: payee_allowlisted, origin_message_safe, cop_verification |
 | 13 | 2026-10-12 | T1 tuition | best BRAC Bank ৳653435.64; read aloud before signing: “আপনি Demo University Finance Office (Sandbox Bank of China ****6021)-ক…”; agent execute → HTTP 403; approve without passkey → HTTP 403; signature for another payment → HTTP 403; approved by parent, student with passkeys; sent; the same tap retried → HTTP 200, same answer = True (paid once); ISO 20022 pain.001 valid = True, UETR 1dab51db-58d9-42b5-a685-e6d42bab8d1c |
-| 14 | 2026-10-12 | Open banking (read-only) | parent allowed Sathi to read BRAC Bank for 90 days (passkey-signed consent obc-0001); Sathi read ৳1230304.59; parent revoked it → Sathi reading again: HTTP 403 |
+| 14 | 2026-10-12 | Open banking (read-only) | parent allowed Bluefin to read BRAC Bank for 90 days (passkey-signed consent obc-0001); Bluefin read ৳1230304.59; parent revoked it → Bluefin reading again: HTTP 403 |
 | 15 | 2026-10-12 | Card controls | agent (fallback) froze card via ['check_message', 'freeze_card']; agent unfreeze → HTTP 403; student unfroze with fingerprint/PIN |
 | 16 | 2026-10-12 | T3 renewal from abroad | renewal needs the student in person → plan: check Chinese account by 2026-12-12, living money by transfer by 2026-12-19 (done: mandate signed), renew on the next visit home |
 | 17 | 2026-10-19 | Tuition arrived | university account ¥35200.00 (deadline 2026-11-15) |
 | 18 | 2027-01-22 | Card stopped abroad (31 Dec) | card usable=False; living money kept arriving by transfer; stuck days so far = 0 |
 | 19 | 2027-01-22 | Earn & Save: surprise bill before Spring Festival | Shield ¥2250.00 after 3 pays; ¥2,500 hospital bill → money left ¥1600.00 |
 | 20 | 2027-02-21 | Spring Festival passed | stuck days in the live sandbox = 0; autopilot payments = 4 (all to the student's own account, inside the mandate); family approvals when the cap was not enough: ¥5400.00 on 2026-12-30, ¥7000.00 on 2027-01-25; extra top-ups the law did not allow: ¥1000.00 on 2027-01-26 (living_cap) |
-| 21 | 2027-02-21 | Prove: family feed (Bengali) | “সাথী শিক্ষার্থীর চীনের অ্যাকাউন্টে ¥৬,৩০০ পাঠিয়েছে: খরচ ৳১,১৯,৯৫১ (BRAC Bank)। পৌঁছাবে ২০২৭-০২-০১। এখন কেন: শিক্ষার্থীর হাতে ৫ দিনেরও কম টাকা …” |
-| 22 | 2027-02-21 | Earn & Save: results | 4 pays, Shield ¥2200.00 of ¥6000.00; Shield covered ¥800 on its own (2 moves); wants logged ¥3325 over 19 weeks; parent sees: “শিক্ষার্থী নিজের আয় থেকে ¥৭৫০ জমিয়েছে”. Dollar crisis (4 weeks, every start week): no-stuck-day starts 0.0% → 32.0% → 96.0% (today → Sathi → Sathi + Shield), typical 23 → 4 → 0 days |
+| 21 | 2027-02-21 | Prove: family feed (Bengali) | “ব্লুফিন শিক্ষার্থীর চীনের অ্যাকাউন্টে ¥৬,৩০০ পাঠিয়েছে: খরচ ৳১,১৯,৯৫১ (BRAC Bank)। পৌঁছাবে ২০২৭-০২-০১। এখন কেন: শিক্ষার্থীর হাতে ৫ দিনেরও কম টাকা …” |
+| 22 | 2027-02-21 | Earn & Save: results | 4 pays, Shield ¥2200.00 of ¥6000.00; Shield covered ¥800 on its own (2 moves); wants logged ¥3325 over 19 weeks; parent sees: “শিক্ষার্থী নিজের আয় থেকে ¥৭৫০ জমিয়েছে”. Dollar crisis (4 weeks, every start week): no-stuck-day starts 0.0% → 32.0% → 96.0% (today → Bluefin → Bluefin + Shield), typical 23 → 4 → 0 days |
 | 23 | 2027-02-21 | Prove: receipts | 7 payments: 3 approved by people (EXECUTE), 4 by the autopilot under the signed mandate (MANDATE, proposal hash e40b5cf1031a…) |
 | 24 | 2027-02-21 | Prove: payment passport | 7 payments, on time 1/1; verify → True; tampered copy → False |
 | 25 | 2027-02-21 | Prove: double-entry books | 178 journal entries; trial balance BDT 0.00, CNY 0.00; reconciled = True; 7 payments each booked once (booked twice: 0); 1 retry answered without paying again |

@@ -6,7 +6,7 @@ Families ask "should we wait for a better rate?". We answer from the bank's own 
     three sheets and take the cheapest". We count how often that lowered the taka price and by how much.
 For Eastern Bank (Mar–Oct 2026) waiting saved about 0.02% on average: the markup swings are mostly the market
 moving under a smooth bank price, not the bank being expensive. Fixed fees (৳3,680 a transfer) matter far more,
-so Sathi does not time the market; it avoids extra transfers and stuck days.
+so Bluefin does not time the market; it avoids extra transfers and stuck days.
 """
 from __future__ import annotations
 

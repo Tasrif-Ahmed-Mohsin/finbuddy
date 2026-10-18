@@ -1,4 +1,4 @@
-# Sathi: Security Self-Assessment
+# Bluefin: Security Self-Assessment
 
 **FinTechathon 2026 · International Track · Topic C** · Version: 16 Oct 2026 · Companion: [TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md)
 
@@ -188,7 +188,7 @@ The same model as family mandates, with the **student** as the one who signs (it
 - **Photos:** decoded in memory, type-checked, never stored. The log records the document type and counts only. The app warns users not to photograph passports or cards.
 - **The student's own money:** the parent sees the Shield level and what was saved only if the student shares it (part of the signed rule); the parent never sees income or purchases. The same holds on every door: the accounts list, the audit log and its export (entries marked private, hashes kept so the chain still verifies), insights, the inbox, the year plan, the dollar-crisis test and the chat. A logged purchase stores amount and category; the merchant text is never written to the audit log.
 - **Logs:** no message text, no OTPs, no document text (asserted in tests).
-- **Your data page (PIPL Art. 17, 39, 44–47; `GET /privacy`, app → Settings → Your data):** what Sathi keeps per
+- **Your data page (PIPL Art. 17, 39, 44–47; `GET /privacy`, app → Settings → Your data):** what Bluefin keeps per
   person and why, every place data goes (DeepSeek in China, WhatsApp, banks) and when, what is never stored; a copy
   of one's data (`GET /privacy/export`); deleting messages, earnings, the WhatsApp number, passkeys or bank
   connections (`POST /privacy/delete`; the payment log stays, it holds no message text); and a **per-person AI
@@ -341,7 +341,7 @@ Likelihood and impact are rated for a **production** deployment (L = low, M = me
 | R26 | **Some fees are not published** (correspondent/SWIFT 'at actual cost'; BRAC's schedule not found online) | H | M | Taken from the same bank's SME schedule (labelled secondary) or a peer's published schedule (labelled assumption); a bank whose fee is unknown is not priced at all | Partial | Ask the banks; collect real debit advices from students |
 | R27 | **"Are you safe?" trusts the student's phone** (a real kidnapping or a stolen, unlocked phone defeats it) | L | H | Fingerprint/PIN on the phone; the guide still says to call the student and the international office, and never to pay; payees cannot be changed by anyone alone | Partial | Device-bound keys (R2); a family code word set at onboarding |
 | R28 | **The public demo is one shared sandbox** with demo tokens: visitors see each other's actions | H | L | Sandbox money only; no personal data; "Start the demo again" resets it; rate limits and an AI budget; WhatsApp off | By design | Per-visitor sandboxes, real sign-in |
-| R29 | **Income is self-declared** (or read from bank alerts) and the work permission cannot be verified | M | M | Unauthorised income is flagged and never planned on; Sathi warns with the legal route; income never unlocks payments | Accepted | Verify with the university's work-study record or payroll |
+| R29 | **Income is self-declared** (or read from bank alerts) and the work permission cannot be verified | M | M | Unauthorised income is flagged and never planned on; Bluefin warns with the legal route; income never unlocks payments | Accepted | Verify with the university's work-study record or payroll |
 | R30 | **China's weekly hour cap comes from conflicting secondary sources** (8 vs 20 h) | M | M | Warns at the stricter number and says sources differ; labelled secondary | Open | Load the university's approval letter terms per student |
 | R31 | **A cooling-off on the student's own money is paternalistic**, or locks money when it is needed | L | M | Chosen and signed by the student (0 / 24 / 72 h); emergencies are instant, proven by the balance; cancel and revoke are one tap | Accepted | Collect feedback on the defaults with real students |
 | R32 | **The Shield sits in the same bank as the spending account** (one account freeze blocks both) | M | M | Documented; the freeze-response playbook still applies | Open | Option to keep the Shield at a second bank or as e-CNY |

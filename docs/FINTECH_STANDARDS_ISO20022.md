@@ -5,7 +5,7 @@
 
 ## 1. What it does
 
-Every bank transfer Sathi sends in the sandbox also produces the instruction a bank would receive:
+Every bank transfer Bluefin sends in the sandbox also produces the instruction a bank would receive:
 
 1. **ISO 20022 `pain.001.001.09`** (Customer Credit Transfer Initiation), the message format SWIFT's CBPR+ uses for
    cross-border payments.
@@ -63,16 +63,16 @@ These are public head-office codes; the sandbox never contacts the banks.
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09">
   <CstmrCdtTrfInitn>
     <GrpHdr>
-      <MsgId>SATHI-20261012-DRAFT-0001</MsgId>
+      <MsgId>BLUEFIN-20261012-DRAFT-0001</MsgId>
       <CreDtTm>2026-10-12T09:00:00Z</CreDtTm>
       <NbOfTxs>1</NbOfTxs>
       <CtrlSum>35200.00</CtrlSum>
       <InitgPty>
-        <Nm>Sathi Autonomous Student Finance Gateway</Nm>
+        <Nm>Bluefin Autonomous Student Finance Gateway</Nm>
         <Id>
           <OrgId>
             <Othr>
-              <Id>SATHI-BD-CN-CORRIDOR</Id>
+              <Id>BLUEFIN-BD-CN-CORRIDOR</Id>
             </Othr>
           </OrgId>
         </Id>
@@ -157,7 +157,7 @@ These are public head-office codes; the sandbox never contacts the banks.
           </Dtls>
         </RgltryRptg>
         <RmtInf>
-          <Ustrd>Sathi draft-0001: Tuition 2026-27</Ustrd>
+          <Ustrd>Bluefin draft-0001: Tuition 2026-27</Ustrd>
         </RmtInf>
       </CdtTrfTxInf>
     </PmtInf>

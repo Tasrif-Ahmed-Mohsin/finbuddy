@@ -5,7 +5,7 @@ every year, so the money pipeline from home keeps breaking. This module turns a 
 
   1. work BACKWARDS from the expiry date: bank visit → documents to the parent → ask the university
   2. draft the messages: email to the university (English + Chinese), task list for the parent
-     (Bengali + English). Sathi never sends them; the user copies or shares them.
+     (Bengali + English). Bluefin never sends them; the user copies or shares them.
   3. track each step until the user confirms the new expiry date.
 
 Card endorsement (Interview #1 follow-up, 2026-10-13): renewing it needs the STUDENT in person at the bank,
@@ -126,8 +126,8 @@ def plan_renewal(case_id: str, item: str, expiry: date, today: date, corridor: C
         RenewalStep("bank_visit", "parent", due(bank_visit), f"Renew at {bank}",
                     f"Visit the branch that holds the Student File with the documents. Ask for the {label} to cover the whole "
                     "invoice period (until the next fee is due), not only a few months."),
-        RenewalStep("confirm_new_expiry", "parent", due(expiry - timedelta(days=buffer)), "Confirm the new expiry date in Sathi",
-                    "Enter the new expiry date the bank gives you, so Sathi can track it and unblock payments."),
+        RenewalStep("confirm_new_expiry", "parent", due(expiry - timedelta(days=buffer)), "Confirm the new expiry date in Bluefin",
+                    "Enter the new expiry date the bank gives you, so Bluefin can track it and unblock payments."),
     ]
     case = RenewalCase(case_id, item, expiry, today, steps, late)
     case.messages = draft_messages(case, profile)
@@ -150,15 +150,15 @@ def plan_endorsement_from_abroad(case_id: str, expiry: date, today: date, corrid
                     "Make sure the account is active and your current passport number is on file (an outdated passport is a "
                     "common reason banks freeze foreigners' accounts). Transfers will now arrive there."),
         RenewalStep("switch_living_money", "parent", due(switch), "Switch living money to bank transfers",
-                    "Sign the family mandate in Sathi (Family tab) so living money goes from the Student File to the student's "
+                    "Sign the family mandate in Bluefin (Family tab) so living money goes from the Student File to the student's "
                     "own Chinese account. Transfers do not need the card, so nothing stops on "
                     f"{expiry.isoformat()}." + (" You are late: sign it today." if late else "")),
         RenewalStep("renew_in_person", "student", due(expiry), "Renew the endorsement on your next visit home",
                     f"The bank needs you in person with your passport. On your next visit to Bangladesh, go to the {bank} branch "
                     "that holds your Student File with the documents below, and ask for the endorsement to cover the whole "
                     "study period, not only a few months."),
-        RenewalStep("confirm_new_expiry", "student", due(expiry), "Confirm the new expiry date in Sathi",
-                    "Enter the new expiry date the bank gives you, so Sathi can use the card again where it is cheaper."),
+        RenewalStep("confirm_new_expiry", "student", due(expiry), "Confirm the new expiry date in Bluefin",
+                    "Enter the new expiry date the bank gives you, so Bluefin can use the card again where it is cheaper."),
     ]
     case = RenewalCase(case_id, "endorsement_expiry", expiry, today, steps, late)
     case.messages = draft_messages(case, profile)
@@ -201,14 +201,14 @@ def draft_messages(case: RenewalCase, profile: dict) -> dict:
         parent_bn = (
             f"আসসালামু আলাইকুম। আমার {label['bn']} এর মেয়াদ {case.expiry.isoformat()} তারিখে শেষ হবে। এরপর আমার কার্ড "
             "বিদেশে কাজ করবে না, আর নবায়ন করতে আমাকে নিজে পাসপোর্ট নিয়ে ব্যাংকে যেতে হবে, যা দেশে আসার আগে সম্ভব নয়।\n\n"
-            f"তাই অনুগ্রহ করে {visit_by} তারিখের মধ্যে সাথী অ্যাপের 'পরিবার' পাতায় পারিবারিক ম্যান্ডেটে সই করবেন। তাহলে মাসিক খরচ "
+            f"তাই অনুগ্রহ করে {visit_by} তারিখের মধ্যে ব্লুফিন অ্যাপের 'পরিবার' পাতায় পারিবারিক ম্যান্ডেটে সই করবেন। তাহলে মাসিক খরচ "
             "স্টুডেন্ট ফাইল থেকে সরাসরি আমার চীনের ব্যাংক অ্যাকাউন্টে যাবে, কার্ড লাগবে না। প্রতিবার আপনি জানতে পারবেন।\n\n"
             "দেশে এলে আমি নিজে ব্যাংকে গিয়ে এনডোর্সমেন্ট নবায়ন করব, এবং শুধু কয়েক মাস নয়, পুরো পড়াশোনার সময়ের জন্য চাইব।"
         )
         parent_en = (
             f"My {label['en']} expires on {case.expiry.isoformat()}. After that my card stops working abroad, and renewing it "
             "needs me in person at the bank with my passport, which I can only do when I visit home.\n\n"
-            f"So please sign the family mandate in the Sathi app (Family tab) by {visit_by}. Then living money goes from the "
+            f"So please sign the family mandate in the Bluefin app (Family tab) by {visit_by}. Then living money goes from the "
             "Student File straight to my Chinese bank account, without the card, and you are told every time.\n\n"
             "When I visit home I will renew the endorsement myself, and ask for the whole study period, not only a few months."
         )

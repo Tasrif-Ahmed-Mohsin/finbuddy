@@ -1,6 +1,6 @@
 # Submission map: FinTechathon 2026, International Track, Topic C
 
-Team **inki_ponki** · Project **Sathi** (সাথী, "companion"): a cross-border student finance agent, Bangladesh → China.
+Team **inki_ponki** · Project **Bluefin**: a cross-border student finance agent, Bangladesh → China.
 Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy
 
 ## Evaluate it in 5 minutes

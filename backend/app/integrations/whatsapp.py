@@ -1,7 +1,7 @@
 """WhatsApp alerts for the family (Meta WhatsApp Cloud API).
 
-Parents in Bangladesh live on WhatsApp, not in a new app. Sathi sends them the same family-feed notes they
-would see on the Today screen, in Bengali: what Sathi did, what needs them, what is coming.
+Parents in Bangladesh live on WhatsApp, not in a new app. Bluefin sends them the same family-feed notes they
+would see on the Today screen, in Bengali: what Bluefin did, what needs them, what is coming.
 
 Safety design (also in the security self-assessment):
   * Notifications only. Nothing can be approved, signed or changed by replying on WhatsApp: approvals stay in
@@ -10,11 +10,11 @@ Safety design (also in the security self-assessment):
     WhatsApp tool.
   * Modes: `off` · `dry_run` (log only, the default once configured) · `live`. Only the server environment can
     switch to live: neither the app nor the agent can.
-  * The text is Sathi's templated note (amounts, dates), never message contents, OTPs or account numbers.
+  * The text is Bluefin's templated note (amounts, dates), never message contents, OTPs or account numbers.
     The audit log records that a message was sent (note key, status, last 4 digits of the number), not the text.
   * Rate-limited, and simulated-time fast-forwards send one summary instead of one message per note.
   * Business-initiated messages outside WhatsApp's 24-hour window need an approved template: if Meta refuses
-    the text for that reason, Sathi sends the approved template instead and says so.
+    the text for that reason, Bluefin sends the approved template instead and says so.
 """
 from __future__ import annotations
 

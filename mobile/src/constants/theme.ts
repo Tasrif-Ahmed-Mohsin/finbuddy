@@ -1,5 +1,5 @@
 /**
- * Sathi design tokens: neumorphism with a sci-fi twist.
+ * Bluefin design tokens: neumorphism with a sci-fi twist.
  * A soft light shell (raised capsules, pressed-in wells) holds dark "deep-space" panels with neon-blue numbers,
  * the way a mission-control dashboard would. Built on the palette #F5F5F7 · #1D1D1F · #AAAAAA · #007AFF.
  * Light shell only, on the phone and the web alike.

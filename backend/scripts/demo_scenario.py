@@ -1,4 +1,4 @@
-"""Run the full Sathi story through the real API and export the execution evidence.
+"""Run the full Bluefin story through the real API and export the execution evidence.
 
 The story is one loop, Sense → Plan → Act → Prove, over about four sandbox months (12 Oct 2026 → mid-Feb 2027),
 across the two moments that strand students today: the card endorsement ending on 31 Dec (renewal needs the
@@ -91,7 +91,7 @@ def main() -> int:
     earn = {"wants_cny": 0, "weeks": 0, "covers": [], "income": 0}
 
     def live_days(n: int) -> int:
-        """Advance one day at a time; when Sathi asks the family for approval, the parent approves (one tap).
+        """Advance one day at a time; when Bluefin asks the family for approval, the parent approves (one tap).
         Earn & Save: every Saturday the student spends what their own pay leaves for wants (logged, taka lens)."""
         stuck = 0
         for _ in range(n):
@@ -133,7 +133,7 @@ def main() -> int:
     yp = c.get("/plan/year", headers=H["parent"]).json()
     h, ct = yp["headline"], yp["cost_truth"][0]
     reasons = "; ".join(f"{p['from']}→{p['to']} ({p['days']}d)" for p in yp["strategies"]["today"]["stuck_periods"])
-    step("Plan: year plan", f"today's habits → {h['stuck_days_today']} stuck days ({reasons}); Sathi plan → "
+    step("Plan: year plan", f"today's habits → {h['stuck_days_today']} stuck days ({reasons}); Bluefin plan → "
                             f"{h['stuck_days_sathi']}; overhead {h['overhead_today_pct']}% → {h['overhead_sathi_pct']}% "
                             f"(saves ৳{h['saved_bdt']}); fees are {h['fees_share_today_pct']}% of today's loss")
     st = c.get("/plan/stress", headers=H["parent"]).json()
@@ -142,7 +142,7 @@ def main() -> int:
     step("Plan: stress test", f"{st['runs']} messy years (seed {st['seed']}): stuck days median {sd['today']['median']} → "
                               f"{sd['sathi']['median']}, mean {sd['today']['mean']} → {sd['sathi']['mean']}, worst "
                               f"{sd['today']['worst']} → {sd['sathi']['worst']}; years with none {sd['today']['zero_share_pct']}% → "
-                              f"{sd['sathi']['zero_share_pct']}%. What if (today→Sathi): {wi}")
+                              f"{sd['sathi']['zero_share_pct']}%. What if (today→Bluefin): {wi}")
     step("Plan: cost truth (real payment)", f"BRAC rate {ct['bdt_per_cny_paid']} vs market avg {ct['mid_avg']} → markup "
                                             f"৳{ct['rate_markup_bdt']} ({ct['rate_markup_pct']}%); fixed charge ৳{ct['fee_bdt']} = "
                                             f"{ct['fee_vs_rate']}× the rate markup")
@@ -221,8 +221,8 @@ def main() -> int:
     bal = c.get("/banks/brac_bd/accounts", headers=H["agent"]).json()["Data"]["Account"][0]["Balance"]["Amount"]["Amount"]
     c.delete(f"/banks/consents/{con['id']}", headers=H["parent"])
     after = c.get("/banks/brac_bd/accounts", headers=H["agent"]).status_code
-    step("Open banking (read-only)", f"parent allowed Sathi to read BRAC Bank for 90 days (passkey-signed consent "
-                                     f"{con['id']}); Sathi read ৳{bal}; parent revoked it → Sathi reading again: HTTP {after}")
+    step("Open banking (read-only)", f"parent allowed Bluefin to read BRAC Bank for 90 days (passkey-signed consent "
+                                     f"{con['id']}); Bluefin read ৳{bal}; parent revoked it → Bluefin reading again: HTTP {after}")
     r = c.post("/agent/chat", json={"message": "I lost my card!", "lang": "en"}, headers=H["student"]).json()
     agent_unfreeze = c.post("/cards/4821/unfreeze", headers=H["agent"]).status_code
     c.post("/cards/4821/unfreeze", headers=H["student"])
@@ -268,7 +268,7 @@ def main() -> int:
                                  f"Shield covered ¥{sum(int(float(x)) for x in earn['covers'])} on its own ({len(earn['covers'])} moves); "
                                  f"wants logged ¥{earn['wants_cny']} over {earn['weeks']} weeks; parent sees: “{(shield_bn or {}).get('title', '–')}”. "
                                  f"Dollar crisis (4 weeks, every start week): no-stuck-day starts {z['today']}% → {z['sathi']}% → "
-                                 f"{z['sathi_shield']}% (today → Sathi → Sathi + Shield), typical {med['today']} → {med['sathi']} → "
+                                 f"{z['sathi_shield']}% (today → Bluefin → Bluefin + Shield), typical {med['today']} → {med['sathi']} → "
                                  f"{med['sathi_shield']} days")
 
     # ---- PROVE --------------------------------------------------------------------------------------
@@ -318,7 +318,7 @@ def main() -> int:
         f"Exchange rates: real saved history (mode `{os.environ.get('SATHI_FX_MODE')}`); bank prices are estimates "
         "except the one real payment.",
         "",
-        f"**Result:** {stuck} stuck days in the live sandbox with Sathi, versus {h['stuck_days_today']} simulated with "
+        f"**Result:** {stuck} stuck days in the live sandbox with Bluefin, versus {h['stuck_days_today']} simulated with "
         "today's habits over the same year.",
         "",
         "| # | Sandbox date | Step | Result |",

@@ -1,4 +1,4 @@
-"""Family feed: what Sathi did, what needs you, and what is coming (Today screen).
+"""Family feed: what Bluefin did, what needs you, and what is coming (Today screen).
 
 Notes are written from deterministic templates in English, Bengali and Chinese. Numbers are formatted
 here (lakh grouping for taka, Bengali digits in Bengali), never by the LLM, so a translated note
@@ -53,22 +53,22 @@ def num(n, lang: str) -> str:
 # (title, body) per language. Placeholders ending in _bdt / _cny / _date / _n are formatted per language.
 TEMPLATES: dict[str, dict[str, tuple[str, str]]] = {
     "autopilot_sent": {
-        "en": ("Sathi sent {amount_cny} to the student's Chinese account",
+        "en": ("Bluefin sent {amount_cny} to the student's Chinese account",
                "Cost {total_bdt} via {bank}. Arrives {lands_date}. Why now: {why_en} Used under the family mandate: "
                "{used_bdt} of {cap_bdt} in this period."),
-        "bn": ("সাথী শিক্ষার্থীর চীনের অ্যাকাউন্টে {amount_cny} পাঠিয়েছে",
+        "bn": ("ব্লুফিন শিক্ষার্থীর চীনের অ্যাকাউন্টে {amount_cny} পাঠিয়েছে",
                "খরচ {total_bdt} ({bank})। পৌঁছাবে {lands_date}। এখন কেন: {why_bn} পারিবারিক ম্যান্ডেটে এই সময়ে ব্যবহার হয়েছে "
                "{cap_bdt} এর মধ্যে {used_bdt}।"),
-        "zh": ("Sathi 已向学生的中国账户汇出 {amount_cny}",
+        "zh": ("Bluefin 已向学生的中国账户汇出 {amount_cny}",
                "费用 {total_bdt}（{bank}）。预计 {lands_date} 到账。为什么是现在：{why_zh} 家庭授权本期已使用 {used_bdt} / {cap_bdt}。"),
     },
     "autopilot_needs_approval": {
         "en": ("Approve {amount_cny} of living money",
-               "Sathi could not send this alone: {reason_en}. Open the payment and approve it, or change the family mandate."),
+               "Bluefin could not send this alone: {reason_en}. Open the payment and approve it, or change the family mandate."),
         "bn": ("{amount_cny} মাসিক খরচ অনুমোদন করুন",
-               "সাথী একা এটি পাঠাতে পারেনি: {reason_bn}। পেমেন্টটি খুলে অনুমোদন দিন, অথবা পারিবারিক ম্যান্ডেট বদলান।"),
+               "ব্লুফিন একা এটি পাঠাতে পারেনি: {reason_bn}। পেমেন্টটি খুলে অনুমোদন দিন, অথবা পারিবারিক ম্যান্ডেট বদলান।"),
         "zh": ("请批准 {amount_cny} 生活费",
-               "Sathi 无法自行汇出：{reason_zh}。请打开付款并批准，或修改家庭授权。"),
+               "Bluefin 无法自行汇出：{reason_zh}。请打开付款并批准，或修改家庭授权。"),
     },
     "bridge_cash": {
         "en": ("Withdraw about {amount_cny} at an ATM today",
@@ -82,12 +82,12 @@ TEMPLATES: dict[str, dict[str, tuple[str, str]]] = {
     "runway_low": {
         "en": ("Money runs out on {out_date}",
                "The student has {balance_cny} (about {days_n} days) and no transfer is on the way that arrives in time. "
-               "Sign a family mandate so Sathi can send living money in time, or prepare a transfer now."),
+               "Sign a family mandate so Bluefin can send living money in time, or prepare a transfer now."),
         "bn": ("টাকা শেষ হবে {out_date} তারিখে",
                "শিক্ষার্থীর কাছে আছে {balance_cny} (প্রায় {days_n} দিনের)। সময়মতো পৌঁছানোর মতো কোনো ট্রান্সফার পথে নেই। "
-               "সাথী যেন সময়মতো মাসিক খরচ পাঠাতে পারে, সেজন্য পারিবারিক ম্যান্ডেটে সই করুন, অথবা এখনই ট্রান্সফার প্রস্তুত করুন।"),
+               "ব্লুফিন যেন সময়মতো মাসিক খরচ পাঠাতে পারে, সেজন্য পারিবারিক ম্যান্ডেটে সই করুন, অথবা এখনই ট্রান্সফার প্রস্তুত করুন।"),
         "zh": ("资金将在 {out_date} 用完",
-               "学生目前有 {balance_cny}（约 {days_n} 天），没有能及时到账的汇款。签署家庭授权，让 Sathi 按时汇生活费，或现在就准备一笔汇款。"),
+               "学生目前有 {balance_cny}（约 {days_n} 天），没有能及时到账的汇款。签署家庭授权，让 Bluefin 按时汇生活费，或现在就准备一笔汇款。"),
     },
     "stuck": {
         "en": ("The student ran out of money",
@@ -107,21 +107,21 @@ TEMPLATES: dict[str, dict[str, tuple[str, str]]] = {
         "zh": ("家庭授权已生效", "{summary_zh}"),
     },
     "mandate_needs_signature": {
-        "en": ("Sign the family mandate", "Signed by {signed_en}. Sathi starts only after {missing_en} also signs. {summary_en}"),
-        "bn": ("পারিবারিক ম্যান্ডেটে সই করুন", "{signed_bn} সই করেছেন। {missing_bn} সই করলে তবেই সাথী শুরু করবে। {summary_bn}"),
-        "zh": ("请签署家庭授权", "{signed_zh} 已签署。{missing_zh} 也签署后 Sathi 才会开始。{summary_zh}"),
+        "en": ("Sign the family mandate", "Signed by {signed_en}. Bluefin starts only after {missing_en} also signs. {summary_en}"),
+        "bn": ("পারিবারিক ম্যান্ডেটে সই করুন", "{signed_bn} সই করেছেন। {missing_bn} সই করলে তবেই ব্লুফিন শুরু করবে। {summary_bn}"),
+        "zh": ("请签署家庭授权", "{signed_zh} 已签署。{missing_zh} 也签署后 Bluefin 才会开始。{summary_zh}"),
     },
     "mandate_revoked": {
-        "en": ("Family mandate cancelled", "Sathi will not send money on its own any more."),
-        "bn": ("পারিবারিক ম্যান্ডেট বাতিল", "সাথী আর নিজে থেকে টাকা পাঠাবে না।"),
-        "zh": ("家庭授权已取消", "Sathi 将不再自行汇款。"),
+        "en": ("Family mandate cancelled", "Bluefin will not send money on its own any more."),
+        "bn": ("পারিবারিক ম্যান্ডেট বাতিল", "ব্লুফিন আর নিজে থেকে টাকা পাঠাবে না।"),
+        "zh": ("家庭授权已取消", "Bluefin 将不再自行汇款。"),
     },
     "mandate_expiring": {
         "en": ("The family mandate ends on {end_date}",
-               "After that Sathi will not send living money on its own. Write a new instruction in Family to continue."),
+               "After that Bluefin will not send living money on its own. Write a new instruction in Family to continue."),
         "bn": ("পারিবারিক ম্যান্ডেট শেষ হবে {end_date} তারিখে",
-               "এরপর সাথী নিজে থেকে মাসিক খরচ পাঠাবে না। চালু রাখতে পরিবার পাতায় নতুন নির্দেশনা লিখুন।"),
-        "zh": ("家庭授权将于 {end_date} 到期", "到期后 Sathi 将不再自行汇生活费。如需继续，请在“家庭”页面写下新的指示。"),
+               "এরপর ব্লুফিন নিজে থেকে মাসিক খরচ পাঠাবে না। চালু রাখতে পরিবার পাতায় নতুন নির্দেশনা লিখুন।"),
+        "zh": ("家庭授权将于 {end_date} 到期", "到期后 Bluefin 将不再自行汇生活费。如需继续，请在“家庭”页面写下新的指示。"),
     },
     "emergency_no_money": {
         "en": ("The student needs money urgently",
@@ -141,18 +141,18 @@ TEMPLATES: dict[str, dict[str, tuple[str, str]]] = {
     },
     "safety_confirmed": {
         "en": ("The student says they are safe",
-               "Confirmed in the Sathi app at {time}. Whoever called you was not telling the truth: do not pay them."),
+               "Confirmed in the Bluefin app at {time}. Whoever called you was not telling the truth: do not pay them."),
         "bn": ("শিক্ষার্থী জানিয়েছে সে নিরাপদ",
-               "{time} সময়ে সাথী অ্যাপে নিশ্চিত করেছে। যে ফোন করেছিল সে সত্য বলেনি: তাকে কোনো টাকা দেবেন না।"),
-        "zh": ("学生说自己很安全", "已于 {time} 在 Sathi 应用中确认。给你打电话的人说的不是真话：不要付钱。"),
+               "{time} সময়ে ব্লুফিন অ্যাপে নিশ্চিত করেছে। যে ফোন করেছিল সে সত্য বলেনি: তাকে কোনো টাকা দেবেন না।"),
+        "zh": ("学生说自己很安全", "已于 {time} 在 Bluefin 应用中确认。给你打电话的人说的不是真话：不要付钱。"),
     },
     # ---- Earn & Save: the student's own money (the Shield) -----------------------------------------
     "income_saved": {
-        "en": ("Sathi kept {saved_cny} of your {amount_cny} pay in your Shield",
+        "en": ("Bluefin kept {saved_cny} of your {amount_cny} pay in your Shield",
                "Shield: {shield_cny} of {target_cny}. The rest, {free_cny}, is yours to spend: about {week_cny} a week for wants."),
-        "bn": ("সাথী আপনার {amount_cny} আয় থেকে {saved_cny} সুরক্ষা তহবিলে রেখেছে",
+        "bn": ("ব্লুফিন আপনার {amount_cny} আয় থেকে {saved_cny} সুরক্ষা তহবিলে রেখেছে",
                "তহবিল: {target_cny} এর মধ্যে {shield_cny}। বাকি {free_cny} আপনার খরচের জন্য: শখের জন্য সপ্তাহে প্রায় {week_cny}।"),
-        "zh": ("Sathi 已把你 {amount_cny} 收入中的 {saved_cny} 存入应急储备",
+        "zh": ("Bluefin 已把你 {amount_cny} 收入中的 {saved_cny} 存入应急储备",
                "储备：{shield_cny} / {target_cny}。其余 {free_cny} 由你支配：每周约 {week_cny} 可用于想要的东西。"),
     },
     "family_shield": {
@@ -175,11 +175,11 @@ TEMPLATES: dict[str, dict[str, tuple[str, str]]] = {
         "zh": ("应急储备已满：{target_cny}", "这大约是 {days_n} 天的生活费，不依赖孟加拉国的银行。从现在起，全部收入都可以自由支配。"),
     },
     "shield_used": {
-        "en": ("Sathi used {amount_cny} from the Shield",
+        "en": ("Bluefin used {amount_cny} from the Shield",
                "The money in China could not cover the coming days. Shield left: {shield_cny}. Nobody had to borrow or use hundi."),
-        "bn": ("সাথী সুরক্ষা তহবিল থেকে {amount_cny} ব্যবহার করেছে",
+        "bn": ("ব্লুফিন সুরক্ষা তহবিল থেকে {amount_cny} ব্যবহার করেছে",
                "চীনে থাকা টাকায় সামনের দিনগুলো চলত না। তহবিলে বাকি: {shield_cny}। কাউকে ধার করতে বা হুন্ডি করতে হয়নি।"),
-        "zh": ("Sathi 动用了应急储备 {amount_cny}", "在中国的钱不够接下来几天的开销。储备剩余：{shield_cny}。不用借钱，也不用地下汇款。"),
+        "zh": ("Bluefin 动用了应急储备 {amount_cny}", "在中国的钱不够接下来几天的开销。储备剩余：{shield_cny}。不用借钱，也不用地下汇款。"),
     },
     "shield_release_waiting": {
         "en": ("{amount_cny} leaves the Shield on {available_date}",
@@ -211,9 +211,9 @@ TEMPLATES: dict[str, dict[str, tuple[str, str]]] = {
     },
     "savings_rule_revoked": {
         "en": ("Savings rule stopped",
-               "Sathi will not move pay to the Shield any more. Money already saved stays under the terms that were signed."),
-        "bn": ("সঞ্চয়ের নিয়ম বন্ধ", "সাথী আর আয় থেকে তহবিলে টাকা রাখবে না। যা জমেছে তা সই করা শর্তেই থাকবে।"),
-        "zh": ("储蓄规则已停止", "Sathi 不再把收入存入储备。已存的钱仍按签署的条款保管。"),
+               "Bluefin will not move pay to the Shield any more. Money already saved stays under the terms that were signed."),
+        "bn": ("সঞ্চয়ের নিয়ম বন্ধ", "ব্লুফিন আর আয় থেকে তহবিলে টাকা রাখবে না। যা জমেছে তা সই করা শর্তেই থাকবে।"),
+        "zh": ("储蓄规则已停止", "Bluefin 不再把收入存入储备。已存的钱仍按签署的条款保管。"),
     },
     "week_summary": {
         "en": ("Last week: wants {wants_cny}, about {wants_bdt} at home",
@@ -232,14 +232,14 @@ TEMPLATES: dict[str, dict[str, tuple[str, str]]] = {
         "en": ("This job needs permission first",
                "Working without your university's approval and a work-study annotation on your residence permit is illegal "
                "work in China: a fine of {lo_cny}–{hi_cny}, detention in serious cases, and the visa can be cancelled. Ask "
-               "your international student office to apply first. Until then Sathi leaves this income out of every plan."),
+               "your international student office to apply first. Until then Bluefin leaves this income out of every plan."),
         "bn": ("এই কাজের আগে অনুমতি লাগবে",
                "বিশ্ববিদ্যালয়ের অনুমোদন আর রেসিডেন্স পারমিটে ওয়ার্ক-স্টাডি এনোটেশন ছাড়া চীনে কাজ করা অবৈধ: {lo_cny}–{hi_cny} জরিমানা, "
-               "গুরুতর হলে আটক, আর ভিসা বাতিল হতে পারে। আগে আন্তর্জাতিক শিক্ষার্থী অফিসে আবেদন করুন। ততদিন সাথী এই আয় কোনো "
+               "গুরুতর হলে আটক, আর ভিসা বাতিল হতে পারে। আগে আন্তর্জাতিক শিক্ষার্থী অফিসে আবেদন করুন। ততদিন ব্লুফিন এই আয় কোনো "
                "পরিকল্পনায় ধরবে না।"),
         "zh": ("这份工作需要先获得许可",
                "没有学校批准和居留许可上的勤工助学标注就在中国工作属于非法就业：罚款 {lo_cny}–{hi_cny}，情节严重的拘留，签证可能被取消。"
-               "请先通过国际学生办公室申请。在此之前，Sathi 不会把这笔收入计入任何计划。"),
+               "请先通过国际学生办公室申请。在此之前，Bluefin 不会把这笔收入计入任何计划。"),
     },
     "card_stops": {
         "en": ("The card stops working abroad on {card_date}",

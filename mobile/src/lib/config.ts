@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 /**
- * Where the Sathi backend lives.
+ * Where the Bluefin backend lives.
  * 1. EXPO_PUBLIC_API_URL if set (e.g. a deployed server).
  * 2. In development on a phone: the same computer that serves the Expo bundle, port 8000.
  * 3. Fallback: localhost (web / emulator on the same machine).

@@ -169,8 +169,8 @@ def t_year(s: Sandbox, r: TaskResult) -> None:
     y = s.get("/plan/year").json()
     h = y["headline"]
     r.step("agent", "simulates the year day by day in both countries' bank calendars",
-           f"today's habits: {h['stuck_days_today']} days stuck · with Sathi: {h['stuck_days_sathi']}")
-    r.check("Sathi's plan removes the days without money", h["stuck_days_sathi"] == 0 and h["stuck_days_today"] > 0)
+           f"today's habits: {h['stuck_days_today']} days stuck · with Bluefin: {h['stuck_days_sathi']}")
+    r.check("Bluefin's plan removes the days without money", h["stuck_days_sathi"] == 0 and h["stuck_days_today"] > 0)
     r.check("and costs the family less", float(h["saved_bdt"]) > 0)
     r.value = f"{h['stuck_days_today']} → {h['stuck_days_sathi']} days without money; ৳{h['saved_bdt']} saved in fees and markup."
     r.evidence = s.proof("year_planned")
@@ -191,7 +191,7 @@ def t_emergency(s: Sandbox, r: TaskResult) -> None:
 def t_card(s: Sandbox, r: TaskResult) -> None:
     reply = s.say("I lost my card", "student")
     card = s.get("/cards", "student").json()[0]
-    r.step("student", "tells Sathi “I lost my card”", reply["reply"][:160])
+    r.step("student", "tells Bluefin “I lost my card”", reply["reply"][:160])
     r.check("the card is frozen at once", card["status"] == "frozen")
     r.check("the agent cannot unfreeze it", s.post(f"/cards/{card['last4']}/unfreeze", who="agent").status_code == 403)
     r.value = "Card frozen in one sentence; only the student's fingerprint can unfreeze it."
@@ -435,12 +435,12 @@ def t_bank_connection(s: Sandbox, r: TaskResult) -> None:
     r.step("parent", "allows it with the phone's passkey (signed over the consent)", f"HTTP {ok.status_code}: {ok.json().get('status')}")
     read = s.get("/banks/brac_bd/accounts", "agent").json()
     bal = read["Data"]["Account"][0]["Balance"]["Amount"]
-    r.step("Sathi", "reads the balance through the consent", f"৳{bal['Amount']} ({read['consent_id']})")
+    r.step("Bluefin", "reads the balance through the consent", f"৳{bal['Amount']} ({read['consent_id']})")
     r.check("the agent cannot connect a bank itself", s.post("/banks/consents", {"connector": "brac_bd"}, "agent").status_code == 403)
     r.check("read-only: the connection can never move money", c["can_move_money"] is False and "Transactions" not in read["Data"]["Account"][0])
     s.client.delete(f"/banks/consents/{c['id']}", headers=H["parent"])
     after = s.get("/banks/brac_bd/accounts", "agent")
-    r.step("parent", "revokes it", f"Sathi reading again: HTTP {after.status_code}")
+    r.step("parent", "revokes it", f"Bluefin reading again: HTTP {after.status_code}")
     r.check("revoking stops reading at once", after.status_code == 403)
     r.value = "Integration-ready: a bank's account API plugs in behind a consent the holder signs and can revoke."
     r.evidence = s.proof("bank_consent_revoked")

@@ -49,7 +49,7 @@ def create_site(api: FastAPI | None = None, web_dir: Path | None = None, limits:
     root = (web_dir or Path(os.environ.get("SATHI_WEB_DIR", DEFAULT_WEB_DIR))).resolve()
     limits = {**LIMITS, **(limits or {})}
     hits: dict[tuple[str, str], deque] = defaultdict(deque)
-    site = FastAPI(title="Sathi", docs_url=None, redoc_url=None, openapi_url=None)
+    site = FastAPI(title="Bluefin", docs_url=None, redoc_url=None, openapi_url=None)
 
     @site.middleware("http")
     async def rate_limit(request: Request, call_next):

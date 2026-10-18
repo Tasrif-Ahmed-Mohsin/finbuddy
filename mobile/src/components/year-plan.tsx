@@ -29,7 +29,7 @@ export function YearPlanView() {
   return (
     <>
       <DataBanner dq={yp.data_quality} />
-      {/* Flight plan: days without money this year, today's habits → with Sathi, as two big neon numbers. */}
+      {/* Flight plan: days without money this year, today's habits → with Bluefin, as two big neon numbers. */}
       <Panel>
         <Kicker dark>{t('yearHeroKicker')}</Kicker>
         <SpaceText style={{ fontWeight: '600' }}>{t('yearTitle')}</SpaceText>

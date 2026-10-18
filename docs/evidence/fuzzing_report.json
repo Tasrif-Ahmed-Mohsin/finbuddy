@@ -7,8 +7,8 @@
   "payments_completed": 492,
   "payments_under_mandate": 161,
   "refusals": 30982,
-  "duration_seconds": 19.97,
-  "attacks_per_second": 2503.6,
+  "duration_seconds": 19.01,
+  "attacks_per_second": 2630.5,
   "seed": 42,
   "deepseek_tokens_consumed": 0,
   "deepseek_cost_usd": 0.0,
@@ -72,7 +72,7 @@
     }
   },
   "first_violations": [],
-  "timestamp": "2026-10-17T19:14:57+00:00",
+  "timestamp": "2026-10-18T06:27:34+00:00",
   "mutants": [
     {
       "mutant": "double_booking",

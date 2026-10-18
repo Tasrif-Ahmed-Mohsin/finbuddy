@@ -19,7 +19,7 @@ const ICON = { deepseek: 'sparkles', whatsapp: 'logo-whatsapp', banks: 'business
 function confirmDelete(message: string): Promise<boolean> {
   if (Platform.OS === 'web') return Promise.resolve(globalThis.confirm?.(message) ?? true);
   return new Promise((resolve) =>
-    Alert.alert('Sathi', message, [
+    Alert.alert('Bluefin', message, [
       { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
       { text: 'OK', style: 'destructive', onPress: () => resolve(true) },
     ]),
@@ -27,7 +27,7 @@ function confirmDelete(message: string): Promise<boolean> {
 }
 
 /**
- * Your data (PIPL Art. 17, 39, 44-47): what Sathi keeps and why, where it goes (DeepSeek is in China), a copy of it,
+ * Your data (PIPL Art. 17, 39, 44-47): what Bluefin keeps and why, where it goes (DeepSeek is in China), a copy of it,
  * deleting it, and the AI switch (off = the rules answer and nothing is sent to the AI).
  */
 export default function PrivacyScreen() {

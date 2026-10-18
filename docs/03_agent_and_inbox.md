@@ -1,4 +1,4 @@
-# Sathi Agent and Inbox (SMS / email tracking)
+# Bluefin Agent and Inbox (SMS / email tracking)
 
 **Last updated:** 2026-10-12 · Feeds the technical documentation and the security self-assessment.
 
@@ -6,7 +6,7 @@
 1. **Tracks:** reads bank SMS and email alerts the user shares or forwards, and turns them into transactions. Card limits (5 lakh BDT / 30 transactions) update from real alerts.
 2. **Finds the best solution:** a rule engine raises insights with computed savings, e.g. "3 ATM withdrawals cost ৳1,035 in fees; a transfer to your own Chinese account saves ~৳3,300/month".
 3. **Protects:** large or duplicate charges ("was this you?"), scam, hundi and phishing messages, OTP warnings, prompt-injection attempts.
-4. **Keeps the user updated:** an Updates feed (Home and the Sathi tab) in English, Bengali or Chinese, plus a chat agent (DeepSeek) that can explain, plan and **draft** payments.
+4. **Keeps the user updated:** an Updates feed (Home and the Bluefin tab) in English, Bengali or Chinese, plus a chat agent (DeepSeek) that can explain, plan and **draft** payments.
 
 ## How messages get in (honest about platform limits)
 
@@ -36,7 +36,7 @@ message ─► financial filter ─► redaction ─► scam/phishing/injection 
 
 ## Privacy and security promises (for the security self-assessment)
 1. Non-money messages are dropped and never stored (only a counter).
-2. One-time codes are removed before storage; Sathi never asks for or shows an OTP.
+2. One-time codes are removed before storage; Bluefin never asks for or shows an OTP.
 3. Account, card and phone numbers are masked to their last 4 digits; emails are masked.
 4. Only redacted text is sent to DeepSeek; the original text is never stored.
 5. Message content is untrusted data: injection phrases are flagged, and risky messages are never turned into transactions or payments.
@@ -66,4 +66,4 @@ message ─► financial filter ─► redaction ─► scam/phishing/injection 
 ## Next
 - Ask the friend for 5–10 **real** anonymised bank SMS samples to tune the parsers.
 - Local notifications for alerts (expo-notifications).
-- A share-sheet target ("Share to Sathi") in a development build.
+- A share-sheet target ("Share to Bluefin") in a development build.

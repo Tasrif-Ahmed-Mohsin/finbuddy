@@ -1,4 +1,4 @@
-"""Sathi API (FastAPI). Run:  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+"""Bluefin API (FastAPI). Run:  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 Demo authentication: `Authorization: Bearer <token>` where the token maps to a role. This is a
 sandbox simplification (listed in the known-risk list); production would use real accounts plus
@@ -251,7 +251,7 @@ _AUTO = object()
 
 
 def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO, fx=None, bank_rates=None, settings=None) -> FastAPI:
-    app = FastAPI(title="Sathi API", version="0.3.0",
+    app = FastAPI(title="Bluefin API", version="0.3.0",
                   description="Cross-border student finance agent (sandbox). No real money moves.")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
     settings = settings or load_settings()
@@ -379,7 +379,7 @@ def create_app(audit_path: Path | None = AUDIT_PATH, llm=_AUTO, fx=None, bank_ra
 <title>Payment passport check</title><style>body{{font-family:system-ui,sans-serif;max-width:640px;margin:24px auto;padding:0 16px;color:#111;background:#fff}}
 .badge{{display:inline-block;padding:6px 14px;border-radius:999px;font-weight:700;color:#fff;background:{'#15803D' if ok else '#DC2626'}}}
 table{{width:100%;border-collapse:collapse}}td{{border-bottom:1px solid #ddd;padding:6px 4px;font-size:14px}}small{{color:#555}}</style></head>
-<body><h1>Sathi payment passport</h1><p><span class="badge">{'VALID' if ok else 'NOT VALID'}</span></p>
+<body><h1>Bluefin payment passport</h1><p><span class="badge">{'VALID' if ok else 'NOT VALID'}</span></p>
 {'' if ok else '<p>' + e('; '.join(result['reasons'])) + '</p>'}
 <p><b>{e(str(holder.get('name', '')))}</b><br>{e(str(holder.get('university', '')))}<br>{e(str(holder.get('corridor', '')))}</p>
 <p>On time: <b>{e(str(st.get('on_time', '–')))}/{e(str(st.get('with_deadline', '–')))}</b> · Payments: {e(str(st.get('payments', '–')))} ·
@@ -787,7 +787,7 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     @app.get("/inbox/sources")
     def inbox_sources(s: AppState = Depends(svc), who: Actor = Depends(actor)):
         return {
-            "share_paste": {"available": True, "note": "Share or paste any bank SMS or email into Sathi."},
+            "share_paste": {"available": True, "note": "Share or paste any bank SMS or email into Bluefin."},
             "webhook": {"available": True, "path": "/inbox/webhook", "header": "X-Ingest-Token",
                         "note": "For SMS-forwarding apps (Android) or iOS Shortcuts automations."},
             "email": {"available": s.settings.imap_configured, "note": "Read-only IMAP with an app password."},

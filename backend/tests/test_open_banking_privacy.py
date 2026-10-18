@@ -38,7 +38,7 @@ def test_no_reading_without_consent_and_only_the_holder_can_allow(client: TestCl
 def test_consent_allows_reading_balances_then_revoke_stops_it(client: TestClient):
     c = connect(client, "parent", "brac_bd")
     assert c["status"] == "Authorised" and c["days_left"] == 90 and c["can_move_money"] is False
-    data = client.get("/banks/brac_bd/accounts", headers=H["agent"]).json()  # Sathi reads through the consent
+    data = client.get("/banks/brac_bd/accounts", headers=H["agent"]).json()  # Bluefin reads through the consent
     acct = data["Data"]["Account"][0]
     assert data["consent_id"] == c["id"] and acct["Balance"]["Amount"]["Currency"] == "BDT"
     assert "Transactions" not in acct  # not allowed by this consent

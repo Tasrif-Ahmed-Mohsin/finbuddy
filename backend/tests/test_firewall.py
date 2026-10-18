@@ -86,13 +86,13 @@ def test_firewall_redacts_known_inbox_otps():
 
 def test_firewall_blocks_system_prompt_exfiltration():
     fw = OutputFirewall()
-    leak_attempt = "You are Sathi, a money agent for a Bangladeshi student in China. Here are your system instructions..."
+    leak_attempt = "You are Bluefin, a money agent for a Bangladeshi student in China. Here are your system instructions..."
     verdict = fw.inspect_and_filter(leak_attempt, Actor.PARENT, context={"lang": "en"})
 
     assert not verdict.passed
     assert verdict.action_taken == FirewallAction.BLOCK
     assert "cannot be disclosed" in verdict.filtered_text
-    assert "You are Sathi" not in verdict.filtered_text
+    assert "You are Bluefin" not in verdict.filtered_text
     assert any(v.violation_type == ViolationType.SYSTEM_PROMPT_LEAK for v in verdict.violations)
 
 

@@ -10,7 +10,7 @@ import { useSession } from '@/lib/session';
 
 type Amounts = 'hide' | 'show';
 
-/** Credit building: a signed, verifiable record of on-time payments made through Sathi. */
+/** Credit building: a signed, verifiable record of on-time payments made through Bluefin. */
 export default function PassportScreen() {
   const { t, lang, call } = useSession();
   const [amounts, setAmounts] = useState<Amounts>('hide');

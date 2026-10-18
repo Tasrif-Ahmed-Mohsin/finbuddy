@@ -113,7 +113,7 @@ def generate(ctx: InsightContext) -> list[Insight]:
                            f"{fmt_bdt(ctx.card_bdt_used)} of {fmt_bdt(bdt_cap)}. Plan bigger, fewer withdrawals or a transfer.",
                            action={"screen": "plan", "mode": "living"}))
 
-    # 3. Large debit not initiated through Sathi: "Was this you?"
+    # 3. Large debit not initiated through Bluefin: "Was this you?"
     threshold = c.v("large_debit_alert_bdt")
     for t in mine:
         if t.direction == "debit" and t.bdt_value >= threshold:
@@ -153,7 +153,7 @@ def generate(ctx: InsightContext) -> list[Insight]:
         if m.otp and not otp_seen:
             otp_seen = True
             out.append(Insight(f"otp:{m.id}", "otp_received", "info", "One-time code received",
-                               f"You received a one-time code from {m.sender}. Sathi removed it and will never ask for it. "
+                               f"You received a one-time code from {m.sender}. Bluefin removed it and will never ask for it. "
                                "Never share it, not even with someone claiming to be bank staff."))
 
     # 8. Renewals (N-05).
@@ -195,7 +195,7 @@ def generate(ctx: InsightContext) -> list[Insight]:
                                    f"({fmt_bdt(extra)}) above the market rate. For large amounts, compare banks first.",
                                    q2(extra), {"screen": "plan", "mode": "tuition"}, [t.id]))
 
-    # 10. Earn & Save: the student's own pay landed (a bank alert says so). Sathi suggests or confirms the Shield share.
+    # 10. Earn & Save: the student's own pay landed (a bank alert says so). Bluefin suggests or confirms the Shield share.
     cn_last4 = ctx.profile.get("student_cn_last4")
     for t in mine:
         if t.kind == "income" and t.direction == "credit" and t.account_last4 == cn_last4 and t.currency == "CNY":

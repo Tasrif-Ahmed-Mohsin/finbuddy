@@ -42,17 +42,17 @@ def test_numbers_must_be_international():
 
 def test_dry_run_sends_nothing():
     n = WhatsAppNotifier("dry_run", TOKEN, "1234567890", transport=httpx.MockTransport(lambda r: pytest.fail("no network")))
-    e = n.send("+8801712345678", "সাথী · টেস্ট", "test", "test", NOW)
-    assert e.status == "logged" and e.to == "••••5678" and "সাথী" in e.detail
+    e = n.send("+8801712345678", "ব্লুফিন · টেস্ট", "test", "test", NOW)
+    assert e.status == "logged" and e.to == "••••5678" and "ব্লুফিন" in e.detail
 
 
 def test_live_posts_a_text_message_to_the_cloud_api():
     fake = FakeMeta()
-    e = live(fake).send("+8801712345678", "সাথী · ¥৬,০০০ পাঠানো হয়েছে", "note", "autopilot_sent", NOW)
+    e = live(fake).send("+8801712345678", "ব্লুফিন · ¥৬,০০০ পাঠানো হয়েছে", "note", "autopilot_sent", NOW)
     r = fake.requests[0]
     assert e.status == "sent" and e.message_id == "wamid.TEST"
     assert r["url"] == "https://graph.facebook.com/v21.0/1234567890/messages" and r["auth"] == f"Bearer {TOKEN}"
-    assert r["body"]["to"] == "8801712345678" and r["body"]["type"] == "text" and "সাথী" in r["body"]["text"]["body"]
+    assert r["body"]["to"] == "8801712345678" and r["body"]["type"] == "text" and "ব্লুফিন" in r["body"]["text"]["body"]
     assert TOKEN not in json.dumps(e.to_dict())
 
 
@@ -100,7 +100,7 @@ def test_family_alerts_go_out_in_bengali_with_a_safety_footer_and_logs_hold_no_t
     client.post(f"/mandates/proposals/{p['id']}/sign", json={"proposal_hash": p["hash"]}, headers=H["student"])
     out = client.get("/notify/whatsapp", headers=H["parent"]).json()["outbox"]
     sent = next(e for e in out if e["key"] == "autopilot_sent")
-    assert sent["status"] == "logged" and sent["detail"].startswith("সাথী · সাথী শিক্ষার্থীর")
+    assert sent["status"] == "logged" and sent["detail"].startswith("ব্লুফিন · ব্লুফিন শিক্ষার্থীর")
     assert "আঙুলের ছাপ" in client.app.state.svc.whatsapp.outbox[-1].detail or any("আঙুলের ছাপ" in e["detail"] for e in out)
     entries = client.get("/audit?limit=200", headers=H["parent"]).json()["entries"]
     wa = [e for e in entries if e["event"] == "whatsapp_notified"]

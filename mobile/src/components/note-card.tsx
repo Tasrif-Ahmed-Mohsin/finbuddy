@@ -11,7 +11,7 @@ import { useSession } from '@/lib/session';
 const TONE = { did: 'ok', needs_you: 'warn', warning: 'block', info: 'info' } as const;
 const ICON = { did: 'sparkles', needs_you: 'hand-left', warning: 'warning', info: 'information-circle' } as const;
 
-/** One entry of the family feed: what Sathi did, saw, or needs. Text comes from server templates in the user's language. */
+/** One entry of the family feed: what Bluefin did, saw, or needs. Text comes from server templates in the user's language. */
 export function NoteCard({ note }: { note: Note }) {
   const { t, lang, call } = useSession();
   const [busy, setBusy] = useState(false);

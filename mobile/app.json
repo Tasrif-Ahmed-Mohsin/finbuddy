@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Sathi",
+    "name": "Bluefin",
     "slug": "sathi",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -37,14 +37,14 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow Sathi to use Face ID to approve payments."
+          "faceIDPermission": "Allow Bluefin to use Face ID to approve payments."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Sathi to read a photo of your fee notice or form.",
-          "cameraPermission": "Allow Sathi to photograph a fee notice or form so it can explain it."
+          "photosPermission": "Allow Bluefin to read a photo of your fee notice or form.",
+          "cameraPermission": "Allow Bluefin to photograph a fee notice or form so it can explain it."
         }
       ],
       [
@@ -59,8 +59,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Allow Sathi to hear you, so you can speak instead of typing.",
-          "speechRecognitionPermission": "Allow Sathi to turn what you say into text.",
+          "microphonePermission": "Allow Bluefin to hear you, so you can speak instead of typing.",
+          "speechRecognitionPermission": "Allow Bluefin to turn what you say into text.",
           "androidSpeechServicePackages": [
             "com.google.android.googlequicksearchbox"
           ]

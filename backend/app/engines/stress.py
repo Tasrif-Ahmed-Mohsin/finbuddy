@@ -140,9 +140,9 @@ def dollar_crisis(sit: Situation, policy: Policy, cal: BankCalendar, corridor: C
     """The friend's problem (Interview #2, research P-01): the dollar is short and banks send no Student File transfers
     for `weeks` weeks. Nobody knows when it starts, so we try every start week of the year.
 
-    For each start: stuck days with today's habits (the days a family turns to hundi), with Sathi's look-ahead plan
-    alone, and with Sathi plus the student's Shield built from their own pay (the savings rule). At the worst start
-    for Sathi we also compute how big a Shield would have prevented every stuck day (the money it would have to
+    For each start: stuck days with today's habits (the days a family turns to hundi), with Bluefin's look-ahead plan
+    alone, and with Bluefin plus the student's Shield built from their own pay (the savings rule). At the worst start
+    for Bluefin we also compute how big a Shield would have prevented every stuck day (the money it would have to
     cover), so the family can see what "crisis-proof" costs.
     """
     if weeks < 1:
@@ -204,7 +204,7 @@ def dollar_crisis(sit: Situation, policy: Policy, cal: BankCalendar, corridor: C
         "by_start": [{"from": r["from"].isoformat(), "today": r["today"], "sathi": r["sathi"], "sathi_shield": r["sathi_shield"],
                       "shield_on_start_cny": str(q2(r["shield_on_start"]))} for r in rows],
         "method": (f"Banks send no Student File transfer for {weeks} weeks; transfers asked for in that time leave on the first "
-                   "bank day after it. Every start week of the plan is tried. Today's habits and Sathi's plan get only the "
+                   "bank day after it. Every start week of the plan is tried. Today's habits and Bluefin's plan get only the "
                    "money from home; 'with the Shield' adds the student's savings rule on their own pay (the rest of the pay "
                    "is assumed spent). The planner never knows the crisis in advance."),
     }

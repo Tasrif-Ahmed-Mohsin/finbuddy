@@ -1,6 +1,6 @@
 """Privacy first: redact a message BEFORE it is stored or sent to any LLM.
 
-  * One-time codes (OTP / 验证码 / ওটিপি): the code itself is removed. Sathi never stores, shows or
+  * One-time codes (OTP / 验证码 / ওটিপি): the code itself is removed. Bluefin never stores, shows or
     forwards an OTP, and never asks for one.
   * Long numbers (account, card, phone: 9–19 digits) are masked to their last 4 digits.
   * Email addresses are masked.

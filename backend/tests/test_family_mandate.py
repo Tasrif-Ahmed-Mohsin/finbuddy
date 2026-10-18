@@ -204,7 +204,7 @@ def test_feed_explains_in_bengali_with_bengali_digits(client):
     activate(client)
     notes = client.get("/feed?lang=bn", headers=H["parent"]).json()["notes"]
     sent = next(n for n in notes if n["key"] == "autopilot_sent")
-    assert "সাথী" in sent["title"] and "৳" in sent["body"] and not any(ch in sent["body"] for ch in "0123456789")
+    assert "ব্লুফিন" in sent["title"] and "৳" in sent["body"] and not any(ch in sent["body"] for ch in "0123456789")
 
 
 def test_approval_read_back_is_bound_to_the_draft(client):

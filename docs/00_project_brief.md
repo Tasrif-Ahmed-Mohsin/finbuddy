@@ -1,6 +1,6 @@
 # Project Brief: FinTechathon 2026, International Track, Topic C
 
-**Working name:** Sathi (সাথী, "companion" in Bengali / Hindi / Nepali). Rename freely.
+**Name:** Bluefin.
 **Last updated:** 2026-10-12
 **Companion file:** [`01_problem_research.md`](01_problem_research.md), the evidence base of problems (P-01 … P-34).
 
@@ -91,7 +91,7 @@ China wins on judge relevance, number of China-specific problems, the multilingu
 
 ## 4. Product concept
 
-> **Sathi is an AI agent that plans, checks and (with your approval) carries out every cross-border payment in a student's journey, at the lowest true cost, with FX risk under control, in the family's own language.**
+> **Bluefin is an AI agent that plans, checks and (with your approval) carries out every cross-border payment in a student's journey, at the lowest true cost, with FX risk under control, in the family's own language.**
 
 ### 4.1 Agent loop → rubric
 
@@ -179,7 +179,7 @@ Licensing: check every data source's terms (rules §8).
 
 ## 7. Proposal summary (registration form, ~170 words; edit freely)
 
-> Sathi is a multilingual AI agent that helps international students and their families move money across borders safely and at the lowest true cost. Our hero corridor is Bangladesh → China: a Bengali-speaking parent pays tuition from Dhaka, the student lives on a CNY stipend, and university and bank documents are in Chinese. Sathi understands requests in Bengali, English and Chinese, turns fee notices into a payment calendar, and compares routes by all-in cost: FX markups, double conversion via USD, fixed and intermediary fees, and arrival time against deadlines. It plans conversions using calibrated exchange-rate ranges benchmarked against a random walk, not point predictions. Every action passes a deterministic compliance engine (payee allow-list, Bangladesh outward-remittance limits, China FX quotas, scam patterns) and a four-level permission model, from read-only to capped, revocable mandates. Transfers run in a sandbox with full audit logs. Sathi also handles exceptions such as visa-refusal refunds, and builds a verifiable on-time payment record for credit building. Each corridor is a configuration, so the same agent extends to Australia and beyond.
+> Bluefin is a multilingual AI agent that helps international students and their families move money across borders safely and at the lowest true cost. Our hero corridor is Bangladesh → China: a Bengali-speaking parent pays tuition from Dhaka, the student lives on a CNY stipend, and university and bank documents are in Chinese. Bluefin understands requests in Bengali, English and Chinese, turns fee notices into a payment calendar, and compares routes by all-in cost: FX markups, double conversion via USD, fixed and intermediary fees, and arrival time against deadlines. It plans conversions using calibrated exchange-rate ranges benchmarked against a random walk, not point predictions. Every action passes a deterministic compliance engine (payee allow-list, Bangladesh outward-remittance limits, China FX quotas, scam patterns) and a four-level permission model, from read-only to capped, revocable mandates. Transfers run in a sandbox with full audit logs. Bluefin also handles exceptions such as visa-refusal refunds, and builds a verifiable on-time payment record for credit building. Each corridor is a configuration, so the same agent extends to Australia and beyond.
 
 ---
 

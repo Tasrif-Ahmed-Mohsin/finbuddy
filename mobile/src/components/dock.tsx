@@ -17,7 +17,7 @@ const ICONS: Record<string, [IconName, IconName]> = {
 };
 
 /**
- * The floating dock: a raised neumorphic capsule with four tabs and, in the middle, Sathi in a glowing round
+ * The floating dock: a raised neumorphic capsule with four tabs and, in the middle, Bluefin in a glowing round
  * button that rises above the bar. The chosen tab's icon sits in a small deep-space pill with a neon icon.
  */
 export function Dock({ state, descriptors, navigation, insets }: BottomTabBarProps) {

@@ -106,7 +106,7 @@ def build_pain001_xml(
     """
     the_uetr = uetr or generate_uetr(f"{draft_id}-{timestamp.isoformat()}")
     date_str = timestamp.strftime("%Y%m%d")
-    msg_id = f"SATHI-{date_str}-{draft_id.upper()}"[:35]
+    msg_id = f"BLUEFIN-{date_str}-{draft_id.upper()}"[:35]
     cre_dt_tm = timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
     req_exec_dt = timestamp.strftime("%Y-%m-%d")
 
@@ -131,12 +131,12 @@ def build_pain001_xml(
 
     initg_pty = ET.SubElement(grp_hdr, f"{{{ISO20022_PAIN001_NS}}}InitgPty")
     initg_nm = ET.SubElement(initg_pty, f"{{{ISO20022_PAIN001_NS}}}Nm")
-    initg_nm.text = "Sathi Autonomous Student Finance Gateway"
+    initg_nm.text = "Bluefin Autonomous Student Finance Gateway"
     initg_id = ET.SubElement(initg_pty, f"{{{ISO20022_PAIN001_NS}}}Id")
     initg_org = ET.SubElement(initg_id, f"{{{ISO20022_PAIN001_NS}}}OrgId")
     initg_othr = ET.SubElement(initg_org, f"{{{ISO20022_PAIN001_NS}}}Othr")
     initg_othr_id = ET.SubElement(initg_othr, f"{{{ISO20022_PAIN001_NS}}}Id")
-    initg_othr_id.text = "SATHI-BD-CN-CORRIDOR"
+    initg_othr_id.text = "BLUEFIN-BD-CN-CORRIDOR"
 
     # 2. Payment Information (PmtInf)
     pmt_inf = ET.SubElement(cstmr, f"{{{ISO20022_PAIN001_NS}}}PmtInf")
@@ -259,7 +259,7 @@ def build_pain001_xml(
     rmt_inf = ET.SubElement(tx_inf, f"{{{ISO20022_PAIN001_NS}}}RmtInf")
     ustrd = ET.SubElement(rmt_inf, f"{{{ISO20022_PAIN001_NS}}}Ustrd")
     clean_memo = memo.strip() if memo else ("Tuition Remittance" if kind == "tt_tuition" else "Living Remittance")
-    ustrd.text = f"Sathi {draft_id}: {clean_memo}"[:140]
+    ustrd.text = f"Bluefin {draft_id}: {clean_memo}"[:140]
 
     xml_bytes = ET.tostring(doc, encoding="utf-8", xml_declaration=True)
     xml_str = xml_bytes.decode("utf-8")

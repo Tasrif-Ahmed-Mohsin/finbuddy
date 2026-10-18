@@ -3,13 +3,13 @@
 Field (Interview #2): when the dollar is short, families bring money by hundi and "lose 1–2 taka per dollar". Our own
 data says the uncomfortable part out loud: one small bank transfer can cost MORE than that on paper, because the bank's
 fixed fees (৳3,680 per transfer at EBL) are larger than 1–2 taka per dollar on a few hundred dollars. That gap is why
-families choose hundi. Sathi does not hide it. It shows:
+families choose hundi. Bluefin does not hide it. It shows:
   * the hundi offer's visible cost against the market rate;
   * one legal bank transfer for the same money, with its real fees and the day it lands;
   * the legal ways that beat both: the student's own Shield (money already in China costs ৳0 to "send") and the
     planned transfer that is coming anyway (no extra fee);
   * what the hundi price leaves out, each risk with its source and confidence.
-Never a hundi route: Sathi only ever recommends formal channels (security self-assessment, hard blocks).
+Never a hundi route: Bluefin only ever recommends formal channels (security self-assessment, hard blocks).
 """
 from __future__ import annotations
 

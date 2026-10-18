@@ -8,7 +8,7 @@ A scammer impersonates a university bursar, student housing agency, or tuition c
 
 The victim willingly authorises the payment because they believe they are paying their university. In reality, the bank account belongs to a criminal syndicate or shell company (`Shenzhen Apex Trading Co. Ltd`).
 
-**Sathi implements Confirmation of Payee (CoP)**, modeled on:
+**Bluefin implements Confirmation of Payee (CoP)**, modeled on:
 - **UK Payment Systems Regulator (PSR)** Specific Direction 10 / 17
 - **EU Verification of Payee (VoP)** under SEPA Instant Payments Regulation (EU 2024/886)
 
@@ -19,7 +19,7 @@ The victim willingly authorises the payment because they believe they are paying
 Before any payment draft is approved or executed, the sending engine makes a real-time cryptographic inquiry to the receiving bank's directory simulator:
 
 ```
-  [ Sathi Payment Engine ]
+  [ Bluefin Payment Engine ]
              │
              │  Query: payee_id="univ_demo", intended="Demo University"
              ▼
@@ -46,7 +46,7 @@ Before any payment draft is approved or executed, the sending engine makes a rea
 
 ---
 
-## 3. Implementation Across Sathi
+## 3. Implementation Across Bluefin
 
 1. **Confirmation of Payee Engine ([`backend/app/security/cop.py`](file:///e:/chinahack/backend/app/security/cop.py))**:
    - `ConfirmationOfPayeeService`: Maintains simulated receiving bank account directories (`univ_demo`, `student_own_cn`, `agent_x`).

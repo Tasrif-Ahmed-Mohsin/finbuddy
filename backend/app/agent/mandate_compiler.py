@@ -214,7 +214,7 @@ def compile_mandate(proposal_id: str, text: str, lang: str, now: datetime, actor
     if parsed.currency == "CNY":
         errors.append("Please write the limit in taka (BDT), for example ৳1,20,000 per month.")
     if parsed.period_cap is None:
-        errors.append("Say the most Sathi may send per month, for example: \"up to ৳1,20,000 a month\".")
+        errors.append("Say the most Bluefin may send per month, for example: \"up to ৳1,20,000 a month\".")
     if parsed.ungrounded:
         notes.append("The AI suggested a number that is not in your words, so it was ignored.")
     if parsed.llm_flags:
@@ -255,19 +255,19 @@ def summaries(payee_label: str, per_payment: Decimal, period_cap: Decimal, perio
            "bn": "ক্যালেন্ডার মাসে" if month else f"{num(period_days, 'bn')} দিনে",
            "zh": "自然月" if month else f" {period_days} 天"}
     return {
-        "en": (f"Sathi may send living money only to the student's own Chinese account ({payee_label}), by bank transfer "
+        "en": (f"Bluefin may send living money only to the student's own Chinese account ({payee_label}), by bank transfer "
                f"at the cheapest legal bank: at most {bdt(per_payment, 'en')} per payment and {bdt(period_cap, 'en')} per "
                f"{per['en']}, until {day(valid_until.isoformat(), 'en')}. It sends only when the money would "
                "otherwise run low, and tells you both every time. Anything else (tuition, other people, more money) still "
                "needs your approval. You can cancel it at any time."
                + (" Both parent and student must sign." if both else "")),
-        "bn": (f"সাথী শুধু শিক্ষার্থীর নিজের চীনের অ্যাকাউন্টে ({payee_label}) ব্যাংক ট্রান্সফারে মাসিক খরচ পাঠাতে পারবে, "
+        "bn": (f"ব্লুফিন শুধু শিক্ষার্থীর নিজের চীনের অ্যাকাউন্টে ({payee_label}) ব্যাংক ট্রান্সফারে মাসিক খরচ পাঠাতে পারবে, "
                f"সবচেয়ে সাশ্রয়ী বৈধ ব্যাংকে: প্রতিবার সর্বোচ্চ {bdt(per_payment, 'bn')} এবং প্রতি {per['bn']} "
                f"সর্বোচ্চ {bdt(period_cap, 'bn')}, {day(valid_until.isoformat(), 'bn')} পর্যন্ত।"
                + " টাকা ফুরিয়ে আসার আগে শুধু তখনই পাঠাবে, আর প্রতিবার আপনাদের দুজনকে জানাবে। অন্য যেকোনো কিছু "
                  "(টিউশন, অন্য কাউকে টাকা, বেশি টাকা) আপনার অনুমোদন ছাড়া হবে না। যেকোনো সময় বাতিল করতে পারবেন।"
                + (" অভিভাবক ও শিক্ষার্থী দুজনকেই সই করতে হবে।" if both else "")),
-        "zh": (f"Sathi 只能通过银行汇款把生活费汇到学生本人的中国账户（{payee_label}），选择最省钱的合法银行："
+        "zh": (f"Bluefin 只能通过银行汇款把生活费汇到学生本人的中国账户（{payee_label}），选择最省钱的合法银行："
                f"每笔最多 {bdt(per_payment, 'zh')}，每{per['zh']}最多 {bdt(period_cap, 'zh')}，有效期至 "
                f"{day(valid_until.isoformat(), 'zh')}。只在钱快用完之前汇款，并且每次都通知你们两人。其他任何操作"
                "（学费、给他人汇款、更多金额）仍需你的批准。你可以随时取消。"

@@ -131,7 +131,7 @@ def test_shield_covers_days_and_a_crisis_holds_transfers():
     sit, pol, cal, market = app._year_situation(), app.policy, app.calendar, app.market
     window = (date(2027, 1, 4), date(2027, 1, 31))
     plain = simulate("sathi", sit, pol, cal, C, market, blocked=window)
-    assert plain.stuck  # a 4-week freeze right after the card stops leaves Sathi alone without money for days
+    assert plain.stuck  # a 4-week freeze right after the card stops leaves Bluefin alone without money for days
     assert all(t["lands"] > "2027-01-31" for t in plain.transfers if window[0].isoformat() <= t["send_on"] <= window[1].isoformat())
     covered = simulate("sathi", sit, pol, cal, C, market, blocked=window, saving=Saving(0, D(0), D(100000)))
     assert not covered.stuck and covered.shield_used > 0  # an unlimited Shield covers every one of those days

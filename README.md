@@ -1,8 +1,8 @@
-# Sathi: cross-border student finance agent
+# Bluefin: cross-border student finance agent
 
 **FinTechathon 2026 · International Track · Topic C (Cross-border & Student Finance Assistant)**
 
-Sathi (সাথী, "companion") **keeps an international student funded all year through the legal bank channel,
+Bluefin **keeps an international student funded all year through the legal bank channel,
 and acts on its own only inside a limit the family has signed**, in Bengali, English and Chinese.
 Hero corridor: **Bangladesh → China**.
 
@@ -34,19 +34,19 @@ BDT. That legal channel breaks on predictable days:
 
 With today's habits our demo student is **without money for 20 days a year**. And it isn't the exchange rate that
 costs families most: a real BRAC tuition payment was only 0.22% above the market rate, while its ৳8,000 charge was
-**5.5× that markup**. When the legal channel breaks, families are pushed to hundi. **Sathi makes the legal way easier than hundi.**
+**5.5× that markup**. When the legal channel breaks, families are pushed to hundi. **Bluefin makes the legal way easier than hundi.**
 
 A second student told us the other half of the story (Interview #2): *"Because of the dollar crisis, money can't come
 from home, so sometimes it comes by hundi and we lose 1–2 taka per dollar. Students here earn from jobs, but spend it on
 luxury, when we could have had savings by now."* Their own pay abroad is money that **never has to cross the border**,
-so Sathi turns part of it into a **Shield** for the days the legal channel from home is closed (**Earn & Save**).
+so Bluefin turns part of it into a **Shield** for the days the legal channel from home is closed (**Earn & Save**).
 
 ## One loop: Sense → Plan → Act → Prove
 
 | | What happens | App |
 |---|---|---|
-| **Sense** | Money in China, transfers on the way, card status; shared bank SMS/email (OTP removed, numbers masked); photographed documents; the real exchange rate; read-only bank connections with consent | **Home**, **Sathi** (type or speak) |
-| **Plan** | **"Never stuck" year plan**: a day-by-day simulation across both countries' bank calendars, the endorsement end and card limits; today's habits vs Sathi (stuck days, fees vs rate markup); tuition send-by and living-money optimisers | **Plan → Year / Tuition / Living** |
+| **Sense** | Money in China, transfers on the way, card status; shared bank SMS/email (OTP removed, numbers masked); photographed documents; the real exchange rate; read-only bank connections with consent | **Home**, **Bluefin** (type or speak) |
+| **Plan** | **"Never stuck" year plan**: a day-by-day simulation across both countries' bank calendars, the endorsement end and card limits; today's habits vs Bluefin (stuck days, fees vs rate markup); tuition send-by and living-money optimisers | **Plan → Year / Tuition / Living** |
 | **Emergency** | 🆘 on Today: "I have no money" gives every way money can reach the student, with real dates and the exact bridge amount, and prepares one urgent transfer for the parent's fingerprint. "Card lost" freezes first. Fake police / embassy / courier calls get a fixed guide, and the parent can ask **"Are you safe?"**, which only the student can answer | **Emergency** |
 | **Act** | The parent writes or **says** a **family mandate in their own words** ("প্রতি মাসে ১ লাখ ২০ হাজার টাকা পর্যন্ত…", up to 1.2 lakh taka a month) → a strict proposal → read aloud → signed with the phone's passkey after a fingerprint (both people for large caps). The **autopilot** then sends living money to the student's own account **before** it runs out, counting Eid, Spring Festival and weekends, and **asks** whenever a limit would be exceeded. Card freeze, renewal plan for a student abroad, scam blocking | **Family** |
 | **Prove** | The **trust center**: a receipt for every payment (approved by people with passkeys, or sent by the autopilot under the signed mandate, with its bank tracking number), double-entry books, the payment passport; six safety shields with their evidence; the hash-chained log in plain words | **Family → Proof** |
@@ -54,11 +54,11 @@ so Sathi turns part of it into a **Shield** for the days the legal channel from 
 
 **Results** (saved real rates):
 - **Year plan:** stuck days **20 → 0**; fees + markup **4.39% → 3.88%** (৳5,126 saved for the same money). **89%** of what families lose today is fees, not the exchange rate.
-- **Published data:** Eastern Bank's CNY transfer rate averaged **+0.96%** above the market (138 days). Its fees on a ৳1 lakh transfer are **৳3,565**, more than the rate markup. Waiting for a "better day" saved **৳21 per lakh** on average in a backtest, so Sathi does not try to time the market.
+- **Published data:** Eastern Bank's CNY transfer rate averaged **+0.96%** above the market (138 days). Its fees on a ৳1 lakh transfer are **৳3,565**, more than the rate markup. Waiting for a "better day" saved **৳21 per lakh** on average in a backtest, so Bluefin does not try to time the market.
 - **Stress test:** the same year re-run 200 times with messy spending, late transfers and moved holidays. Typical year: **30 → 0** stuck days; **64%** of messy years with none (today: 0%). What if the taka weakens 10%, spending rises 30%, every transfer is 3 days late, or all at once: still **0** stuck days.
 - **Live sandbox run:** 12 Oct 2026 → 21 Feb 2027, through the card stop and Spring Festival: **0 stuck days**.
-- **Dollar crisis (Earn & Save):** banks send no student transfer for 4 weeks, tried at all 33 start weeks of the plan (Oct 2026 – Jun 2027). Start weeks with no day without money: **0%** with today's habits, **39%** with Sathi, **94%** with Sathi + a Shield built from a ¥1,500/month campus job at 50%. Typical crisis: **20 → 4 → 0** days without money.
-- **Hundi, honestly:** $500 at ৳124.5 costs ৳623 above the market by hundi and ৳3,701 by one bank transfer (fees). Sathi shows that gap and closes it legally: fewer, planned transfers and the student's own Shield (৳0).
+- **Dollar crisis (Earn & Save):** banks send no student transfer for 4 weeks, tried at all 33 start weeks of the plan (Oct 2026 – Jun 2027). Start weeks with no day without money: **0%** with today's habits, **39%** with Bluefin, **94%** with Bluefin + a Shield built from a ¥1,500/month campus job at 50%. Typical crisis: **20 → 4 → 0** days without money.
+- **Hundi, honestly:** $500 at ৳124.5 costs ৳623 above the market by hundi and ৳3,701 by one bank transfer (fees). Bluefin shows that gap and closes it legally: fewer, planned transfers and the student's own Shield (৳0).
 - See [docs/evidence/scenario_summary.md](docs/evidence/scenario_summary.md).
 - **Judge mode:** 20 of 20 scripted tasks pass end to end, each in a fresh sandbox, every approval signed by a simulated phone's passkey: task completion 9/9, security 7/7 (including a *compromised-AI drill*: a malicious model drives the agent's tools and moves no money; and exactly-once payments), interaction 4/4. Every task shows its steps, checks, value and the log entry that proves it: [docs/evidence/judge_tasks.md](docs/evidence/judge_tasks.md), or Settings → Judge mode in the app.
 
@@ -85,7 +85,7 @@ python -m venv .venv
 ```
 API docs: http://localhost:8000/docs
 
-**AI (optional):** put `DEEPSEEK_API_KEY=...` in `backend/.env`. This file is git-ignored; never put the key in the mobile app. Without a key, Sathi uses rule-based answers. Optional email: `SATHI_IMAP_HOST`, `SATHI_IMAP_USER`, `SATHI_IMAP_PASSWORD` (an app password).
+**AI (optional):** put `DEEPSEEK_API_KEY=...` in `backend/.env`. This file is git-ignored; never put the key in the mobile app. Without a key, Bluefin uses rule-based answers. Optional email: `SATHI_IMAP_HOST`, `SATHI_IMAP_USER`, `SATHI_IMAP_PASSWORD` (an app password).
 
 **Mobile app** (Node 22, Expo SDK 57):
 ```bash
@@ -123,5 +123,5 @@ backend/app/data/            bank holidays (BD + CN), bank quotes + real payment
 backend/app/security/        permissions, compliance checks, scam/injection detection
 backend/app/sandbox/         simulated bank with clock, delays and fees
 backend/app/audit/           hash-chained operation log (execution evidence)
-mobile/src/app/              Expo Router screens (Today, Plan, Save, Family, Sathi, Proof, payment approval, renewal, passport, settings)
+mobile/src/app/              Expo Router screens (Today, Plan, Save, Family, Bluefin, Proof, payment approval, renewal, passport, settings)
 ```

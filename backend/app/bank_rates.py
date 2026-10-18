@@ -96,7 +96,7 @@ def fetch_ebl(day: date, timeout: float = 8.0) -> PublishedRate:
     import httpx
 
     url = EBL_URL.format(d=day)
-    r = httpx.get(url, timeout=timeout, follow_redirects=False, headers={"User-Agent": "Sathi student-finance research"})
+    r = httpx.get(url, timeout=timeout, follow_redirects=False, headers={"User-Agent": "Bluefin student-finance research"})
     if r.status_code != 200:
         raise SheetError(f"HTTP {r.status_code}")
     rate = parse_ebl_sheet(pdf_text(r.content), url)

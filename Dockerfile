@@ -1,5 +1,5 @@
-# Sathi: the web app and the API in one container. Sandbox only: no real money moves.
-#   docker build -t sathi . && docker run -p 8000:8000 -e DEEPSEEK_API_KEY=... sathi
+# Bluefin: the web app and the API in one container. Sandbox only: no real money moves.
+#   docker build -t bluefin . && docker run -p 8000:8000 -e DEEPSEEK_API_KEY=... bluefin
 # Secrets come from the host's environment settings, never from the image (.env files are not copied).
 
 FROM node:22-slim AS web
@@ -22,7 +22,7 @@ ENV SATHI_WEB_DIR=/srv/web \
     WHATSAPP_MODE=off \
     SATHI_LLM_DAILY_CALLS=600 \
     PYTHONUNBUFFERED=1
-RUN useradd --create-home sathi && mkdir -p var/audit && chown -R sathi var
-USER sathi
+RUN useradd --create-home bluefin && mkdir -p var/audit && chown -R bluefin var
+USER bluefin
 EXPOSE 8000
 CMD ["sh", "-c", "exec uvicorn app.web:site --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]

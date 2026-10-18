@@ -115,7 +115,7 @@ def test_late_margin_only_adds_caution_and_only_near_chinese_closures():
         today = date(2026, 10, 12) + timedelta(days=k)
         for bal in (D("1800"), D("2400"), D("3000")):
             a, b = (topup_decision(today, bal, [], p, CAL) for p in (plain, POLICY))
-            assert not (a and not b)  # the margin never makes Sathi wait where it would have sent
+            assert not (a and not b)  # the margin never makes Bluefin wait where it would have sent
             if b and not a:
                 extra.append(b)
     assert extra  # it does change some decisions…

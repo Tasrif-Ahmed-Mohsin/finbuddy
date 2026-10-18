@@ -1,4 +1,4 @@
-"""Privacy and data rights: what Sathi holds about a person, why, where it goes, and how to take it back.
+"""Privacy and data rights: what Bluefin holds about a person, why, where it goes, and how to take it back.
 
 Written against China's Personal Information Protection Law (PIPL), because the AI model (DeepSeek) runs in China:
 * PIPL Art. 17: tell the person what is processed, why, how and for how long;
@@ -14,20 +14,20 @@ from __future__ import annotations
 
 RECIPIENTS = [
     {"id": "deepseek", "name": "DeepSeek (Hangzhou DeepSeek AI), China", "law": "PIPL (China)",
-     "what": ["what you type in the chat, and the tool results Sathi uses to answer",
+     "what": ["what you type in the chat, and the tool results Bluefin uses to answer",
               "the redacted text of a forwarded message, only when the rules cannot read it",
               "a photo of a fee notice you choose to read (it is not stored)",
               "a standing instruction you write for a family mandate"],
      "why": "to understand your words and answer in Bangla, English or Chinese",
      "when": "only while the AI switch is on for you; off = the built-in rules answer and nothing is sent",
-     "kept_there": "per DeepSeek's API terms; Sathi sends no names, no account numbers and no codes",
+     "kept_there": "per DeepSeek's API terms; Bluefin sends no names, no account numbers and no codes",
      "switch": "ai"},
     {"id": "whatsapp", "name": "WhatsApp Cloud API (Meta)", "law": "Meta's terms",
      "what": ["the family's WhatsApp number", "short alert texts (money low, a payment needs approval)"],
      "why": "to reach the parent where they already are", "when": "only if alerts are switched on",
      "kept_there": "per Meta's terms", "switch": "whatsapp"},
     {"id": "banks", "name": "Your banks (sandbox connectors)", "law": "open-banking consent",
-     "what": ["nothing is sent; Sathi reads balances only through a connection you allowed"],
+     "what": ["nothing is sent; Bluefin reads balances only through a connection you allowed"],
      "why": "to know how many days of money are left", "when": "only while a bank connection is active",
      "kept_there": "the bank keeps its own records", "switch": "banks"},
 ]

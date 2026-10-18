@@ -1,4 +1,4 @@
-/** Typed client for the Sathi backend. All money values arrive as strings (server uses Decimal). */
+/** Typed client for the Bluefin backend. All money values arrive as strings (server uses Decimal). */
 
 export type Role = 'student' | 'parent';
 

@@ -9,7 +9,7 @@ import { signWithPasskey } from '@/lib/passkey';
 import { VoiceButton } from '@/components/voice-button';
 import { useSession } from '@/lib/session';
 
-/** Act, step 1: the parent says in their own words what Sathi may do. Sathi turns it into a strict proposal. */
+/** Act, step 1: the parent says in their own words what Bluefin may do. Bluefin turns it into a strict proposal. */
 export function MandateComposer({ onProposal }: { onProposal: (p: Proposal) => void }) {
   const { t, lang, call } = useSession();
   const [text, setText] = useState('');

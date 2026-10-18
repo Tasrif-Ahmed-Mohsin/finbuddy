@@ -201,7 +201,7 @@ params:
   cn_work_hours_week_term:
     value: 8
     confidence: secondary
-    source: "Student guides (2026): 8 h a week / 40 h a month in term time; another guide says 20 h a week. Sathi warns at the stricter number"
+    source: "Student guides (2026): 8 h a week / 40 h a month in term time; another guide says 20 h a week. Bluefin warns at the stricter number"
     note: "Sources conflict. The university's approval letter decides; ask the international student office."
 
   cn_illegal_work_fine_cny_min:
@@ -250,7 +250,7 @@ params:
   large_debit_alert_bdt:
     value: 50000
     confidence: assumption
-    source: "Product choice: ask 'was this you?' for debits of 50,000 BDT or more not started in Sathi"
+    source: "Product choice: ask 'was this you?' for debits of 50,000 BDT or more not started in Bluefin"
 
   tuition_buffer_days:
     value: 3

@@ -16,7 +16,7 @@ import { useLoad } from '@/lib/use-load';
 type Pane = 'act' | 'cards' | 'proof';
 
 /**
- * Family, the command deck. Act: the family mandate (what Sathi may do alone) and what waits for this person.
+ * Family, the command deck. Act: the family mandate (what Bluefin may do alone) and what waits for this person.
  * Cards: the card and its renewals. Proof: receipts and the tamper-evident log.
  */
 export default function FamilyScreen() {

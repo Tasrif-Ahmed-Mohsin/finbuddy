@@ -8,7 +8,7 @@ import { Elevation, Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
- * Sathi talking: the mascot with a speech bubble beside it. Tapping the mascot makes it wave.
+ * Bluefin talking: the mascot with a speech bubble beside it. Tapping the mascot makes it wave.
  * The bubble fades in again whenever the message changes, so a new message is noticed.
  */
 export function BuddyBubble({
@@ -44,7 +44,7 @@ export function BuddyBubble({
           setWave({ type: 'wave', key: Date.now() });
           onPressMascot?.();
         }}
-        accessibilityLabel={`Sathi: ${text}`}
+        accessibilityLabel={`Bluefin: ${text}`}
       />
       <Animated.View key={text} entering={FadeInDown.duration(260)} style={[styles.bubble, { backgroundColor: theme.backgroundElement }]}>
         <View style={[styles.tail, { backgroundColor: theme.backgroundElement }]} />
@@ -62,7 +62,7 @@ export function BuddyBubble({
   );
 }
 
-/** A friendly loading state: Sathi thinking, with a short line under it. */
+/** A friendly loading state: Bluefin thinking, with a short line under it. */
 export function BuddyLoading({ text }: { text: string }) {
   return (
     <Animated.View entering={FadeIn.duration(200)} style={styles.loading}>

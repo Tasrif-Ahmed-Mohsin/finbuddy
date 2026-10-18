@@ -560,7 +560,7 @@ export function HundiCard() {
   );
 }
 
-/** The friend's problem as a test: banks stop student transfers for weeks. Today's habits vs Sathi vs Sathi + Shield. */
+/** The friend's problem as a test: banks stop student transfers for weeks. Today's habits vs Bluefin vs Bluefin + Shield. */
 export function CrisisCard({ crisis }: { crisis: CrisisTest }) {
   const { t, lang, role } = useSession();
   const z = crisis.zero_share_pct;

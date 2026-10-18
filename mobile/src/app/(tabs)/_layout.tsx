@@ -6,7 +6,7 @@ import { Colors } from '@/constants/theme';
 import { useSession } from '@/lib/session';
 
 /**
- * Five places, one loop: Home (sense) · Plan · Sathi (talk, in the middle) · Save (the student's own money) ·
+ * Five places, one loop: Home (sense) · Plan · Bluefin (talk, in the middle) · Save (the student's own money) ·
  * Family (act, and the proof of everything that was done).
  */
 export default function TabsLayout() {

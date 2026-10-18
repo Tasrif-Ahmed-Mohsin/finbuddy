@@ -17,8 +17,8 @@ const FLAG: Record<string, string> = { BD: '🇧🇩', CN: '🇨🇳' };
 const STATUS_TONE = { Authorised: 'ok', Revoked: 'neutral', Expired: 'warn', AwaitingAuthorisation: 'info' } as const;
 
 /**
- * Connected banks (open banking, read-only): the account holder allows Sathi to read balances for up to 90 days,
- * signed with their passkey, and can revoke it at any time. Sathi can never pay through a connection.
+ * Connected banks (open banking, read-only): the account holder allows Bluefin to read balances for up to 90 days,
+ * signed with their passkey, and can revoke it at any time. Bluefin can never pay through a connection.
  */
 export default function BanksScreen() {
   const { t, lang, role, call } = useSession();

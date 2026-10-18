@@ -8,7 +8,7 @@ Three situations from the interviews and the research (P-24 impersonation, N-05 
   * scam_call:   someone claims to be police, a court, the embassy, a courier or customs. A fixed guide.
   * family_call: someone tells the PARENT the student was arrested, kidnapped or needs money now. The guide,
                  plus an "Are you safe?" check that only the student can answer, in the app.
-Sathi never moves money in an emergency on its own beyond the family mandate, and it can only ever pay the
+Bluefin never moves money in an emergency on its own beyond the family mandate, and it can only ever pay the
 student's own account and the university: that rule is what makes these scams fail.
 """
 from __future__ import annotations
@@ -81,9 +81,9 @@ def fastest_money(today: date, balance: Decimal, transit: list[tuple[date, Decim
 # ---- text (deterministic templates; amounts and dates are formatted here, never by the LLM) --------------
 OPTION_TEXT = {
     "shield": {
-        "en": "Today: Sathi can move {amount_cny} from your Shield to your spending account at once. It is your own money, already in China: no fee, no waiting, no bank in Bangladesh.",
-        "bn": "আজই: সাথী আপনার সুরক্ষা তহবিল থেকে {amount_cny} সঙ্গে সঙ্গে খরচের অ্যাকাউন্টে আনতে পারে। এটি আপনার নিজের টাকা, আগে থেকেই চীনে আছে: কোনো ফি নেই, অপেক্ষা নেই, বাংলাদেশের ব্যাংক লাগে না।",
-        "zh": "今天：Sathi 可以立即把应急储备中的 {amount_cny} 转入你的日常账户。这是你自己的钱，本来就在中国：没有手续费，不用等待，不需要孟加拉国的银行。"},
+        "en": "Today: Bluefin can move {amount_cny} from your Shield to your spending account at once. It is your own money, already in China: no fee, no waiting, no bank in Bangladesh.",
+        "bn": "আজই: ব্লুফিন আপনার সুরক্ষা তহবিল থেকে {amount_cny} সঙ্গে সঙ্গে খরচের অ্যাকাউন্টে আনতে পারে। এটি আপনার নিজের টাকা, আগে থেকেই চীনে আছে: কোনো ফি নেই, অপেক্ষা নেই, বাংলাদেশের ব্যাংক লাগে না।",
+        "zh": "今天：Bluefin 可以立即把应急储备中的 {amount_cny} 转入你的日常账户。这是你自己的钱，本来就在中国：没有手续费，不用等待，不需要孟加拉国的银行。"},
     "card_atm": {
         "en": "Today: withdraw up to {amount_cny} with the Bangladeshi card at a Bank of China or ICBC ATM.",
         "bn": "আজই: ব্যাংক অফ চায়না বা আইসিবিসি এটিএম থেকে বাংলাদেশি কার্ডে {amount_cny} পর্যন্ত তুলুন।",
@@ -120,39 +120,39 @@ GUIDES: dict[str, dict[str, dict]] = {
                          "Do not install any app they send, share your screen, or read out a code.",
                          "Check it yourself: call 110 (police) or 96110 (China's anti-fraud line), and tell your university's international student office.",
                          "Tell your family now with \"I'm safe\" below. Scammers often call parents next and say you were arrested or kidnapped.",
-                         "Sathi can only pay your own Chinese account and your university. Nobody can add a new payee without both of you."]},
+                         "Bluefin can only pay your own Chinese account and your university. Nobody can add a new payee without both of you."]},
         "bn": {"title": "কেউ বলছে সে পুলিশ, আদালত, দূতাবাস, কুরিয়ার বা কাস্টমস থেকে",
                "steps": ["ফোন কেটে দিন। আসল পুলিশ, আদালত বা দূতাবাস কখনো টাকা পাঠাতে, গোপন রাখতে বা ভিডিও কলে থাকতে বলে না।",
                          "তাদের পাঠানো কোনো অ্যাপ ইনস্টল করবেন না, স্ক্রিন শেয়ার করবেন না, কোনো কোড বলবেন না।",
                          "নিজে যাচাই করুন: ১১০ (পুলিশ) বা ৯৬১১০ (চীনের প্রতারণা-বিরোধী লাইন) নম্বরে ফোন করুন, আর বিশ্ববিদ্যালয়ের আন্তর্জাতিক শিক্ষার্থী অফিসকে জানান।",
                          "নিচের \"আমি নিরাপদ\" দিয়ে এখনই পরিবারকে জানান। প্রতারকেরা প্রায়ই এরপর বাবা-মাকে ফোন করে বলে আপনি গ্রেপ্তার বা অপহৃত।",
-                         "সাথী শুধু আপনার নিজের চীনা অ্যাকাউন্ট আর বিশ্ববিদ্যালয়ে টাকা পাঠাতে পারে। আপনাদের দুজনের সম্মতি ছাড়া কেউ নতুন প্রাপক যোগ করতে পারে না।"]},
+                         "ব্লুফিন শুধু আপনার নিজের চীনা অ্যাকাউন্ট আর বিশ্ববিদ্যালয়ে টাকা পাঠাতে পারে। আপনাদের দুজনের সম্মতি ছাড়া কেউ নতুন প্রাপক যোগ করতে পারে না।"]},
         "zh": {"title": "有人自称是警察、法院、大使馆、快递或海关",
                "steps": ["立即挂断。真正的警察、法院和大使馆绝不会要求你转账、保密或一直保持视频通话。",
                          "不要安装对方发来的任何应用，不要共享屏幕，不要报出验证码。",
                          "自己核实：拨打 110（报警）或 96110（全国反诈专线），并告知学校国际学生办公室。",
                          "现在就用下面的“我很安全”告诉家人。骗子常会接着给父母打电话，说你被捕或被绑架。",
-                         "Sathi 只能向你本人的中国账户和学校付款。没有你们双方同意，任何人都不能添加新的收款人。"]},
+                         "Bluefin 只能向你本人的中国账户和学校付款。没有你们双方同意，任何人都不能添加新的收款人。"]},
     },
     "family_call": {
         "en": {"title": "Someone says your child was arrested, kidnapped, is in hospital or needs money now",
                "steps": ["Do not pay and do not stay on the line. Real police never ask families for money by phone.",
-                         "Tap \"Ask: are you safe?\". Your child answers in the Sathi app, which a caller cannot do for them.",
+                         "Tap \"Ask: are you safe?\". Your child answers in the Bluefin app, which a caller cannot do for them.",
                          "Call your child directly, then the university's international student office.",
                          "If you cannot reach them, call the Bangladesh Embassy in Beijing using the number on its official website, never a number the caller gives you.",
-                         "Sathi will not send money to anyone except your child's own account and the university, whatever anyone says."]},
+                         "Bluefin will not send money to anyone except your child's own account and the university, whatever anyone says."]},
         "bn": {"title": "কেউ বলছে আপনার সন্তান গ্রেপ্তার, অপহৃত, হাসপাতালে বা এখনই টাকা লাগবে",
                "steps": ["টাকা দেবেন না, লাইনে থাকবেন না। আসল পুলিশ কখনো ফোনে পরিবারের কাছে টাকা চায় না।",
-                         "\"জিজ্ঞেস করুন: তুমি নিরাপদ?\" চাপুন। আপনার সন্তান সাথী অ্যাপে উত্তর দেবে, যা ফোনকারী তার হয়ে করতে পারে না।",
+                         "\"জিজ্ঞেস করুন: তুমি নিরাপদ?\" চাপুন। আপনার সন্তান ব্লুফিন অ্যাপে উত্তর দেবে, যা ফোনকারী তার হয়ে করতে পারে না।",
                          "সরাসরি সন্তানকে ফোন করুন, তারপর বিশ্ববিদ্যালয়ের আন্তর্জাতিক শিক্ষার্থী অফিসে।",
                          "যোগাযোগ না হলে বেইজিংয়ে বাংলাদেশ দূতাবাসে ফোন করুন, দূতাবাসের অফিশিয়াল ওয়েবসাইটের নম্বরে; ফোনকারীর দেওয়া নম্বরে কখনো নয়।",
-                         "কেউ যা-ই বলুক, সাথী আপনার সন্তানের নিজের অ্যাকাউন্ট আর বিশ্ববিদ্যালয় ছাড়া কাউকে টাকা পাঠাবে না।"]},
+                         "কেউ যা-ই বলুক, ব্লুফিন আপনার সন্তানের নিজের অ্যাকাউন্ট আর বিশ্ববিদ্যালয় ছাড়া কাউকে টাকা পাঠাবে না।"]},
         "zh": {"title": "有人说你的孩子被捕、被绑架、住院或急需用钱",
                "steps": ["不要付钱，也不要一直通话。真正的警察绝不会打电话向家属要钱。",
-                         "点击“问一下：你安全吗？”。孩子会在 Sathi 应用里回答，打电话的人无法替他回答。",
+                         "点击“问一下：你安全吗？”。孩子会在 Bluefin 应用里回答，打电话的人无法替他回答。",
                          "直接给孩子打电话，然后联系学校的国际学生办公室。",
                          "如果联系不上，请拨打孟加拉国驻北京大使馆官网上的电话，绝不要用来电者给的号码。",
-                         "无论对方怎么说，Sathi 只会向孩子本人的账户和学校付款。"]},
+                         "无论对方怎么说，Bluefin 只会向孩子本人的账户和学校付款。"]},
     },
     "card_lost": {
         "en": {"title": "The card is lost or stolen",

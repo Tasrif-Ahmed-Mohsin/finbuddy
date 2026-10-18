@@ -97,7 +97,7 @@ def test_pain001_xml_generation_tuition():
         dest_bank="Bank of China",
     )
 
-    assert "SATHI" in msg_id
+    assert "BLUEFIN" in msg_id
     assert is_valid_uetr(uetr)
 
     # Validate against built-in CBPR+ rules

@@ -1,4 +1,4 @@
-# Sathi: Technical Documentation
+# Bluefin: Technical Documentation
 
 **FinTechathon 2026 · International Track · Topic C: Cross-border & Student Finance Assistant**
 Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy · Version: 16 Oct 2026 · Companion: [SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md)
@@ -14,7 +14,7 @@ Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy · Version: 16 Oct 2
 
 ## 1. Summary
 
-**Sathi (সাথী, "companion") keeps an international student funded all year through the legal bank channel, and acts on its own only inside a limit the family has signed.** The hero corridor is **Bangladesh → China**: parent and student both handle money (field interview), the parent pays from Dhaka in Bengali, the student lives in China, and university and bank documents are in Chinese.
+**Bluefin keeps an international student funded all year through the legal bank channel, and acts on its own only inside a limit the family has signed.** The hero corridor is **Bangladesh → China**: parent and student both handle money (field interview), the parent pays from Dhaka in Bengali, the student lives in China, and university and bank documents are in Chinese.
 
 **Why this matters.** Money leaving Bangladesh for study can only go through a bank **Student File**: there is no Wise or Remitly for outbound BDT (Wise's own help page says it cannot send from BDT). That legal channel is fragile:
 
@@ -22,26 +22,26 @@ Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy · Version: 16 Oct 2
 - monthly card caps (5 lakh BDT / 30 transactions) apply, and every ATM withdrawal costs ~৳345;
 - transfers take ~7 days, Bangladeshi branches close Fri–Sat and for about a week at each Eid, and Chinese banks close for Spring Festival.
 
-When the channel breaks, families are pushed toward hundi, and in China, money from strangers can get the student's account frozen. Sathi's goal: **make the legal way easier than hundi.**
+When the channel breaks, families are pushed toward hundi, and in China, money from strangers can get the student's account frozen. Bluefin's goal: **make the legal way easier than hundi.**
 
 **One loop, not a list of features:**
 
-| Step | What Sathi does | Where |
+| Step | What Bluefin does | Where |
 |---|---|---|
-| **Sense** | Money in China and transfers on the way; bank SMS/email (redacted); photographed documents; the real exchange rate | Today tab, Sathi tab |
+| **Sense** | Money in China and transfers on the way; bank SMS/email (redacted); photographed documents; the real exchange rate | Today tab, Bluefin tab |
 | **Plan** | The **"never stuck" year plan**: a day-by-day simulation across both countries' bank calendars, the endorsement end and card limits; true cost (rate markup vs fees) | Plan → Year |
 | **Act** | The parent writes a **family mandate** in their own words → strict proposal → signed with fingerprint (both people for large caps) → the **autopilot** sends living money inside it and asks for anything else | Family tab |
 | **Prove** | A receipt for every payment (who or what authorised it), a hash-chained log, the payment passport | Proof tab |
 
-**Earn & Save (Interview #2, §4.14):** the second interviewee works part-time abroad. When the dollar is short the family uses hundi ("1–2 taka lost per dollar"), while the student's own pay leaks into wants. Sathi treats the student's income as what it is, money that **never has to cross the border**, and turns part of it into a **Shield**: a savings rule the student signs keeps a share of each pay in their own Chinese account; emergencies use it at once; anything else waits a cooling-off. The same loop runs on it (Sense: income and wants in taka; Plan: dollar-crisis test, hundi check; Act: the autopilot inside the student's rule; Prove: every move in the log), in the **Save** tab.
+**Earn & Save (Interview #2, §4.14):** the second interviewee works part-time abroad. When the dollar is short the family uses hundi ("1–2 taka lost per dollar"), while the student's own pay leaks into wants. Bluefin treats the student's income as what it is, money that **never has to cross the border**, and turns part of it into a **Shield**: a savings rule the student signs keeps a share of each pay in their own Chinese account; emergencies use it at once; anything else waits a cooling-off. The same loop runs on it (Sense: income and wants in taka; Plan: dollar-crisis test, hundi check; Act: the autopilot inside the student's rule; Prove: every move in the log), in the **Save** tab.
 
-| Organiser capability | How Sathi shows it |
+| Organiser capability | How Bluefin shows it |
 |---|---|
 | **Intent understanding** | Mandates written in Bengali, English or Chinese (rules parser + grounded DeepSeek); chat with tool calling; SMS/email parsing; document photos |
 | **Task planning** | Year plan with look-ahead top-ups; living optimiser; tuition send-by planner; renewal plan for a student abroad |
 | **Safe execution** | Autopilot only inside a signed mandate (L3); every payment re-checked by deterministic compliance rules; approval tokens bound to the exact draft; sandbox bank; hash-chained log |
 | **User control** | Read-back read aloud before signing or approving; signatures bound to the proposal hash; two-person rule from ৳1 lakh; one-tap cancel; the family is asked whenever a limit would be exceeded |
-| **Measurable value** | Stuck days: **20 → 0** in the year plan, **0** in a 4-month live sandbox run; overhead **4.39% → 3.88%** with published bank fees; the real payment's fee was **5.5×** its rate markup; in a 4-week dollar crisis, **0% → 39% → 94%** of start weeks without a day without money (today → Sathi → Sathi + Shield) |
+| **Measurable value** | Stuck days: **20 → 0** in the year plan, **0** in a 4-month live sandbox run; overhead **4.39% → 3.88%** with published bank fees; the real payment's fee was **5.5×** its rate markup; in a 4-week dollar crisis, **0% → 39% → 94%** of start weeks without a day without money (today → Bluefin → Bluefin + Shield) |
 
 ## 2. Problem and evidence (short)
 
@@ -57,7 +57,7 @@ Full research: [01_problem_research.md](01_problem_research.md) (34 problems wit
 ```mermaid
 flowchart TB
   subgraph Phone["Mobile app (Expo SDK 57, React Native, TypeScript)"]
-    UI["Today · Plan (Year/Tuition/Living) · Family · Sathi (chat, SMS, photo) · Proof<br/>Payment approval · Renewal · Passport · Settings"]
+    UI["Today · Plan (Year/Tuition/Living) · Family · Bluefin (chat, SMS, photo) · Proof<br/>Payment approval · Renewal · Passport · Settings"]
     BIO["Fingerprint / PIN (expo-local-authentication) · read-back aloud (expo-speech)"]
   end
   subgraph API["Backend (Python 3.12, FastAPI)"]
@@ -118,7 +118,7 @@ sequenceDiagram
     A->>S: draft as AGENT → compliance checks → execute_under_mandate (caps checked)
     S->>B: transfer (leaves next BD bank day, lands next CN bank day)
     B->>L: transfer_sent (level MANDATE) … transfer_arrived
-    A-->>P: feed: "Sathi sent ¥5,700 … Why now: banks closed for Eid-ul-Fitr …"
+    A-->>P: feed: "Bluefin sent ¥5,700 … Why now: banks closed for Eid-ul-Fitr …"
   end
   Note over A,P: cap too small (e.g. early top-up before Spring Festival) → the parent is asked, approves with one tap
 ```
@@ -180,14 +180,14 @@ A **stuck day** is a day the student cannot cover their spending. The **bank cal
 
 **Result for the demo student (saved real rates, 12 Oct 2026 → 29 Jun 2027):**
 
-| | Today's habits | Sathi |
+| | Today's habits | Bluefin |
 |---|---|---|
 | Days without money | **20** (5 spells: just after the card stops; Spring Festival; Eid-ul-Fitr; a weekend; Eid-ul-Azha) | **0** |
 | Fees + markup (published rates and fees) | ৳42,005 (**4.39%**) | ৳38,772 (**3.88%**) |
 | Of which fees and surcharges | **89%** | 94% |
 | Saved for the same money | | **৳5,126** |
 
-With real published fees (৳3,680 per transfer at EBL), a transfer is fee-heavy and rate-light. Sathi's value is mainly **no stuck days**; the cost saving comes from avoiding ATM fees and card surcharges. Larger, less frequent transfers would cut fees further, but the mandate's per-payment cap is the family's choice.
+With real published fees (৳3,680 per transfer at EBL), a transfer is fee-heavy and rate-light. Bluefin's value is mainly **no stuck days**; the cost saving comes from avoiding ATM fees and card surcharges. Larger, less frequent transfers would cut fees further, but the mandate's per-payment cap is the family's choice.
 
 Each stuck spell lists its reason ("The card stopped working abroad when the endorsement ended on 2026-12-31 (renewing it needs the student at the bank in Bangladesh)"; "Banks were closed for Eid-ul-Fitr, which delayed the transfer").
 
@@ -200,7 +200,7 @@ Each stuck spell lists its reason ("The card stopped working abroad when the end
 
 The planner never sees the future. It reacts to the real balance and the real **spending pace**, exactly like the live autopilot. Both strategies face the same messy year in each run.
 
-| 200 messy years | Today's habits | Sathi |
+| 200 messy years | Today's habits | Bluefin |
 |---|---|---|
 | Years with no stuck day | **0%** | **64%** |
 | Typical year (median) | 30 days | **0 days** |
@@ -211,7 +211,7 @@ What made it robust (both rules are shared with the live autopilot):
 1. **Spending pace** (`spending_pace`): the planner uses the plan, or the last 14 days of spending if the student spends faster (the single biggest day is ignored, so one deposit does not inflate every later transfer).
 2. **Late margin** (`transfer_late_margin_days` = 3): waiting is safe only if the money lasts even when the next transfer is 3 days late. The 5-day cushion already covers ordinary delays, so this matters only when a late transfer would run into a Chinese closure. The normal year plan is unchanged (same 10 transfers, same cost).
 
-| Sathi, 200 messy years | Years with none | Median | Mean | 90th pct | Worst |
+| Bluefin, 200 messy years | Years with none | Median | Mean | 90th pct | Worst |
 |---|---|---|---|---|---|
 | Plain look-ahead rule | 35.5% | 2 | 2.7 | 8 | 12 |
 | + late margin only | 41% | 1 | 1.9 | 5 | 10 |
@@ -222,10 +222,10 @@ What made it robust (both rules are shared with the live autopilot):
 
 **What if (single scenarios, same year):**
 
-| Scenario | Stuck days: today → Sathi | Family pays |
+| Scenario | Stuck days: today → Bluefin | Family pays |
 |---|---|---|
 | The taka weakens 10% | 20 → **0** | +৳1.00 lakh for the year (the same yuan cost more taka) |
-| The student spends 30% more | 38 → **0** | +৳3.14 lakh (more money sent; Sathi notices within 1–2 weeks) |
+| The student spends 30% more | 38 → **0** | +৳3.14 lakh (more money sent; Bluefin notices within 1–2 weeks) |
 | Every transfer is 3 days late | 23 → **0** | same |
 | Eid and Spring Festival fall 2 days later | 20 → **0** | same |
 | All of these at once | 45 → **0** (2 cash bridges while the card works) | +৳4.48 lakh |
@@ -240,8 +240,8 @@ On a Bangladeshi bank day `d`, with balance `b` and transfers on the way:
 1. `next` = the next Bangladeshi bank day after `d`; `wait_lands` = the Chinese bank day a transfer sent on `next` would land.
 2. **Waiting is safe** if, without a new transfer, the money never runs out before `wait_lands` **and** at least `safety_days` (5) of money are left the day before it lands. Then do nothing.
 3. Otherwise **send today**. It lands on `lands = arrival(d)`, sized so that after it lands the student has `target + safety` days (30 + 5) of money: `amount = ceil₁₀₀(daily × 35 − max(balance_at_landing, 0))`, at least ¥1,000 (each transfer pays a fixed fee).
-4. If the money runs out even before `lands`, the shortfall is a **cash bridge**. Sathi tells the student to withdraw it; it never withdraws cash itself.
-5. **Late margin:** the "waiting is safe" check also requires that the money lasts if the transfer sent on `next` arrives 3 days late (`transfer_late_margin_days`). Normally the cushion covers this; near a Chinese closure it makes Sathi send a few days earlier.
+4. If the money runs out even before `lands`, the shortfall is a **cash bridge**. Bluefin tells the student to withdraw it; it never withdraws cash itself.
+5. **Late margin:** the "waiting is safe" check also requires that the money lasts if the transfer sent on `next` arrives 3 days late (`transfer_late_margin_days`). Normally the cushion covers this; near a Chinese closure it makes Bluefin send a few days earlier.
 6. **Spending pace:** `daily` is the plan, or the student's real pace over the last 14 days if that is faster (`spending_pace`).
 7. The decision carries its reason: the closures that make waiting unsafe (e.g. Eid closes BD branches 8–13 Mar, so a transfer sent on 14 Mar would land on 22 Mar), or the day the money drops below the cushion.
 
@@ -322,7 +322,7 @@ The ৳8,000 matches the banks' published one-time **Student File opening fees**
 - markup over the market: median **0.97%**, middle half 0.86–1.09%, range 0.28–1.52%; the latest sheet is labelled low / usual / high against that history;
 - backtest of the usual rule, "today looks expensive (top-quarter markup), so wait up to 3 sheets and take the cheapest": in 35 cases it lowered the taka price 20 times, by **0.02% on average (৳21 per ৳1 lakh)**. One ৳1 lakh transfer pays **৳3,565** in fees.
 
-The markup swings are mostly the market moving under a smooth bank price (day-to-day correlation of the markup: 0.09), not the bank being expensive. So Sathi does **not** time the market: it avoids extra transfers (fees) and days without money. This is shown to families as a finding, not hidden.
+The markup swings are mostly the market moving under a smooth bank price (day-to-day correlation of the markup: 0.09), not the bank being expensive. So Bluefin does **not** time the market: it avoids extra transfers (fees) and days without money. This is shown to families as a finding, not hidden.
 
 ### 4.6 Living-money constrained optimiser (`engines/living_planner.py`)
 Exact grid search over the transfer amount `t` (¥100 steps). The rest is split into ATM withdrawals of maximum size, in whole ¥100 notes, to minimise fixed fees.
@@ -389,21 +389,21 @@ There is **no tool to approve, execute, sign, unfreeze or change a mandate**, an
 ### 4.13 Emergency mode (`emergency.py`, `GET /emergency`, 🆘 on Today)
 When something goes wrong, the fastest **safe** way through it. Nothing moves without the parent's fingerprint or the signed mandate.
 
-| Situation | What Sathi does |
+| Situation | What Bluefin does |
 |---|---|
 | **No money now** (a surprise bill, a late transfer) | Lists every way money can reach the student, soonest first, with dates from both bank calendars: the card (only if it still works abroad), money already on the way, an urgent transfer (sent today or on the next Bangladeshi bank day, landing on a Chinese bank day), and a short local bridge with the **exact amount** and repay date (a trusted friend via WeChat Pay / Alipay or the international office; never online lenders). "Ask my family" runs the autopilot first (the mandate may already allow it), otherwise prepares **one** urgent draft for the parent and alerts the family (feed + WhatsApp). Pressing twice does not create two payments. |
 | **Card lost or stolen** | Freezes the card first (protective, reversible), then re-plans without it. |
 | **"Police / court / embassy / courier" call** | A fixed five-step guide in BN/EN/ZH: hang up, never install apps or share codes, check by calling 110 or the anti-fraud line 96110 and the international office, tell the family "I'm safe" before the scammers call them. |
 | **"Your child was arrested / kidnapped / needs money now"** (to the parent) | The parent's guide plus **"Are you safe?"**: the student gets it on Today and answers in the app (fingerprint on the phone). Only the student can answer; the parent and the AI agent get 403, so a scammer who took over the chat cannot answer either. The answer reaches the parent in the feed and on WhatsApp. |
 
-Why the scams fail structurally: Sathi can only ever pay the student's own Chinese account and the university, and a new payee needs both people. The scam rules also recognise fake emergencies ("has been arrested", "ransom", "অপহরণ", "绑架", "赎金") and courier/customs pretexts ("your parcel contains", "包裹里有").
+Why the scams fail structurally: Bluefin can only ever pay the student's own Chinese account and the university, and a new payee needs both people. The scam rules also recognise fake emergencies ("has been arrested", "ransom", "অপহরণ", "绑架", "赎金") and courier/customs pretexts ("your parcel contains", "包裹里有").
 
 ### 4.14 Earn & Save: the student's own money abroad (`engines/earnings.py`, `engines/hundi.py`, `stress.dollar_crisis`)
 **Problem (Interview #2, research N-11 … N-14):** when the dollar is short, money cannot come from home legally and families use hundi ("1–2 taka lost per dollar"); meanwhile the student's own pay abroad leaks into wants, so nothing is saved for exactly that moment.
 
-**Idea:** the cheapest, safest yuan is the one that never crosses the border. Pay earned in China is already in yuan: no dollar shortage, no bank fee, no hundi. Sathi turns part of it into a **Shield**, a pocket of the student's own Chinese account that covers the days the legal channel from home is closed.
+**Idea:** the cheapest, safest yuan is the one that never crosses the border. Pay earned in China is already in yuan: no dollar shortage, no bank fee, no hundi. Bluefin turns part of it into a **Shield**, a pocket of the student's own Chinese account that covers the days the legal channel from home is closed.
 
-| Step | What Sathi does |
+| Step | What Bluefin does |
 |---|---|
 | **Sense** | Income sources (stipend or approved campus job) checked against the corridor's work rules; pay and wants recognised in bank SMS; purchases logged with a need/want category (the merchant text is never logged) |
 | **Plan** | A savings rule from the student's words or a form; when the Shield will be full; the dollar-crisis test; the honest hundi check |
@@ -428,13 +428,13 @@ Why the scams fail structurally: Sathi can only ever pay the student's own Chine
 
 **Taka lens (`taka_lens`).** `bdt = yuan × family rate`, where the family rate is what ¥1 costs the family to send at the cheapest legal bank for a month of living money, fees included (৳19.07 with saved real rates), plus the days of living money it equals. This answers the face-value bias: a ¥180 dinner "looks like 180" but costs the family ৳3,400 to send.
 
-**Hundi, honestly (`hundi.compare`).** The same money every way: the offer's premium over the market; one legal bank transfer with real fees and its landing day; the Shield (৳0); the transfer the autopilot is planning anyway. It says out loud when one bank transfer costs more on paper ($500 at ৳124.5: hundi ৳623 vs one bank transfer ৳3,701 above the market) and lists what hundi leaves out (illegal in Bangladesh and China, account-freeze risk, no recourse, no record), each with its source and confidence. Legal routes include the Student File and the Bangladesh Bank education-card circular of 10 Aug 2026 (secondary). Sathi never suggests hundi.
+**Hundi, honestly (`hundi.compare`).** The same money every way: the offer's premium over the market; one legal bank transfer with real fees and its landing day; the Shield (৳0); the transfer the autopilot is planning anyway. It says out loud when one bank transfer costs more on paper ($500 at ৳124.5: hundi ৳623 vs one bank transfer ৳3,701 above the market) and lists what hundi leaves out (illegal in Bangladesh and China, account-freeze risk, no recourse, no record), each with its source and confidence. Legal routes include the Student File and the Bangladesh Bank education-card circular of 10 Aug 2026 (secondary). Bluefin never suggests hundi.
 
-**Dollar-crisis test (`dollar_crisis`, `GET /save/crisis`, also a row in the what-if list).** Banks send no Student File transfer for 4 weeks (`crisis_weeks`); transfers asked for in that time leave on the first bank day after it. Every start week of the plan is tried (33 starts) and the planner never knows in advance. "With the Shield" adds the savings rule on the student's pay; the rest of the pay is assumed spent (conservative). At the worst start (chosen against Sathi), the Shield that would prevent every stuck day is the money the shortfall needs.
+**Dollar-crisis test (`dollar_crisis`, `GET /save/crisis`, also a row in the what-if list).** Banks send no Student File transfer for 4 weeks (`crisis_weeks`); transfers asked for in that time leave on the first bank day after it. Every start week of the plan is tried (33 starts) and the planner never knows in advance. "With the Shield" adds the savings rule on the student's pay; the rest of the pay is assumed spent (conservative). At the worst start (chosen against Bluefin), the Shield that would prevent every stuck day is the money the shortfall needs.
 
 Results with saved real rates, from the sandbox start, demo persona with an approved ¥1,500/month campus job:
 
-| 4-week dollar crisis, 33 start weeks | Today's habits | Sathi alone | Sathi + Shield (50% of pay) |
+| 4-week dollar crisis, 33 start weeks | Today's habits | Bluefin alone | Bluefin + Shield (50% of pay) |
 |---|---|---|---|
 | Starts with no day without money | 0% | 39% | **94%** |
 | Typical start (median) | 20 days | 4 days | **0 days** |
@@ -493,10 +493,10 @@ the ISO message used values the schema rejects and wrong BICs; the security stat
 
 The app tells the same story the documents do, in the same order:
 
-- **First launch** (`app/welcome.tsx`): four short cards. Meet Sathi (Sense → Plan → Act → Prove); who uses the phone
+- **First launch** (`app/welcome.tsx`): four short cards. Meet Bluefin (Sense → Plan → Act → Prove); who uses the phone
   and in which language; your data and the AI (a separate consent before anything goes to DeepSeek in China, PIPL
   Art. 39); your fingerprint key (the phone's passkey is made and registered here, not at the first payment).
-- **Story mode** (`app/story.tsx`, Home → "See Sathi's whole story"): ten steps on the live sandbox, each calling the
+- **Story mode** (`app/story.tsx`, Home → "See Bluefin's whole story"): ten steps on the live sandbox, each calling the
   real API: bank messages arrive, money in China, the year plan, the father's mandate **spoken in Bangla**, both passkey
   signatures, an attack refused and a scam flagged, four months through the card stop and Spring Festival, receipts and
   balanced books, the proof. The demo video and the deck follow these steps.
@@ -542,7 +542,7 @@ The app tells the same story the documents do, in the same order:
 | FX honesty | 7-day 80% ranges right **81.9%** of 689 tests | coverage backtest |
 | Safety | every red-team case blocked (security report §9) | automated tests |
 | Languages | Mandates, feed, read-backs and UI in BN/EN/ZH | tests |
-| **Dollar crisis (4 weeks, 33 start weeks)** | starts without a stuck day **0% → 39% → 94%**; typical **20 → 4 → 0** days; worst **50 → 25 → 11** days (today → Sathi → Sathi + Shield from a ¥1,500/month job at 50%) | `dollar_crisis` (§4.14) |
+| **Dollar crisis (4 weeks, 33 start weeks)** | starts without a stuck day **0% → 39% → 94%**; typical **20 → 4 → 0** days; worst **50 → 25 → 11** days (today → Bluefin → Bluefin + Shield from a ¥1,500/month job at 50%) | `dollar_crisis` (§4.14) |
 | **Hundi honesty** | $500 at ৳124.5: hundi ৳623 vs one bank transfer ৳3,701 above the market, shown as is; the Shield's own money costs ৳0 | `hundi.compare` |
 | **Shield in the live sandbox** | a top-up blocked by the monthly living cap; the Shield covered ¥800 in 2 moves; **0** stuck days | `demo_scenario.py` |
 
@@ -598,7 +598,7 @@ cd mobile && npm install && npx expo start
 - "Start the demo again" in Settings (`POST /sandbox/reset`, users only) gives a clean sandbox from 12 Oct 2026.
 
 ```bash
-docker build -t sathi . && docker run -p 8000:8000 -e DEEPSEEK_API_KEY=... sathi   # then open http://localhost:8000
+docker build -t bluefin . && docker run -p 8000:8000 -e DEEPSEEK_API_KEY=... bluefin   # then open http://localhost:8000
 ```
 On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEPSEEK_API_KEY` in the dashboard. The free plan sleeps after inactivity (the first request then takes about a minute).
 
@@ -643,7 +643,7 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
   Tests never call the real AI (a fake DeepSeek server is used) or the network.
 
 - **Judge mode** (`app/judge.py`; `POST /judge/run`; `python scripts/judge_tasks.py` → `docs/evidence/judge_tasks.md`; in the app: Settings → Judge mode) runs the 20 scripted tasks of the brief through the real API, each in a fresh sandbox, with every approval signed by a simulated phone's passkey: 9 money tasks (tuition with two-person approval, rates and living money, the Bangla family mandate and 125 days of autopilot, the year plan, emergency, lost card, Earn & Save, Chinese and Bangla requests, a read-only bank connection with consent), 7 security tasks (scam, prompt injection in an SMS, a document and a mandate, privilege escalation, data extraction, a tamper-evident log, a **compromised-AI drill** where a malicious model drives the agent's tools, and exactly-once payments) and 4 interaction tasks (clarification, correction and cancel, fallback while the AI is down, honest hundi check). The offline rules answer the chat, so a run is free and gives the same result every time; it shares the server's rate sources (about 1.5 s) and never sends real WhatsApp messages.
-- **Every chat turn** also returns `signals` (refused, clarify, corrected, drafted, cancelled, checked, card_locked, offline) and `choices` (one-tap answers: the missing amount or purpose, or cancel). The app shows them as chips, a "How Sathi did it" step list built from `tools_used`, and Sathi's mood.
+- **Every chat turn** also returns `signals` (refused, clarify, corrected, drafted, cancelled, checked, card_locked, offline) and `choices` (one-tap answers: the missing amount or purpose, or cancel). The app shows them as chips, a "How Bluefin did it" step list built from `tools_used`, and Bluefin's mood.
 - `cd mobile && npx tsc --noEmit && npx expo lint`: clean.
 - **Execution evidence:** `python scripts/demo_scenario.py` runs the whole loop through the real API, one sandbox day at a time, from 12 Oct 2026 to 21 Feb 2027:
   1. Sense: SMS and money in China.
@@ -674,5 +674,5 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
 - **Spending in the live sandbox is constant** (¥200/day); the planner already follows a faster real pace (`spending_pace`), and the stress test varies spending, delays and holiday dates. In production the pace would come from the student's parsed bank alerts.
 - **Stress-test ranges are assumptions** (70–130% spending, 0–3 days late, ±2 days for lunar holidays), chosen to be pessimistic; they are not measured from data yet.
 - **On-chain anchoring is not used yet.** The hash chain is ready: anchoring daily chain heads on a permissioned chain such as FISCO BCOS would let a bank verify the receipts without trusting our server.
-- **Earn & Save:** income is declared by the student (or seen in bank alerts) and cannot be verified with an employer; the China hour cap is from conflicting secondary sources (Sathi warns at the stricter one); need/want categories come from merchant keywords and the student can override them; the dollar-crisis test assumes the rest of the pay is spent (conservative) and models a full stop of Student File transfers, not partial limits; in production the Shield would be a real sub-account or time deposit at the student's Chinese bank, moved through a bank API.
+- **Earn & Save:** income is declared by the student (or seen in bank alerts) and cannot be verified with an employer; the China hour cap is from conflicting secondary sources (Bluefin warns at the stricter one); need/want categories come from merchant keywords and the student can override them; the dollar-crisis test assumes the rest of the pay is spent (conservative) and models a full stop of Student File transfers, not partial limits; in production the Shield would be a real sub-account or time deposit at the student's Chinese bank, moved through a bank API.
 - **Production hardening** (real authentication, identity proofing before a new passkey, platform passkeys with attestation in the app, the official ISO 20022 XSD, a durable idempotency store, KMS, TLS, rate limits): see the security report.

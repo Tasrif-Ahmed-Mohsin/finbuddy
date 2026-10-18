@@ -129,7 +129,7 @@ SWIFT_BIC_RE = re.compile(r"\b([A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b")
 
 
 class TaintLedger:
-    """Lattice-based Information Flow Control engine for Sathi.
+    """Lattice-based Information Flow Control engine for Bluefin.
     
     Tracks untrusted entities from external inputs (SMS, email, OCR),
     enforces non-interference sink policies, and manages formal human declassification.

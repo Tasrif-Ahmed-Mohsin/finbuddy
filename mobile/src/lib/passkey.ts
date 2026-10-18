@@ -100,8 +100,8 @@ async function createWebAuthn(role: Role): Promise<Stored | null> {
   const cred = await creds.create({
     publicKey: {
       challenge: getRandomBytes(32),
-      rp: { name: 'Sathi', id: globalThis.location.hostname },
-      user: { id: enc.encode(`sathi-${role}`), name: `${role}@sathi`, displayName: role === 'parent' ? 'Sathi · parent' : 'Sathi · student' },
+      rp: { name: 'Bluefin', id: globalThis.location.hostname },
+      user: { id: enc.encode(`sathi-${role}`), name: `${role}@bluefin`, displayName: role === 'parent' ? 'Bluefin · parent' : 'Bluefin · student' },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
       authenticatorSelection: { userVerification: 'required', residentKey: 'preferred' },
       attestation: 'none',
@@ -158,7 +158,7 @@ async function verifyPerson(prompt: string): Promise<{ ok: boolean; uv: boolean 
     if (r.error === 'user_cancel' || r.error === 'system_cancel' || r.error === 'app_cancel') return { ok: false, uv: false };
   }
   return new Promise((resolve) =>
-    Alert.alert('Sathi', `${prompt}\n\nThis phone has no fingerprint, face or PIN set up, so it cannot sign payments.`, [
+    Alert.alert('Bluefin', `${prompt}\n\nThis phone has no fingerprint, face or PIN set up, so it cannot sign payments.`, [
       { text: 'OK', onPress: () => resolve({ ok: false, uv: false }) },
     ]),
   );

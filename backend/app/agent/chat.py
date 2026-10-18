@@ -1,4 +1,4 @@
-"""Sathi chat agent: DeepSeek with tool calling, plus an offline fallback.
+"""Bluefin chat agent: DeepSeek with tool calling, plus an offline fallback.
 
 Safety design (also in the security self-assessment):
   * Tools are READ (L0) or DRAFT (L1) only. There is NO tool to approve or execute a payment, and
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 MAX_TOOL_ROUNDS = 4
 
-SYSTEM = """You are Sathi, a money agent for a Bangladeshi student studying in China and their parent.
+SYSTEM = """You are Bluefin, a money agent for a Bangladeshi student studying in China and their parent.
 You keep the student funded all year through the legal bank channel: you track their bank SMS/email alerts,
 plan transfers around card limits, the card endorsement and bank holidays in both countries, and protect them
 from scams. Inside a family mandate the parent signed, the autopilot sends living money by itself.
@@ -121,7 +121,7 @@ TOOLS = [
     {"type": "function", "function": {
         "name": "get_year_plan",
         "description": ("The 'never stuck' year plan: days the student would have no money with today's habits vs with "
-                        "Sathi (card endorsement ending, Eid / Spring Festival bank closures, weekends), costs, and the "
+                        "Bluefin (card endorsement ending, Eid / Spring Festival bank closures, weekends), costs, and the "
                         "next planned transfer."),
         "parameters": {"type": "object", "properties": {}}}},
     {"type": "function", "function": {
@@ -616,7 +616,7 @@ class ChatAgent:
 
 
 def turn_signals(message: str, reply: str, mode: str, actions: list[dict], tools: list[str]) -> list[str]:
-    """What kind of turn this was, for the app to show (and for Sathi's face): one question to clarify, a corrected or
+    """What kind of turn this was, for the app to show (and for Bluefin's face): one question to clarify, a corrected or
     cancelled draft, a refusal for safety, a scam check, a locked card, or the offline rules answering."""
     drafted = any(a.get("type") == "draft" for a in actions)
     out = []
@@ -641,7 +641,7 @@ def turn_signals(message: str, reply: str, mode: str, actions: list[dict], tools
 
 
 def turn_choices(message: str, signals: list[str]) -> list[dict]:
-    """One-tap answers for the app (dialogue efficiency): the missing detail when Sathi asked a question, or a way out
+    """One-tap answers for the app (dialogue efficiency): the missing detail when Bluefin asked a question, or a way out
     of the draft it just made. The app shows them in the user's language; tapping one sends that answer."""
     if "clarify" in signals:
         amount, _ = dlg.find_amount(message)
@@ -675,12 +675,12 @@ FALLBACK = {
         "renewal_abroad": "📋 Your card endorsement ends on {expiry} ({days} days), and renewing it needs you at the bank in Bangladesh with your passport. So the plan keeps money coming without the card: your parent signs the family mandate by {switch}, and living money goes by bank transfer to your Chinese account. Renew on your next visit home.",
         "mandate": "📝 I wrote it as a family mandate: up to {cap} per calendar month, only to the student's own Chinese account, until {until}. Open Family to read it and sign with your fingerprint. Nothing happens until you sign.",
         "mandate_bad": "I could not turn that into a mandate: {why}",
-        "year": "📅 With today's habits the student would be without money for {today} days this year (the card stopping after the endorsement, and bank closures for Eid and Spring Festival). With Sathi's plan: {sathi} days, and about {saved} less in fees. See Plan → Year.",
+        "year": "📅 With today's habits the student would be without money for {today} days this year (the card stopping after the endorsement, and bank closures for Eid and Spring Festival). With Bluefin's plan: {sathi} days, and about {saved} less in fees. See Plan → Year.",
         "hundi_shield": "• Legal and free: {shield} is already in your Shield in China. Use it today.",
         "hundi_bank": "• One bank transfer ({bank}): {total} in total, lands {lands}. Honest note: its fees ({fees} above the market rate) are more than this hundi's {hundi}.",
         "hundi_fix": "• The legal fix for that gap is fewer, larger planned transfers and your own Shield, never hundi. Open Save → Hundi check.",
-        "savings_none": "🛡️ No savings rule yet. Sathi suggests keeping {pct}% of every pay in a Shield until {target} (about a month of living money): reached around {when}. It stays in your own Chinese account for days money from home cannot come. Set it up in Save.",
-        "savings_status": "🛡️ Your Shield: {shield} of {target}. Sathi keeps {pct}% of every pay there.",
+        "savings_none": "🛡️ No savings rule yet. Bluefin suggests keeping {pct}% of every pay in a Shield until {target} (about a month of living money): reached around {when}. It stays in your own Chinese account for days money from home cannot come. Set it up in Save.",
+        "savings_status": "🛡️ Your Shield: {shield} of {target}. Bluefin keeps {pct}% of every pay there.",
         "savings_wants": "This week's wants: {wants}, about {bdt} at home ({days} days of living money).",
         "savings_proposed": "📝 Savings rule ready to sign: keep {pct}% of every pay until the Shield holds {target}; taking money out waits {hours} hours except in an emergency. At this pace it is full around {when}. Open Save to read it and sign with your fingerprint. Nothing moves until you sign.",
         "savings_bad": "I could not turn that into a savings rule: {why}",
@@ -701,12 +701,12 @@ FALLBACK = {
         "renewal_abroad": "📋 আপনার কার্ড এনডোর্সমেন্ট শেষ হবে {expiry} ({days} দিন বাকি), আর নবায়নের জন্য আপনাকে পাসপোর্ট নিয়ে বাংলাদেশের ব্যাংকে যেতে হবে। তাই পরিকল্পনা হলো কার্ড ছাড়াই টাকা আসা: {switch} এর মধ্যে অভিভাবক পারিবারিক ম্যান্ডেটে সই করবেন, আর মাসিক খরচ ব্যাংক ট্রান্সফারে আপনার চীনের অ্যাকাউন্টে যাবে। দেশে এলে নবায়ন করবেন।",
         "mandate": "📝 এটি পারিবারিক ম্যান্ডেট হিসেবে লিখেছি: প্রতি ক্যালেন্ডার মাসে সর্বোচ্চ {cap}, শুধু শিক্ষার্থীর নিজের চীনের অ্যাকাউন্টে, {until} পর্যন্ত। 'পরিবার' পাতা খুলে পড়ুন এবং আঙুলের ছাপ দিয়ে সই করুন। সই না করা পর্যন্ত কিছুই হবে না।",
         "mandate_bad": "এটি ম্যান্ডেট হিসেবে লেখা গেল না: {why}",
-        "year": "📅 এখনকার নিয়মে চললে এই বছর শিক্ষার্থী {today} দিন টাকা ছাড়া থাকত (এনডোর্সমেন্ট শেষে কার্ড বন্ধ, আর ঈদ ও চীনা নববর্ষে ব্যাংক বন্ধ)। সাথীর পরিকল্পনায়: {sathi} দিন, আর ফি প্রায় {saved} কম। পরিকল্পনা → বছর দেখুন।",
+        "year": "📅 এখনকার নিয়মে চললে এই বছর শিক্ষার্থী {today} দিন টাকা ছাড়া থাকত (এনডোর্সমেন্ট শেষে কার্ড বন্ধ, আর ঈদ ও চীনা নববর্ষে ব্যাংক বন্ধ)। ব্লুফিনের পরিকল্পনায়: {sathi} দিন, আর ফি প্রায় {saved} কম। পরিকল্পনা → বছর দেখুন।",
         "hundi_shield": "• বৈধ ও বিনা খরচে: চীনে আপনার সুরক্ষা তহবিলে আগেই {shield} আছে। আজই ব্যবহার করুন।",
         "hundi_bank": "• একটি ব্যাংক ট্রান্সফার ({bank}): মোট {total}, পৌঁছাবে {lands}। সত্যি কথা: এর ফি (বাজার দরের চেয়ে {fees} বেশি) এই হুন্ডির {hundi} এর চেয়ে বেশি।",
         "hundi_fix": "• এই ফারাক মেটানোর বৈধ উপায় হলো কম সংখ্যায়, বড় অঙ্কে, পরিকল্পিত ট্রান্সফার আর আপনার নিজের সুরক্ষা তহবিল, কখনো হুন্ডি নয়। সঞ্চয় → হুন্ডি যাচাই খুলুন।",
-        "savings_none": "🛡️ এখনো সঞ্চয়ের নিয়ম নেই। সাথীর পরামর্শ: প্রতিটি আয়ের {pct}% সুরক্ষা তহবিলে রাখুন, {target} (প্রায় এক মাসের খরচ) না হওয়া পর্যন্ত: আনুমানিক {when} নাগাদ পূর্ণ হবে। দেশ থেকে টাকা আসতে না পারলে এটি আপনার নিজের চীনা অ্যাকাউন্টেই কাজে লাগবে। 'সঞ্চয়' পাতায় চালু করুন।",
-        "savings_status": "🛡️ আপনার সুরক্ষা তহবিল: {target} এর মধ্যে {shield}। সাথী প্রতিটি আয়ের {pct}% এখানে রাখে।",
+        "savings_none": "🛡️ এখনো সঞ্চয়ের নিয়ম নেই। ব্লুফিনের পরামর্শ: প্রতিটি আয়ের {pct}% সুরক্ষা তহবিলে রাখুন, {target} (প্রায় এক মাসের খরচ) না হওয়া পর্যন্ত: আনুমানিক {when} নাগাদ পূর্ণ হবে। দেশ থেকে টাকা আসতে না পারলে এটি আপনার নিজের চীনা অ্যাকাউন্টেই কাজে লাগবে। 'সঞ্চয়' পাতায় চালু করুন।",
+        "savings_status": "🛡️ আপনার সুরক্ষা তহবিল: {target} এর মধ্যে {shield}। ব্লুফিন প্রতিটি আয়ের {pct}% এখানে রাখে।",
         "savings_wants": "এই সপ্তাহে শখের খরচ: {wants}, দেশের হিসেবে প্রায় {bdt} ({days} দিনের খরচ)।",
         "savings_proposed": "📝 সঞ্চয়ের নিয়ম সইয়ের জন্য তৈরি: প্রতিটি আয়ের {pct}% রাখা হবে, যতক্ষণ না তহবিলে {target} হয়; জরুরি অবস্থা ছাড়া টাকা তুলতে {hours} ঘণ্টা অপেক্ষা। এই হারে আনুমানিক {when} নাগাদ পূর্ণ হবে। 'সঞ্চয়' পাতা খুলে পড়ুন এবং আঙুলের ছাপ দিয়ে সই করুন। সই না করা পর্যন্ত কিছুই হবে না।",
         "savings_bad": "এটি সঞ্চয়ের নিয়ম হিসেবে লেখা গেল না: {why}",
@@ -727,12 +727,12 @@ FALLBACK = {
         "renewal_abroad": "📋 你的银行卡签注将于 {expiry} 到期（还有 {days} 天），续签需要你本人携带护照到孟加拉国的银行办理。所以计划是不用卡也能收到钱：家长在 {switch} 前签署家庭授权，生活费通过银行汇款进入你的中国账户。回国时再续签。",
         "mandate": "📝 我已把它写成家庭授权：每个自然月最多 {cap}，只汇到学生本人的中国账户，有效期至 {until}。请打开“家庭”页面阅读，并用指纹签署。签署之前什么都不会发生。",
         "mandate_bad": "无法把这句话写成授权：{why}",
-        "year": "📅 按现在的做法，今年学生会有 {today} 天没钱用（签注到期后卡停用，以及开斋节和春节银行休息）。按 Sathi 的计划：{sathi} 天，手续费约少 {saved}。见 规划 → 全年。",
+        "year": "📅 按现在的做法，今年学生会有 {today} 天没钱用（签注到期后卡停用，以及开斋节和春节银行休息）。按 Bluefin 的计划：{sathi} 天，手续费约少 {saved}。见 规划 → 全年。",
         "hundi_shield": "• 合法且免费：你在中国的应急储备里已经有 {shield}。今天就能用。",
         "hundi_bank": "• 一笔银行汇款（{bank}）：总计 {total}，{lands} 到账。说实话：它的费用（比市场价多 {fees}）高于这笔地下汇款的 {hundi}。",
         "hundi_fix": "• 弥补这个差距的合法办法是减少汇款次数、每次汇得多一些、提前规划，再加上你自己的应急储备，绝不是地下汇款。打开 储蓄 → 地下汇款对比。",
-        "savings_none": "🛡️ 还没有储蓄规则。Sathi 建议每次收入存 {pct}% 到应急储备，直到 {target}（约一个月生活费）：大约 {when} 存满。家里的钱到不了时，它就在你本人的中国账户里。请在“储蓄”页面设置。",
-        "savings_status": "🛡️ 你的应急储备：{shield} / {target}。Sathi 会把每次收入的 {pct}% 存进去。",
+        "savings_none": "🛡️ 还没有储蓄规则。Bluefin 建议每次收入存 {pct}% 到应急储备，直到 {target}（约一个月生活费）：大约 {when} 存满。家里的钱到不了时，它就在你本人的中国账户里。请在“储蓄”页面设置。",
+        "savings_status": "🛡️ 你的应急储备：{shield} / {target}。Bluefin 会把每次收入的 {pct}% 存进去。",
         "savings_wants": "本周想要的开销：{wants}，折合家里约 {bdt}（{days} 天的生活费）。",
         "savings_proposed": "📝 储蓄规则已准备好签署：每次收入存 {pct}%，直到储备达到 {target}；除紧急情况外，取出需等待 {hours} 小时。按这个速度大约 {when} 存满。请打开“储蓄”页面阅读并用指纹签署。签署之前什么都不会发生。",
         "savings_bad": "无法把这句话写成储蓄规则：{why}",

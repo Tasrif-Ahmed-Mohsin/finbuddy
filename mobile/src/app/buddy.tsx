@@ -9,7 +9,7 @@ import { useSession } from '@/lib/session';
 const MOODS: MascotMood[] = ['idle', 'happy', 'thinking', 'talking', 'curious', 'worried', 'alert', 'protect', 'celebrate', 'sleep'];
 const ACTIONS: MascotAction['type'][] = ['wave', 'jump', 'nod', 'shake'];
 
-/** Meet Sathi: every mood and gesture of the buddy, and what each one means in the app. */
+/** Meet Bluefin: every mood and gesture of the buddy, and what each one means in the app. */
 export default function BuddyScreen() {
   const { t } = useSession();
   const [mood, setMood] = useState<MascotMood>('happy');

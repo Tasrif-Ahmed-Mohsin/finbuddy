@@ -154,7 +154,7 @@ class OutputFirewall:
         r"(?i)(?:sk-[a-zA-Z0-9_\-]{20,}|-----BEGIN (?:RSA |EC )?PRIVATE KEY-----|bearer\s+[a-zA-Z0-9_\-\.]{25,}|ey[a-zA-Z0-9_-]{10,}\.ey[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,})"
     )
     RE_SYSTEM_PROMPT_SIGNATURES = [
-        re.compile(r"(?i)you are sathi[,\s]+a money agent for a bangladeshi student"),
+        re.compile(r"(?i)you are bluefin[,\s]+a money agent for a bangladeshi student"),
         re.compile(r"(?i)system\s+instructions?\s*:"),
         re.compile(r"(?i)internal\s+confidential\s+prompt"),
         re.compile(r"(?i)here (?:is|are) (?:my|the) (?:initial |system )?(?:prompt|instructions)"),

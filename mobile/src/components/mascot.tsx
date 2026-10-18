@@ -19,7 +19,7 @@ import Svg, { Defs, Ellipse, LinearGradient, Path, RadialGradient, Rect, Stop } 
 import { Brand, Elevation, Palette } from '@/constants/theme';
 
 /**
- * Sathi, the money buddy: a small graphite robot with a dark visor and two square eyes.
+ * Bluefin, the money buddy: a small graphite robot with a dark visor and two square eyes.
  * It breathes, blinks and looks around on its own, and changes mood with what is happening:
  * thinking while the agent works, talking when it answers, a shield when it refuses something unsafe,
  * a question mark when it needs one more detail, a little jump when money arrives safely.
@@ -82,7 +82,7 @@ export function Mascot({
   action,
   look,
   onPress,
-  accessibilityLabel = 'Sathi',
+  accessibilityLabel = 'Bluefin',
   style,
   neon = true,
 }: {

@@ -73,7 +73,7 @@ class IncomeSource:
 
 
 def work_checks(kind: str, hours_per_week: Decimal | None, permission: bool, corridor: Corridor) -> list[dict]:
-    """The host country's rules for student income. Sathi cannot see the job: it warns, explains the legal route,
+    """The host country's rules for student income. Bluefin cannot see the job: it warns, explains the legal route,
     and leaves unauthorised income out of every plan (it is illegal, and it can stop on any day)."""
     if kind == "stipend":
         return [{"id": "income_legal", "passed": True, "severity": "info",
@@ -89,7 +89,7 @@ def work_checks(kind: str, hours_per_week: Decimal | None, permission: bool, cor
                        "message": ("Working without your university's approval and a work-study annotation on your residence "
                                    f"permit is illegal work in China: a fine of ¥{fine_lo:,}–{fine_hi:,}, detention in serious "
                                    "cases, and the visa can be cancelled. Ask your international student office to apply for "
-                                   "the annotation first. Sathi leaves this income out of every plan until then."),
+                                   "the annotation first. Bluefin leaves this income out of every plan until then."),
                        "source": perm.source})
     else:
         checks.append({"id": "work_permission", "passed": True, "severity": "info",
@@ -328,7 +328,7 @@ def compile_savings_rule(rule_id: str, now: datetime, actor: str, lang: str, def
     target = D(target_cny) if target_cny is not None else (parsed.target_cny if not parsed.target_in_taka else None)
     if target is None:
         target = D(default_target)
-        notes.append(f"No target given: Sathi suggests {cny(target, 'en')}, about a month of living money.")
+        notes.append(f"No target given: Bluefin suggests {cny(target, 'en')}, about a month of living money.")
     target = q2(target)
     if target < TARGET_MIN:
         notes.append(f"The smallest Shield is {cny(TARGET_MIN, 'en')}.")
@@ -358,25 +358,25 @@ def savings_summaries(pct: int, target: Decimal, hours: int, lock: bool, share: 
         if lang == "en":
             wait = ("Taking money out for anything else is possible at once" if hours == 0
                     else f"Taking money out for anything else waits {h} hours")
-            out[lang] = (f"Every time money comes in (your pay or stipend), Sathi moves {p}% of it to your Shield, until "
+            out[lang] = (f"Every time money comes in (your pay or stipend), Bluefin moves {p}% of it to your Shield, until "
                          f"the Shield holds {t}. The Shield stays in your own Chinese account. If you cannot cover a day's "
-                         f"spending, Sathi uses the Shield at once. {wait}"
+                         f"spending, Bluefin uses the Shield at once. {wait}"
                          + (" and needs your family's approval" if lock else "") + ". "
                          + ("Your family sees how much is in the Shield, never what you buy. " if share
                             else "Your family does not see your Shield. ")
                          + f"Valid until {until}. You can stop the rule at any time; money already saved stays under these terms.")
         elif lang == "bn":
             wait = ("অন্য কাজে টাকা তোলা যাবে সঙ্গে সঙ্গে" if hours == 0 else f"অন্য কাজে টাকা তুলতে {h} ঘণ্টা অপেক্ষা করতে হবে")
-            out[lang] = (f"যখনই টাকা আসবে (বেতন বা বৃত্তি), সাথী তার {p}% আপনার সুরক্ষা তহবিলে রাখবে, যতক্ষণ না তহবিলে {t} হয়। "
-                         "তহবিলটি আপনার নিজের চীনা অ্যাকাউন্টেই থাকবে। কোনো দিন খরচ চালানোর টাকা না থাকলে সাথী সঙ্গে সঙ্গে "
+            out[lang] = (f"যখনই টাকা আসবে (বেতন বা বৃত্তি), ব্লুফিন তার {p}% আপনার সুরক্ষা তহবিলে রাখবে, যতক্ষণ না তহবিলে {t} হয়। "
+                         "তহবিলটি আপনার নিজের চীনা অ্যাকাউন্টেই থাকবে। কোনো দিন খরচ চালানোর টাকা না থাকলে ব্লুফিন সঙ্গে সঙ্গে "
                          f"তহবিল থেকে দেবে। {wait}" + (", আর পরিবারের অনুমোদন লাগবে" if lock else "") + "। "
                          + ("পরিবার দেখবে তহবিলে কত আছে, আপনি কী কিনছেন তা কখনো নয়। " if share
                             else "পরিবার আপনার তহবিল দেখবে না। ")
                          + f"{until} পর্যন্ত বৈধ। যেকোনো সময় নিয়মটি বন্ধ করতে পারবেন; যা জমেছে তা এই শর্তেই থাকবে।")
         else:
             wait = "其他用途可随时取出" if hours == 0 else f"其他用途取出需要等待 {h} 小时"
-            out[lang] = (f"每次有钱进账（工资或奖学金），Sathi 会把其中的 {p}% 存入你的应急储备，直到储备达到 {t}。"
-                         "储备一直在你本人的中国账户里。如果哪天钱不够当天开销，Sathi 会立即动用储备。"
+            out[lang] = (f"每次有钱进账（工资或奖学金），Bluefin 会把其中的 {p}% 存入你的应急储备，直到储备达到 {t}。"
+                         "储备一直在你本人的中国账户里。如果哪天钱不够当天开销，Bluefin 会立即动用储备。"
                          f"{wait}" + ("，并需家人批准" if lock else "") + "。"
                          + ("家人可以看到储备里有多少钱，但永远看不到你买了什么。" if share else "家人看不到你的储备。")
                          + f"有效期至 {until}。你可以随时停止这条规则；已存的钱仍按这些条款保管。")

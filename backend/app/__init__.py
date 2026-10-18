@@ -1,1 +1,1 @@
-"""Sathi backend: engines, security layer, sandbox bank and API."""
+"""Bluefin backend: engines, security layer, sandbox bank and API."""

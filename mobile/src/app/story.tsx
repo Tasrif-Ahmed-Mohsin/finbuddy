@@ -145,7 +145,7 @@ export default function StoryScreen() {
         ))}
       </Row>
 
-      <Animated.View key={step.id} entering={enter(260)}>
+      <Animated.View key={step.id} entering={enter(260)} style={{ gap: 14 }}>
         <Panel>
           <Row style={{ flexWrap: 'nowrap', gap: 14 }}>
             <Mascot size={84} mood={busy ? 'thinking' : result ? (last ? 'celebrate' : 'happy') : step.mood} />

@@ -2,7 +2,7 @@
 # In the Render dashboard: New → Blueprint → this repository. Then set DEEPSEEK_API_KEY under Environment.
 services:
   - type: web
-    name: sathi
+    name: bluefin
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile

@@ -20,7 +20,7 @@ import { useLoad } from '@/lib/use-load';
 
 /**
  * Home, the mission-control dashboard. Hero: how many days of money the student has. Then the money route,
- * the bank days in both countries, Sathi, the card, the live rate and the black box. Then what needs you.
+ * the bank days in both countries, Bluefin, the card, the live rate and the black box. Then what needs you.
  */
 export default function HomeScreen() {
   const { t, lang, role, setRole, call } = useSession();
@@ -276,7 +276,7 @@ function hasBattery(feed: Feed): boolean {
 }
 
 /** The Shield (the student's own savings) as a battery, or the autopilot's budget left this month. */
-/** Sense: the bank connections (read-only, with consent). One line: connected and how often Sathi read it, or how to connect. */
+/** Sense: the bank connections (read-only, with consent). One line: connected and how often Bluefin read it, or how to connect. */
 function BanksTile() {
   const { t, lang, call } = useSession();
   const { data } = useLoad(useCallback(() => call<BanksView>('/banks'), [call]));
@@ -352,7 +352,7 @@ function weekdayName(iso: string, lang: Lang): string {
   return WEEKDAYS[lang][new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
 }
 
-/** What Sathi says first: what needs you, then money running low, then all is well. */
+/** What Bluefin says first: what needs you, then money running low, then all is well. */
 function greeting(feed: Feed, needs: number, t: (k: StringKey) => string, lang: Lang): { mood: MascotMood; text: string } {
   const r = feed.runway;
   const days = num(r.days_left ?? 0, lang);

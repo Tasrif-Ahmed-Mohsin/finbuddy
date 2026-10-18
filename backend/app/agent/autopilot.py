@@ -11,7 +11,7 @@ Every simulated day (and right after a mandate is signed) it:
   4. proves: every step is in the hash-chained audit log, and the family feed explains it in Bengali,
      English and Chinese.
 It never approves, never changes a mandate, never pays anyone except the mandate's payee, and never
-withdraws cash (an ATM withdrawal is the student's own physical action: Sathi only suggests it).
+withdraws cash (an ATM withdrawal is the student's own physical action: Bluefin only suggests it).
 """
 from __future__ import annotations
 

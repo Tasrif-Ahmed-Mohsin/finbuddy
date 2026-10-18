@@ -1,4 +1,4 @@
-# Build Plan: Sathi (mobile-first)
+# Build Plan: Bluefin (mobile-first)
 
 **Last updated:** 2026-10-12 · **Deadline:** 20 Oct 2026 23:59 Beijing (21:59 Dhaka) · **Target first full submission:** 18 Oct
 
@@ -8,17 +8,17 @@
 - ✅ (12 Oct, later) **AI agent + inbox:** DeepSeek tool-calling chat (read + draft only) with offline fallback; SMS/email ingestion (share/paste, webhook, IMAP), privacy redaction, rule + AI extraction with number grounding, insight engine (fees, limits, fraud, scams, phishing, OTP, renewals, FX markup), translated updates. **104 tests pass.** Design: [03_agent_and_inbox.md](03_agent_and_inbox.md).
 - ✅ (12 Oct, later) **Real exchange rates:** live mid-market rate + 953 days of daily BDT/CNY history (fawazahmed0/exchange-api, CC0), offline fallback, honest ranges (80% ranges were right 82% of 689 past 7-day tests), "if you wait" cost range on tuition plans, real bank quotes can be entered (bank prices are labelled estimates until then).
 - ✅ **Card controls** (like a banking app): freeze / unfreeze / report lost. Asymmetric permissions: the agent may freeze (protective, reversible) but never unfreeze; unfreeze and report-lost need fingerprint/PIN. "Was this you?" alerts offer one-tap freeze; charges on a frozen card raise a top alert. **120 tests pass.**
-- ✅ **T3 Renewal assistant** (the friend's #1 problem): plan worked backwards from the expiry date (ask university → collect → send to parent → bank visit → confirm), email to the international office in English + Chinese (在读证明 / 成绩单 / 缴费通知单), Bengali + English task list for the parent including "ask for an endorsement until the next fee is due", document checklist with confidence labels, step tracking with reminders (red when overdue), new expiry updates the profile. The agent may create the plan; only users tick steps or confirm. Sathi never sends messages: the user copies or shares them. **129 tests pass.**
+- ✅ **T3 Renewal assistant** (the friend's #1 problem): plan worked backwards from the expiry date (ask university → collect → send to parent → bank visit → confirm), email to the international office in English + Chinese (在读证明 / 成绩单 / 缴费通知单), Bengali + English task list for the parent including "ask for an endorsement until the next fee is due", document checklist with confidence labels, step tracking with reminders (red when overdue), new expiry updates the profile. The agent may create the plan; only users tick steps or confirm. Bluefin never sends messages: the user copies or shares them. **129 tests pass.**
 - ✅ **Credit building: payment passport.** Signed, verifiable record of on-time payments built only from this session's hash-chained log (tuition, living transfers, renewals done before expiry); hide-amounts option; QR code to a public verify page (needs the code); tampered, fabricated, revoked or expired passports fail; late payments shown as late. Users only.
 - ✅ **Execution evidence:** `backend/scripts/demo_scenario.py` runs the whole story through the real API over ~2 sandbox months and exports `docs/evidence/sandbox_operation_log.jsonl` (hash chain valid) + `scenario_summary.md`. **139 tests pass.**
 - ✅ **Photo document reader** (DeepSeek vision): fee notices, Chinese bank forms, university checklists → type, summary in the user's language, amounts (must appear in the transcription), deadlines, bilingual checklist; injection phrases flagged; long numbers masked; photo never stored; a fee notice is applied only after the user confirms (then it backs the invoice check). Live test on the friend's real residence-permit checklist: all 11 items read in 3.6 s. **144 tests pass.**
 - ✅ **Real BRAC data point** (friend: ৳18.35/¥, ~৳8,000 file charge): BRAC's rate was only ~+0.2% over mid-market; the file charge was the bigger cost. Added a calibrated BRAC quote; generic estimates lowered to 0.6–1.8%.
 - ✅ **Technical documentation** ([TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md)) and **security self-assessment** ([SECURITY_SELF_ASSESSMENT.md](SECURITY_SELF_ASSESSMENT.md)) written: deliverables #1 and #5.
 - 🔁 **13 Oct: re-architecture around one loop (Sense → Plan → Act → Prove).** Honest audit: the project read as 11 separate features; our own data showed the exchange rate was not the main problem (BRAC +0.22% vs a ৳8,000 charge, 5.5×); the one part where the AI acts (mandates) had no screen. Interview follow-up: **both** parent and student handle money; **renewing the endorsement needs the student in person** (passport), so a student in China loses the card abroad on 31 Dec. Built:
-  - **Year plan** ("never stuck"): day-by-day simulation with both countries' bank calendars (`data/bank_holidays.yaml`, confidence per date), the endorsement end and card caps. Today's habits: 20 stuck days; Sathi: 0. Cost truth: rate markup vs fees.
+  - **Year plan** ("never stuck"): day-by-day simulation with both countries' bank calendars (`data/bank_holidays.yaml`, confidence per date), the endorsement end and card caps. Today's habits: 20 stuck days; Bluefin: 0. Cost truth: rate markup vs fees.
   - **Family mandate** from the parent's own words (bn/en/zh): rules parser + grounded DeepSeek + policy validator; template read-back; signatures bound to the proposal hash; both sign from ৳1 lakh; living money to the student's own account only; calendar-month caps.
   - **Autopilot**: the same look-ahead rule; acts only inside the mandate; asks the family when a cap is too small; explains why in the family feed.
-  - **App**: Today · Plan (Year) · Family · Sathi · Proof; spoken read-back before approving or signing; receipts showing who or what authorised each payment.
+  - **App**: Today · Plan (Year) · Family · Bluefin · Proof; spoken read-back before approving or signing; receipts showing who or what authorised each payment.
   - **Fixes**: the endorsement no longer blocks transfers (only card use); raw mandates are for the paying parent only; the Student File renewal link.
   - **Renewal plan** for a student abroad.
   - **Evidence**: 4 sandbox months, 0 stuck days, 187-entry log. **183 tests pass.**
@@ -33,8 +33,8 @@
   - **Income in China** with the corridor's work rules (Exit and Entry Law Art. 43/80: university approval + work-study annotation; hour cap from conflicting sources, warned at 8 h): unauthorised work is flagged and never planned on.
   - **Savings rule the student signs** (words in bn/en/zh or a form; template read-back; hash covers share, target, cooling-off, family lock, sharing, fixed destination) → the autopilot fills the **Shield** on pay days (L3 inside the rule) and covers real shortfalls from it; planned withdrawals wait the cooling-off (and the parent, only if the student chose it); emergencies are instant.
   - **Taka lens**: wants in what they cost the family to send (cheapest legal bank, fees included) and in days of living money; bank-alert insights for pay and wants.
-  - **Honest hundi check**: one bank transfer can cost more on paper ($500 at ৳124.5: ৳3,701 vs ৳623); Sathi says so and shows the legal ways that beat both (Shield, planned transfers, the 10 Aug 2026 education-card circular).
-  - **Dollar-crisis test**: 4 weeks without student transfers at every start week: 0% → 39% → **94%** of starts without a stuck day (today → Sathi → Sathi + Shield), typical 20 → 4 → **0** days.
+  - **Honest hundi check**: one bank transfer can cost more on paper ($500 at ৳124.5: ৳3,701 vs ৳623); Bluefin says so and shows the legal ways that beat both (Shield, planned transfers, the 10 Aug 2026 education-card circular).
+  - **Dollar-crisis test**: 4 weeks without student transfers at every start week: 0% → 39% → **94%** of starts without a stuck day (today → Bluefin → Bluefin + Shield), typical 20 → 4 → **0** days.
   - App: **Save** tab, Shield card on Today, emergency option, crisis row in the stress test, chat tools + offline router (bn/en/zh, Banglish), family feed notes. Evidence: 237 entries; a top-up refused by the living cap was covered by the Shield; 0 stuck days. **327 tests pass.**
 - ⏭ Next: deck (≤10 min) + demo video (≤5 min); try on a real phone with Expo Go (fingerprint, speech in Bengali); deploy the backend; first full submission on 18 Oct; ask organisers whether the on-chain bonus expects FISCO BCOS (anchor the log's chain head); exact date of the friend's payment and real SMS samples.
 
@@ -84,7 +84,7 @@
 
 ```
 ┌──────────────── Phone (Expo / React Native, TypeScript) ────────────────┐
-│ Home timeline · Sathi chat · Plans/Compare · Approvals · Activity log   │
+│ Home timeline · Bluefin chat · Plans/Compare · Approvals · Activity log   │
 │ Language: bn / en / zh · Lakh/crore formatting · Biometric/PIN approve   │
 └───────────────▲─────────────────────────────────────────────────────────┘
                 │ HTTPS (JSON)

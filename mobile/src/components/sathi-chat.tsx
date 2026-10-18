@@ -27,7 +27,7 @@ function plain(text: string): string {
     .replace(/^\s*[-*]\s+/gm, '• ');
 }
 
-/** How each kind of turn is shown, and how Sathi's face reacts to it (the most important signal wins). */
+/** How each kind of turn is shown, and how Bluefin's face reacts to it (the most important signal wins). */
 const SIGNALS: { key: ChatSignal; label: StringKey; icon: IconName; tone: ToneName; mood: MascotMood; gesture?: MascotAction['type'] }[] = [
   { key: 'refused', label: 'sigRefused', icon: 'shield-checkmark', tone: 'block', mood: 'protect', gesture: 'shake' },
   { key: 'card_locked', label: 'card', icon: 'lock-closed', tone: 'warn', mood: 'protect' },
@@ -93,7 +93,7 @@ export function SathiChat() {
 
   return (
     <>
-      {/* Comms: Sathi as a hologram on a dark panel, with what it is doing right now in neon. */}
+      {/* Comms: Bluefin as a hologram on a dark panel, with what it is doing right now in neon. */}
       <Panel>
         <Row style={{ flexWrap: 'nowrap', gap: 14 }}>
           <View style={local.holo}>
@@ -230,7 +230,7 @@ const STEP_KEYS = new Set([
   'refuse_escalation', 'clarify',
 ]);
 
-/** "How Sathi did it": the steps the agent took for this answer, as a small neon timeline (task planning, visible). */
+/** "How Bluefin did it": the steps the agent took for this answer, as a small neon timeline (task planning, visible). */
 function Steps({ tools }: { tools: string[] }) {
   const { t } = useSession();
   const steps = tools.filter((x, i) => STEP_KEYS.has(x) && tools.indexOf(x) === i);

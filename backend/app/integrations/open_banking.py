@@ -1,12 +1,12 @@
-"""Open-banking connectors (read-only), with the person's consent: Sathi reads balances only while it is allowed to.
+"""Open-banking connectors (read-only), with the person's consent: Bluefin reads balances only while it is allowed to.
 
 The flow follows the account-information (AIS) model of UK Open Banking and the Berlin Group NextGenPSD2 standard
 that most open-banking rules copy, including PSD2's 90-day limit before the person must confirm again:
 
-1. Sathi asks for a consent: which bank, which data (balances, and optionally transactions), for how long (≤ 90 days).
+1. Bluefin asks for a consent: which bank, which data (balances, and optionally transactions), for how long (≤ 90 days).
 2. The account holder authorises it with their passkey, signed over the consent's hash, so they approve exactly
    these permissions for exactly this period. (A real bank does this step on its own site or app.)
-3. While the consent is active, Sathi may read; every read names the consent and is written to the log.
+3. While the consent is active, Bluefin may read; every read names the consent and is written to the log.
 4. The holder can revoke it at any time: reads stop at once. An expired consent stops too.
 
 Read-only by design: no permission here can move money (payments go through drafts, passkeys and the engine).
@@ -63,7 +63,7 @@ class Consent:
     status: str = "AwaitingAuthorisation"  # → Authorised → Revoked | Expired
     authorised_at: datetime | None = None
     revoked_at: datetime | None = None
-    reads: list[str] = field(default_factory=list)  # when Sathi read through it
+    reads: list[str] = field(default_factory=list)  # when Bluefin read through it
 
     def hash(self) -> str:
         """What the holder signs: these permissions, this bank, this period."""
@@ -132,7 +132,7 @@ class OpenBanking:
         """Read through an active consent only, and only what it allows. Raises PermissionError otherwise."""
         consent = self.active(connector_id, now)
         if consent is None:
-            raise PermissionError("no active consent for this bank: Sathi cannot read it")
+            raise PermissionError("no active consent for this bank: Bluefin cannot read it")
         c = CONNECTORS[connector_id]
         consent.reads.append(now.isoformat())
         accounts = []

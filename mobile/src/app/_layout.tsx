@@ -46,7 +46,7 @@ export default function RootLayout() {
             <Stack.Screen name="renewal/[item]" options={modal('Renewal')} />
             <Stack.Screen name="passport" options={modal('Passport')} />
             <Stack.Screen name="settings" options={modal('Settings')} />
-            <Stack.Screen name="buddy" options={modal('Sathi')} />
+            <Stack.Screen name="buddy" options={modal('Bluefin')} />
             <Stack.Screen name="judge" options={modal('Judge mode')} />
             <Stack.Screen name="banks" options={modal('Banks')} />
             <Stack.Screen name="privacy" options={modal('Privacy')} />

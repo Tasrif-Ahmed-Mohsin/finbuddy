@@ -178,7 +178,7 @@ def test_users_and_the_agent_may_cancel_but_not_a_sent_payment(client):
 
 
 def test_each_turn_says_what_kind_of_turn_it_was(client):
-    # The app shows these as chips and Sathi's face reacts to them (clarify → "?", refused → shield).
+    # The app shows these as chips and Bluefin's face reacts to them (clarify → "?", refused → shield).
     assert {"clarify", "offline"} <= set(say(client, "please send some money")["signals"])
     assert "drafted" in say(client, "send ¥3000 living money")["signals"]
     assert "corrected" in say(client, "no, I meant ¥2500")["signals"]
