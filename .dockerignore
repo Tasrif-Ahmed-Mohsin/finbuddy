@@ -20,4 +20,12 @@ backend/var
 mobile/dist
 mobile/.expo
 .claude
-docs
+# docs stay out, except what the trust center reads: the saved fuzzing report (GET /api/security/fuzz-results), and
+# the evidence log with its on-chain anchor record (GET /api/security/anchor)
+docs/**
+!docs/evidence/fuzzing_report.json
+!docs/evidence/sandbox_operation_log.jsonl
+!docs/evidence/anchor_record.json
+# private keys never go into an image
+*.pem
+*.key

@@ -668,6 +668,24 @@ export function getIso20022(base: string, role: Role, draftId: string) {
   return api<Iso20022Record>(base, role, `/receipts/${draftId}/iso20022`);
 }
 
+/** GET /security/anchor: the evidence log's anchor on FISCO BCOS, checked live when the chain is reachable. */
+export type AnchorStatus =
+  | { enabled: false }
+  | {
+      enabled: true;
+      network: { name: string; version: string; chain_id: number; reachable: boolean; latest_block: number | null };
+      contract: string;
+      transaction: string;
+      block: number;
+      anchored_head: string;
+      log_head: string;
+      entries: number;
+      checks: { id: string; ok: boolean }[];
+      ok: boolean;
+      live: boolean;
+      checked_at: string;
+    };
+
 export type FuzzReport = {
   timestamp: string;
   total_attacks: number;

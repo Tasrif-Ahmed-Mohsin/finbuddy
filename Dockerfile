@@ -17,6 +17,9 @@ COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./
 COPY --from=web /mobile/dist /srv/web
+# The trust center shows the saved safety-fuzzing report and checks the evidence log against its on-chain anchor
+# (both read from ../docs/evidence relative to the backend).
+COPY docs/evidence/fuzzing_report.json docs/evidence/sandbox_operation_log.jsonl docs/evidence/anchor_record.json /srv/docs/evidence/
 ENV SATHI_WEB_DIR=/srv/web \
     SATHI_FX_MODE=live \
     WHATSAPP_MODE=off \

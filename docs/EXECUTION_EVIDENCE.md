@@ -16,6 +16,7 @@ each piece proves, how to check it yourself in a minute, and how to produce it a
 
 | # | Evidence | What it proves | File |
 |---|---|---|---|
+| 0 | **Live demo** | The app and its API on a public server, with HTTPS; the same sandbox, the same checks | https://20-193-145-135.sslip.io |
 | 1 | **Sandbox operation log** | Four sandbox months, 12 Oct 2026 → 21 Feb 2027, one day at a time: 255 hash-chained entries of everything that happened, who did it and at which permission level | [evidence/sandbox_operation_log.jsonl](evidence/sandbox_operation_log.jsonl) |
 | 2 | **Scenario summary** | The same run as 25 readable steps with their results | [evidence/scenario_summary.md](evidence/scenario_summary.md) |
 | 3 | **Log verifier** | Anyone can check the log without our server, using only Python's standard library | [backend/scripts/verify_audit_log.py](../backend/scripts/verify_audit_log.py) |
@@ -23,6 +24,24 @@ each piece proves, how to check it yourself in a minute, and how to produce it a
 | 5 | **Safety fuzzing** | 50,000 random honest and hostile steps with 9 safety rules checked after every step: 0 broken; 3 of 3 deliberate bugs caught | [evidence/safety_fuzzing_evidence.md](evidence/safety_fuzzing_evidence.md), [evidence/fuzzing_report.json](evidence/fuzzing_report.json) |
 | 6 | **AI-specific defences** | Taint tracking, the output firewall and Confirmation of Payee, each with its tests and examples | [evidence/taint_tracking_evidence.md](evidence/taint_tracking_evidence.md), [evidence/ai_output_firewall_evidence.md](evidence/ai_output_firewall_evidence.md), [evidence/confirmation_of_payee_evidence.md](evidence/confirmation_of_payee_evidence.md) |
 | 7 | **Demo video** (≤ 5 min) | The app on a real phone, following Story mode: Sense → Plan → Act → Prove, plus a Bangladeshi student in China in his own words | *link added on submission* |
+| 8 | **On-chain anchor** (challenge bonus) | The log's head hash and entry count are recorded in a transaction on a 4-node FISCO BCOS 3.17.1 chain, so the 255 entries cannot be rewritten without the change showing | [evidence/onchain_anchor.md](evidence/onchain_anchor.md), [backend/scripts/anchor_fisco.py](../backend/scripts/anchor_fisco.py) |
+
+### On-chain anchor (challenge bonus)
+
+Topic C does not require a chain, but the hash-chained log was built so that its head could be anchored. On 18 Oct 2026
+we anchored the current head on **FISCO BCOS 3.17.1**, WeBank's permissioned chain: a 4-node PBFT chain on the public demo
+server, next to the app (https://20-193-145-135.sslip.io). The chain has no coin and no fees. The app re-checks the anchor live: **Family → Proof → "Anchored on FISCO BCOS"** shows 6 of 6 checks.
+
+| | |
+|---|---|
+| Anchored head hash | `ea9870cdcbcbaddba88eba040e46d601fb4bafa7576f6c7cba83d61bed21bc2d` (255 entries) |
+| Contract | `EvidenceAnchor` at `0x1Cbb6Cb6741A5Cb1FB5882ceF1bD6c0d0221bDCD` |
+| Transaction | `0x07311c7acf80f778dbb1500c3c1d4077fedc1e9111d8a229648f4e7b596f689d`, block 2, committed by all 4 nodes |
+
+To check it, run `verify_audit_log.py` (section 3) and compare its head hash with the transaction input in
+[onchain_anchor.md](evidence/onchain_anchor.md). `python backend/scripts/anchor_fisco.py calldata …` rebuilds that input
+byte for byte, and `anchor_fisco.py verify …` checks the record, the transaction and the deployed code against the chain.
+The same file gives the commands to build your own chain and anchor again.
 
 ## 2. The four-month sandbox run
 
@@ -167,7 +186,7 @@ proof. It opens with a Bangladeshi student in China describing the problems in h
 
 ```bash
 cd backend
-.venv/Scripts/python -m pytest -q                       # 409 tests, incl. every red-team case
+.venv/Scripts/python -m pytest -q                       # 417 tests, incl. every red-team case
 .venv/Scripts/python scripts/demo_scenario.py           # the four-month run → evidence/sandbox_operation_log.jsonl + scenario_summary.md
 .venv/Scripts/python scripts/judge_tasks.py             # 20 scripted tasks → evidence/judge_tasks.md
 .venv/Scripts/python scripts/fuzz_safety_invariants.py  # 50,000 steps + 3 mutants → evidence/safety_fuzzing_evidence.md

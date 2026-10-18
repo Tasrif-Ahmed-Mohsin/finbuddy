@@ -312,7 +312,7 @@ The same model as family mandates, with the **student** as the one who signs (it
 | An SMS-planted amount drafted by the agent | blocked by taint tracking, however phrased | ✅ | `test_end_to_end_inbox_injection_blocked_in_service`, fuzzer `INV_TAINTED_AMOUNT_BLOCKED` |
 | 50,000 random honest and hostile steps, every rule checked after each step | 0 violations, 492 payments still went through; 3 of 3 deliberate bugs caught | ✅ | `tests/test_fuzzer.py`, `docs/evidence/safety_fuzzing_evidence.md` |
 
-Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (409 cases).
+Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (417 cases).
 
 ## 10. Known-risk list
 
@@ -326,7 +326,7 @@ Likelihood and impact are rated for a **production** deployment (L = low, M = me
 | R4 | CORS allows all origins; HTTP in development | M | M | Local network only | Open | TLS everywhere, strict CORS, HSTS |
 | R5 | Rate limiting covers writes and the one heavy read only | M | M | Public site: per-address limits on writes (AI 20 / 10 min, others 120 / 10 min) and on the CPU-heavy stress test (30 / 10 min, at most 200 runs); a daily AI budget; short-lived tokens; 24-character passport codes. Other reads are not limited | Partial | Gateway rate limits on all routes, lockouts, anomaly alerts |
 | R6 | **Signing secrets** (approvals, passports) are random per process or come from env | M | H | Never logged; per-process randomness | Partial | KMS/HSM keys, rotation, key ids in signatures |
-| R7 | State in memory; audit file is local JSONL | M | M | Hash chain detects edits | Accepted for demo | Append-only (WORM) storage, periodic external anchoring of the chain head |
+| R7 | State in memory; audit file is local JSONL | M | M | Hash chain detects edits; the evidence log's head hash is anchored on a 4-node FISCO BCOS 3.17.1 chain on the demo server and re-checked live by the app ([onchain_anchor.md](evidence/onchain_anchor.md)), so a rewrite of those 255 entries no longer matches | Partial: one anchor, on a chain we run | Append-only (WORM) storage; automatic daily anchoring of the chain head on a consortium FISCO BCOS chain run by independent parties |
 | R8 | **Data sent to a third-party AI** (DeepSeek, China-based) | M | H | Privacy page names DeepSeek in China, what is sent and why (PIPL Art. 17, 39); a per-person AI choice asked on first launch with nothing pre-selected (not asked = off; off = rules answer, nothing sent); only redacted text; copy and delete (Art. 44–47) | Partial | Data-processing agreement, region choice |
 | R9 | **Injection detection is pattern-based** and can be paraphrased around | M | M | Architecture limits impact: no execute tool, permission engine, payee allow-list | Accepted | Add an ML classifier as a second signal; keep architectural containment |
 | R10 | Agent-initiated freeze could be triggered by a misleading chat (denial of service) | L | L | Only from the user's own chat; reversible by the user; logged | Accepted | Ask for one-tap confirmation unless strong fraud signals |
@@ -347,7 +347,7 @@ Likelihood and impact are rated for a **production** deployment (L = low, M = me
 | R25 | **Published bank rates are 'indicative'** and a sheet's layout can change | M | M | Labelled 'published by the bank' (never a binding quote); every row sanity-checked (buying < mid < selling, spread < 5%), a changed layout is rejected, not guessed; downloaded PDFs are untrusted (size and page limits, parsed in memory, never executed); real payments and user quotes stay the gold standard | Partial | More banks' sheets, a second source per bank, alert when a sheet stops parsing |
 | R26 | **Some fees are not published** (correspondent/SWIFT 'at actual cost'; BRAC's schedule not found online) | H | M | Taken from the same bank's SME schedule (labelled secondary) or a peer's published schedule (labelled assumption); a bank whose fee is unknown is not priced at all | Partial | Ask the banks; collect real debit advices from students |
 | R27 | **"Are you safe?" trusts the student's phone** (a real kidnapping or a stolen, unlocked phone defeats it) | L | H | Fingerprint/PIN on the phone; the guide still says to call the student and the international office, and never to pay; payees cannot be changed by anyone alone | Partial | Device-bound keys (R2); a family code word set at onboarding |
-| R28 | **The public demo is one shared sandbox** with demo tokens: visitors see each other's actions | H | L | Sandbox money only; no personal data; "Start the demo again" resets it; rate limits and an AI budget; WhatsApp off | By design | Per-visitor sandboxes, real sign-in |
+| R28 | **The public demo is one shared sandbox** with demo tokens: visitors see each other's actions | H | L | Sandbox money only; no personal data; "Start the demo again" resets it; rate limits and an AI budget; WhatsApp off; on the live server (https://20-193-145-135.sslip.io): HTTPS, the app and the chain listen on localhost only, private agent and webhook tokens | By design | Per-visitor sandboxes, real sign-in |
 | R29 | **Income is self-declared** (or read from bank alerts) and the work permission cannot be verified | M | M | Unauthorised income is flagged and never planned on; Bluefin warns with the legal route; income never unlocks payments | Accepted | Verify with the university's work-study record or payroll |
 | R30 | **China's weekly hour cap comes from conflicting secondary sources** (8 vs 20 h) | M | M | Warns at the stricter number and says sources differ; labelled secondary | Open | Load the university's approval letter terms per student |
 | R31 | **A cooling-off on the student's own money is paternalistic**, or locks money when it is needed | L | M | Chosen and signed by the student (0 / 24 / 72 h); emergencies are instant, proven by the balance; cancel and revoke are one tap | Accepted | Collect feedback on the defaults with real students |
@@ -371,7 +371,7 @@ For the **sandbox demo**, the residual risk is low: no real money or data. Every
 
 ```bash
 cd backend
-.venv/Scripts/python -m pytest -q                # 409 cases incl. all red-team tests above
+.venv/Scripts/python -m pytest -q                # 417 cases incl. all red-team tests above
 .venv/Scripts/python scripts/demo_scenario.py    # end-to-end run → docs/evidence/ (hash-chained log)
 python scripts/verify_audit_log.py ../docs/evidence/sandbox_operation_log.jsonl   # check the chain, standard library only
 ```

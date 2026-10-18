@@ -624,6 +624,12 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
             raise HTTPException(status_code=404, detail="no fuzzing report yet: run scripts/fuzz_safety_invariants.py")
         return json.loads(report_path.read_text(encoding="utf-8"))
 
+    @app.get("/security/anchor")
+    def get_anchor(who: Actor = Depends(actor)):
+        """The evidence log's anchor on FISCO BCOS, checked live against the chain when it is reachable (read-only)."""
+        from app.integrations.chain_anchor import cached_check
+        return cached_check()
+
     @app.post("/security/fuzz/run")
     def run_fuzz(iterations: int = 2000, seed: int | None = None, who: Actor = Depends(actor)):
         """A live fuzzing run in its own sandbox (this session is not touched); small, and rate-limited online."""

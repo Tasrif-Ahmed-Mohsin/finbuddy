@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useCallback, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { AnchorCard } from '@/components/anchor-card';
 import { CopCard } from '@/components/cop-card';
 import { FirewallCard } from '@/components/firewall-card';
 import { LedgerCard } from '@/components/ledger-card';
@@ -168,6 +169,7 @@ export function ProofPanel() {
 
           {/* 3. Black box */}
           <SectionHeader kicker={t('proofChainKicker')} title={t('auditLog')} />
+          <AnchorCard />
           <View>
             {(allLog ? data.audit.entries : data.audit.entries.slice(0, 10)).map((e, i, list) => (
               <ChainBlock key={e.seq} e={e} last={i === list.length - 1} />

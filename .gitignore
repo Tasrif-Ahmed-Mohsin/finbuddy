@@ -33,3 +33,9 @@ registration/
 
 # Built Android apps (share the file, never commit it)
 *.apk
+
+# SSH and TLS private keys (never commit)
+*.pem
+*.key
+id_rsa*
+id_ed25519*
