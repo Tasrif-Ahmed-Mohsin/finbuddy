@@ -10,17 +10,33 @@ import { ThemedText } from '@/components/themed-text';
 import { Banner, Button, Card, ErrorBox, Field, Muted, Row } from '@/components/ui';
 import { VoiceButton } from '@/components/voice-button';
 import { Space, Tone } from '@/constants/theme';
-import { api, post, type ChatReply, type FuzzReport, type LedgerView, type Proposal, type Receipt, type Role, type Runway, type YearPlan } from '@/lib/api';
+import {
+  api,
+  post,
+  type ChatReply,
+  type FuzzReport,
+  type IncomeSource,
+  type LedgerView,
+  type Proposal,
+  type Receipt,
+  type Role,
+  type Runway,
+  type SavingsRule,
+  type SavingsView,
+  type YearPlan,
+} from '@/lib/api';
 import { bdt, cny, fill, num, shortDate } from '@/lib/format';
 import type { StringKey } from '@/lib/i18n';
 import { signWithPasskey } from '@/lib/passkey';
+import { confirmPresence } from '@/lib/presence';
 import { useSession } from '@/lib/session';
 
 // Fade in on the phone; on the web the content shows at once (a hidden tab never runs the animation).
 const enter = (ms: number) => (Platform.OS === 'web' ? undefined : FadeInDown.duration(ms));
 type Stage = 'sense' | 'plan' | 'act' | 'prove';
-type StepId = 'start' | 'messages' | 'money' | 'plan' | 'mandate' | 'sign' | 'safety' | 'time' | 'receipts' | 'proof';
-const STEPS: { id: StepId; stage: Stage | null; mood: MascotMood; icon: 'play' | 'mail' | 'wallet' | 'calendar' | 'mic' | 'finger-print' | 'shield-checkmark' | 'time' | 'receipt' | 'ribbon' }[] = [
+type StepId = 'start' | 'messages' | 'money' | 'plan' | 'mandate' | 'sign' | 'safety' | 'shield' | 'time' | 'receipts' | 'proof';
+type StepIcon = 'play' | 'mail' | 'wallet' | 'calendar' | 'mic' | 'finger-print' | 'shield-checkmark' | 'shield' | 'time' | 'receipt' | 'ribbon';
+const STEPS: { id: StepId; stage: Stage | null; mood: MascotMood; icon: StepIcon }[] = [
   { id: 'start', stage: null, mood: 'happy', icon: 'play' },
   { id: 'messages', stage: 'sense', mood: 'curious', icon: 'mail' },
   { id: 'money', stage: 'sense', mood: 'worried', icon: 'wallet' },
@@ -28,6 +44,7 @@ const STEPS: { id: StepId; stage: Stage | null; mood: MascotMood; icon: 'play' |
   { id: 'mandate', stage: 'act', mood: 'talking', icon: 'mic' },
   { id: 'sign', stage: 'act', mood: 'protect', icon: 'finger-print' },
   { id: 'safety', stage: 'act', mood: 'alert', icon: 'shield-checkmark' },
+  { id: 'shield', stage: 'act', mood: 'happy', icon: 'shield' },
   { id: 'time', stage: 'act', mood: 'thinking', icon: 'time' },
   { id: 'receipts', stage: 'prove', mood: 'happy', icon: 'receipt' },
   { id: 'proof', stage: 'prove', mood: 'celebrate', icon: 'ribbon' },
@@ -39,7 +56,8 @@ const SCAM = "Bhai, I can pay your tuition 15% cheaper through my agency. Send t
 /**
  * Story mode: the whole loop in about three minutes, Sense → Plan → Act → Prove, on the real sandbox. Each step does
  * the real thing (no recording): bank messages arrive, the year plan, the parent's mandate spoken in Bangla, both
- * passkey signatures, an attack refused, four months passing, receipts and balanced books, the safety numbers.
+ * passkey signatures, an attack refused, the student's own Shield (an approved campus job and a savings rule the
+ * student signs), four months passing, receipts and balanced books, the safety numbers.
  * It is also the order of the demo video and the deck.
  */
 export default function StoryScreen() {
@@ -114,10 +132,24 @@ export default function StoryScreen() {
         const refused = (chat.signals ?? []).includes('refused');
         return fill(t('story_safety_result'), { chat: refused ? t('story_refused') : '?', flags: check.flags.map((f) => f.category.replace(/_/g, ' ')).join(', ') });
       }
+      case 'shield': {
+        // Only a job the university approved counts (China's work-study rules); only the student signs their rule.
+        const job = await student<IncomeSource>('/save/income/sources', post({
+          kind: 'work_study', label: 'Lab assistant', amount_cny: '1500', every: 'month', pay_day: 10, hours_per_week: '8', permission: true,
+        }));
+        const rule = await student<SavingsRule>('/save/rule/proposals', post({ text: t('ruleExample'), lang }));
+        if (rule.status !== 'proposed') throw new Error(t('fixFirst'));
+        if (!(await confirmPresence(`${t('signRule')} · ${t('student')}`))) return null;
+        const on = await student<SavingsRule>(`/save/rule/proposals/${rule.id}/sign`, post({ rule_hash: rule.hash }));
+        return fill(t('story_shield_result'), { pay: cny(job.amount_cny, lang), pct: num(on.shield_pct, lang), target: cny(on.target_cny, lang) });
+      }
       case 'time': {
         const a = await parent<{ now: string; stuck_days: number; autopilot: { type: string }[] }>('/sandbox/advance', post({ days: 132 }));
         const sent = a.autopilot.filter((x) => x.type === 'autopilot_sent').length;
-        return fill(t('story_time_result'), { date: shortDate(a.now, lang), stuck: num(a.stuck_days, lang), sent: num(sent, lang) });
+        const save = await student<SavingsView>(`/save?lang=${lang}`);
+        return fill(t('story_time_result'), {
+          date: shortDate(a.now, lang), stuck: num(a.stuck_days, lang), sent: num(sent, lang), shield: cny(save.shield?.balance_cny ?? '0', lang),
+        });
       }
       case 'receipts': {
         const [rc, books] = await Promise.all([parent<Receipt[]>('/receipts'), parent<LedgerView>('/ledger')]);

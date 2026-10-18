@@ -10,8 +10,12 @@ import { useSession } from '@/lib/session';
  * Family (act, and the proof of everything that was done).
  */
 export default function TabsLayout() {
-  const { t, ready, onboarded } = useSession();
+  const { t, ready, onboarded, aiChoices } = useSession();
   if (ready && !onboarded) return <Redirect href="/welcome" />;  // first launch: four short cards first
+  // Nobody on this phone has answered about the AI yet (e.g. an older install): ask that one card before the app.
+  if (ready && aiChoices.parent === null && aiChoices.student === null) {
+    return <Redirect href={{ pathname: '/welcome', params: { step: 'data' } }} />;
+  }
   return (
     <Tabs tabBar={(props) => <Dock {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: Colors.light.background } }}>
       <Tabs.Screen name="index" options={{ title: t('tabHome') }} />

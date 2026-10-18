@@ -127,8 +127,9 @@ class AppState:
         self.passkey_approvals: dict[str, list[dict]] = {}
         self.idempotency: dict[tuple[str, str], dict] = {}  # (person, key) → the first answer
         self.open_banking = OpenBanking()
-        # PIPL Art. 39: a separate consent before personal data goes to the AI in China. Each person can switch it off.
-        self.ai_consent = {"parent": True, "student": True}
+        # PIPL Art. 14/39: a separate, explicit consent before personal data goes to the AI in China. None = not asked
+        # yet, and then the rules answer; each person chooses (the app asks on first launch) and can change it any time.
+        self.ai_consent: dict[str, bool | None] = {"parent": self.settings.ai_default, "student": self.settings.ai_default}
         self.iso_records: dict[str, dict] = {}
         self.mandates: dict[str, Mandate] = {}
         # Demo profile (fictional). Endorsement until December mirrors Interview #1 (N-05).
@@ -329,9 +330,15 @@ class AppState:
 
     # ---- the AI switch (consent to send data to DeepSeek) --------------------------------
     def llm_for(self, actor: Actor | str) -> DeepSeekClient | None:
-        """The AI model for this person, or None when they switched the AI off (then the rules answer)."""
+        """The AI model for this person, or None unless they said yes to it (then the rules answer)."""
         who = actor.value if isinstance(actor, Actor) else actor
-        return self.llm if self.ai_consent.get(who, True) else None
+        return self.llm if self.ai_consent.get(who) else None
+
+    def llm_for_family(self) -> DeepSeekClient | None:
+        """For messages forwarded by the family's own webhook (no person attached): the AI only when someone said yes
+        and nobody said no."""
+        votes = list(self.ai_consent.values())
+        return self.llm if any(votes) and False not in votes else None
 
     def set_ai_consent(self, actor: Actor, allowed: bool) -> dict:
         if actor not in (Actor.PARENT, Actor.STUDENT):
@@ -423,7 +430,8 @@ class AppState:
                             "deletable": True, "what": "Your own pay, stipend and purchases (never shown to the parent "
                             "unless you share)", "why": "Earn & Save"})
         return {"held": held, "recipients": privacy.RECIPIENTS, "not_stored": privacy.NOT_STORED,
-                "switches": {"ai": self.ai_consent.get(who, True), "ai_available": self.llm is not None,
+                "switches": {"ai": bool(self.ai_consent.get(who)), "ai_asked": self.ai_consent.get(who) is not None,
+                             "ai_available": self.llm is not None,
                              "whatsapp": bool(self.profile.get("parent_whatsapp")),
                              "banks": any(c["status"] == "Authorised" for c in self.open_banking.for_holder(who, self.now))},
                 "rights": ["know", "copy", "correct", "delete", "withdraw consent"], "law": "PIPL Art. 17, 39, 44-47"}
@@ -441,7 +449,7 @@ class AppState:
                                  "at": t.received_at.isoformat()} for t in self.inbox.txns],
                "passkeys": self.passkeys.list_credentials(who),
                "bank_connections": self.open_banking.for_holder(who, self.now),
-               "ai_consent": self.ai_consent.get(who, True),
+               "ai_consent": self.ai_consent.get(who),
                "audit_log": [e for e in self.audit.entries if e["actor"] == who][-500:]}
         if actor == Actor.STUDENT:
             out["earnings"] = {"income_sources": [s.to_dict() if hasattr(s, "to_dict") else str(s)

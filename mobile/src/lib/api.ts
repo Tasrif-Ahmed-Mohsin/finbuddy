@@ -742,7 +742,7 @@ export type PrivacyView = {
   held: { id: string; count: number; deletable: boolean; what: string; why: string }[];
   recipients: { id: string; name: string; law: string; what: string[]; why: string; when: string; kept_there: string; switch: string }[];
   not_stored: string[];
-  switches: { ai: boolean; ai_available: boolean; whatsapp: boolean; banks: boolean };
+  switches: { ai: boolean; ai_asked: boolean; ai_available: boolean; whatsapp: boolean; banks: boolean };
   rights: string[];
   law: string;
 };

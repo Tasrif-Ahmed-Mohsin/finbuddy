@@ -66,7 +66,8 @@ class Sandbox:
         from app.main import create_app
         from app.security.passkey import SimulatedAuthenticator
 
-        settings = dataclasses.replace(load_settings(), passkey_required=True)
+        # The scripted family has said yes to the AI, so the drills with a scripted model reach it.
+        settings = dataclasses.replace(load_settings(), passkey_required=True, ai_default=True)
         self.api = create_app(audit_path=None, llm=llm, fx=fx, bank_rates=bank_rates, settings=settings)
         self.client = TestClient(self.api)
         self.svc = self.api.state.svc

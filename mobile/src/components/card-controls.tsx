@@ -46,6 +46,7 @@ export function CardControls({ card, onChange }: { card: CardT; onChange: () => 
         <Badge tone={TONE[card.status]}>{label}</Badge>
       </Row>
       <Muted>{card.label}</Muted>
+      <Muted>{t('cardSandboxNote')}</Muted>
       {card.changed_at && (
         <Muted>
           {shortDate(card.changed_at, lang)}

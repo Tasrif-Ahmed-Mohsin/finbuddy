@@ -119,6 +119,7 @@ export default function EmergencyScreen() {
           ) : (
             <Badge tone="ok" icon="lock-closed">{t('emFrozen')}</Badge>
           )}
+          <Muted>{t('cardSandboxNote')}</Muted>
           <Steps steps={em.guides.card_lost.steps} />
           {em.card.status !== 'active' && em.text.options.map((o) => <Row2 key={o.kind} text={o.text} />)}
         </Card>

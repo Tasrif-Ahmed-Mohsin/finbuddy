@@ -7,11 +7,11 @@ Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy
 
 1. **Watch the story**: the demo video (≤ 5 min, link below) follows the app's Story mode: Sense → Plan → Act → Prove.
 2. **Run it yourself**: start the backend and the app ([README → Run it](README.md#run-it)). On first launch, four
-   short cards; then tap **See the whole story**: ten steps, each doing the real thing on the sandbox (bank messages,
-   the year plan, a Bangla mandate, two passkey signatures, an attack refused, four months passing, receipts, proof).
+   short cards; then tap **See the whole story**: eleven steps, each doing the real thing on the sandbox (bank messages,
+   the year plan, a Bangla mandate, two passkey signatures, an attack refused, the student's own Shield, four months passing, receipts, proof).
 3. **Run the judges' tasks**: Settings → Judge mode (or `python scripts/judge_tasks.py`): **20/20** scripted tasks pass
    in fresh sandboxes, each with steps, checks, value and the log entry that proves it.
-4. **Run the tests**: `cd backend && .venv/Scripts/python -m pytest -q`: **408 tests** pass, including the red-team cases.
+4. **Run the tests**: `cd backend && .venv/Scripts/python -m pytest -q`: **409 tests** pass, including the red-team cases.
 
 ## The six deliverables
 
@@ -20,7 +20,7 @@ Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy
 | 1 | **Technical documentation** (architecture, core algorithms, security design) | [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md); bank standards in [docs/FINTECH_STANDARDS_ISO20022.md](docs/FINTECH_STANDARDS_ISO20022.md) |
 | 2 | **Presentation deck** (≤ 10 min) | *to be added* |
 | 3 | **Demo video** (≤ 5 min) | *to be added* |
-| 4 | **Source code** with README, deployment and tests | this repository: [README.md](README.md) (run it, deploy it), `backend/tests/` (408 tests), `Dockerfile` + `render.yaml` |
+| 4 | **Source code** with README, deployment and tests | this repository: [README.md](README.md) (run it, deploy it), `backend/tests/` (409 tests), `Dockerfile` + `render.yaml` |
 | 5 | **Security self-assessment** (permission tiers, known-risk list) | [docs/SECURITY_SELF_ASSESSMENT.md](docs/SECURITY_SELF_ASSESSMENT.md): levels L0–L3 with the action map, red-team results, 38 known risks |
 | 6 | **Execution evidence** (sandbox operation logs + demo video) | [docs/evidence/](docs/evidence/): see below |
 

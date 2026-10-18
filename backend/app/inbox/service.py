@@ -121,7 +121,7 @@ class Inbox:
         txn = None
         if not red.otp and not risky:
             parsed = parse(red.text)
-            llm = self.app.llm_for(actor) if actor in ("parent", "student") else self.app.llm
+            llm = self.app.llm_for(actor) if actor in ("parent", "student") else self.app.llm_for_family()
             if (parsed is None or parsed.confidence < 0.75) and llm is not None:
                 parsed = llm_extract(llm, red.text) or parsed
             if parsed is not None:

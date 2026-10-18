@@ -156,7 +156,7 @@ sequenceDiagram
 | `backend/app/corridors/bd_cn.yaml` | Rule pack: every number with value, confidence (official / secondary / field / assumption) and source |
 | `backend/app/data/` | `bank_holidays.yaml` (BD + CN closures), `bank_quotes.yaml` (estimates + real payment), `fx_history.csv`, `demo_messages.yaml` |
 | `backend/scripts/` | `fetch_fx_history.py` (data pipeline), `demo_scenario.py` (end-to-end run + evidence export) |
-| `backend/tests/` | 408 automated test cases (29 files) |
+| `backend/tests/` | 409 automated test cases (29 files) |
 | `mobile/src/` | Expo Router screens (`app/`), components, API client, i18n (bn/en/zh), formatting (lakh, Bengali digits) |
 | `docs/` | Research, plans, this document, security self-assessment, `evidence/` (sandbox operation logs) |
 
@@ -481,7 +481,7 @@ bank could plug into.
 | **Confirmation of Payee** | Before a transfer, the name on the receiving account is checked against who should hold it (UK / EU anti-scam check, simulated directory) | `security/cop.py` | `tests/test_cop.py` |
 | **Output firewall** | Every reply is checked before display: one-time codes, card and account numbers, the other person's private money and the system prompt are hidden, in the reader's language | `security/firewall.py` | [ai_output_firewall_evidence.md](evidence/ai_output_firewall_evidence.md) |
 | **Safety-invariant fuzzing** | 50,000 random honest and hostile steps on the real code with 9 invariants checked after every step; 0 violations, 492 payments still went through; 3 deliberate bugs (mutants) all caught; it found one real gap, now fixed | `security/fuzzer.py`, `security/mutants.py` | [safety_fuzzing_evidence.md](evidence/safety_fuzzing_evidence.md) |
-| **Your data (PIPL)** | What is kept and why, where it goes (DeepSeek in China), copy, delete, and a per-person AI switch (off = rules only, nothing sent) | `privacy.py`, app → Settings → Your data | `test_switching_the_ai_off_means_nothing_goes_to_deepseek` |
+| **Your data (PIPL)** | What is kept and why, where it goes (DeepSeek in China), copy, delete, and a per-person AI choice: asked on first launch with nothing pre-selected, not asked = off (rules only, nothing sent) | `privacy.py`, app → Settings → Your data | `test_switching_the_ai_off_means_nothing_goes_to_deepseek` |
 | **Bangla voice input** | Speak instead of typing (bn-BD, en-US, zh-CN): Android's speech service in the app, the Web Speech API in the browser; the words land in the box to check before sending | `mobile/src/components/voice-button.tsx` | manual (needs a microphone) |
 
 **Review on 18 Oct.** A first version of several of these overclaimed; the review fixed them before submission:
@@ -494,11 +494,12 @@ the ISO message used values the schema rejects and wrong BICs; the security stat
 The app tells the same story the documents do, in the same order:
 
 - **First launch** (`app/welcome.tsx`): four short cards. Meet Bluefin (Sense → Plan → Act → Prove); who uses the phone
-  and in which language; your data and the AI (a separate consent before anything goes to DeepSeek in China, PIPL
-  Art. 39); your fingerprint key (the phone's passkey is made and registered here, not at the first payment).
-- **Story mode** (`app/story.tsx`, Home → "See Bluefin's whole story"): ten steps on the live sandbox, each calling the
+  and in which language; your data and the AI (a separate, explicit consent before anything goes to DeepSeek in China, PIPL
+  Art. 14 and 39: two buttons, nothing pre-selected, Skip still asks; until a person answers, the rules answer); your fingerprint key (the phone's passkey is made and registered here, not at the first payment).
+- **Story mode** (`app/story.tsx`, Home → "See Bluefin's whole story"): eleven steps on the live sandbox, each calling the
   real API: bank messages arrive, money in China, the year plan, the father's mandate **spoken in Bangla**, both passkey
-  signatures, an attack refused and a scam flagged, four months through the card stop and Spring Festival, receipts and
+  signatures, an attack refused and a scam flagged, the student's own Shield (an approved campus job and a
+  savings rule only the student signs), four months through the card stop and Spring Festival, receipts and
   balanced books, the proof. The demo video and the deck follow these steps.
 - **Trust center** (Family → Proof): *your money* (receipts with their bank tracking number, the double-entry books, the
   payment passport), *safety* (six shields, each with live numbers and one tap to its evidence: passkeys, two people from
@@ -606,7 +607,7 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
 
 ## 10. Testing and execution evidence
 
-- `cd backend && .venv/Scripts/python -m pytest -q` runs **408 test cases**, all passing:
+- `cd backend && .venv/Scripts/python -m pytest -q` runs **409 test cases**, all passing:
 
   | Area | Test cases |
   |---|---|

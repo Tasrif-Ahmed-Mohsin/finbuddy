@@ -52,6 +52,8 @@ def main() -> int:
     os.environ["WHATSAPP_MODE"] = "off"
     if not args.llm:
         os.environ["SATHI_LLM_ENABLED"] = "0"
+    else:
+        os.environ["SATHI_AI_DEFAULT"] = "1"  # the scripted family said yes to the AI (the app asks on first launch)
 
     from fastapi.testclient import TestClient
 

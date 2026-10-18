@@ -31,7 +31,7 @@ function confirmDelete(message: string): Promise<boolean> {
  * deleting it, and the AI switch (off = the rules answer and nothing is sent to the AI).
  */
 export default function PrivacyScreen() {
-  const { t, lang, call } = useSession();
+  const { t, lang, call, role, setAiChoice } = useSession();
   const { data, error, reload } = useLoad(useCallback(() => call<PrivacyView>('/privacy'), [call]));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -50,7 +50,8 @@ export default function PrivacyScreen() {
     }
   }
 
-  const setAi = (allowed: boolean) => act(async () => void (await call('/privacy/ai', post({ allowed }))));
+  // Only this person's answer changes; it is also saved on the phone so a server restart keeps it.
+  const setAi = (allowed: boolean) => act(() => setAiChoice([role], allowed));
   const exportData = () =>
     act(async () => {
       const copy = await call<object>('/privacy/export');

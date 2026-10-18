@@ -729,8 +729,10 @@ Months active: {e(str(st.get('months_active', '–')))}</p><table>{rows}</table>
     def reset_sandbox(who: Actor = Depends(actor)):
         """Start the demo again from 12 Oct 2026 (sandbox only). The previous session's log stays on disk."""
         user_only(who)
-        app.state.svc = AppState(audit_path=audit_path, llm=the_llm, settings=settings, fx=app.state.svc.fx,
-                                 bank_rates=app.state.svc.bank_rates, passkeys=app.state.svc.passkeys)
+        old = app.state.svc
+        app.state.svc = AppState(audit_path=audit_path, llm=the_llm, settings=settings, fx=old.fx,
+                                 bank_rates=old.bank_rates, passkeys=old.passkeys)
+        app.state.svc.ai_consent = dict(old.ai_consent)  # a person's choice about the AI survives a demo reset
         return {"reset": True, "now": app.state.svc.now.isoformat()}
 
     @app.post("/sandbox/advance")

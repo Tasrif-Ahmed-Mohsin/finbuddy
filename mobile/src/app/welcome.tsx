@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Mascot } from '@/components/mascot';
@@ -9,7 +9,7 @@ import { Kicker, Panel, SpaceText } from '@/components/neo';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card, ErrorBox, Muted, Row, Segmented } from '@/components/ui';
 import { Brand, Space } from '@/constants/theme';
-import { post, type Role } from '@/lib/api';
+import type { Role } from '@/lib/api';
 import type { Lang } from '@/lib/i18n';
 import { setupPasskey } from '@/lib/passkey';
 import { useSession } from '@/lib/session';
@@ -21,13 +21,15 @@ type Page = (typeof PAGES)[number];
 
 /**
  * First launch, four short cards: meet Bluefin (the loop in one line), who you are (parent or student) and your
- * language, your data and the AI (PIPL consent: off = the rules answer, nothing goes to DeepSeek in China), and your
- * fingerprint key (the passkey that signs every approval). Then the story, or straight to the app.
+ * language, your data and the AI (PIPL consent: an explicit choice, nothing pre-selected, and Skip still asks; "no" =
+ * the rules answer and nothing goes to DeepSeek in China), and your fingerprint key (the passkey that signs every
+ * approval). Then the story, or straight to the app. `?step=data` opens the AI question alone.
  */
 export default function WelcomeScreen() {
-  const { t, role, setRole, lang, setLang, call, setOnboarded } = useSession();
-  const [page, setPage] = useState<Page>('meet');
-  const [ai, setAi] = useState(true);
+  const { t, role, setRole, lang, setLang, call, setOnboarded, setAiChoice } = useSession();
+  const { step } = useLocalSearchParams<{ step?: string }>();
+  const [page, setPage] = useState<Page>(step === 'data' ? 'data' : 'meet');
+  const [ai, setAi] = useState<boolean | null>(null);
   const [keyLabel, setKeyLabel] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,8 +38,10 @@ export default function WelcomeScreen() {
   async function next() {
     setError(null);
     if (page === 'data') {
+      if (ai === null) return;
       try {
-        await call('/privacy/ai', post({ allowed: ai }));
+        // In this demo one phone is both people, so the answer is recorded for both; each can change it later.
+        await setAiChoice(['parent', 'student'], ai);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
         return;
@@ -130,13 +134,12 @@ export default function WelcomeScreen() {
               </ThemedText>
             </Row>
             <Muted>{t('welcome_data_body')}</Muted>
-            <Row style={{ flexWrap: 'nowrap', gap: 12 }}>
-              <ThemedText type="smallBold" style={{ flex: 1 }}>
-                {t('privacyAi')}
-              </ThemedText>
-              <Switch value={ai} onValueChange={setAi} trackColor={{ true: Brand.primary, false: '#5A6378' }} accessibilityLabel={t('privacyAi')} />
+            <Row style={{ gap: 10 }}>
+              <Button title={t('welcome_ai_yes')} icon="sparkles" variant={ai === true ? 'primary' : 'secondary'} onPress={() => setAi(true)} />
+              <Button title={t('welcome_ai_no')} icon="list" variant={ai === false ? 'primary' : 'secondary'} onPress={() => setAi(false)} />
             </Row>
-            <Muted>{ai ? t('privacyAiOn') : t('privacyAiOff')}</Muted>
+            <Muted>{ai === null ? t('welcome_ai_pick') : ai ? t('privacyAiOn') : t('privacyAiOff')}</Muted>
+            <Muted>{t('welcome_ai_both')}</Muted>
           </Card>
         )}
 
@@ -165,7 +168,7 @@ export default function WelcomeScreen() {
       {page !== 'key' ? (
         <Row style={{ gap: 10 }}>
           {i > 0 && <Button title={t('story_back')} variant="secondary" icon="arrow-back" onPress={() => setPage(PAGES[i - 1])} />}
-          <Button title={t('story_next')} icon="arrow-forward" onPress={next} />
+          <Button title={t('story_next')} icon="arrow-forward" onPress={next} disabled={page === 'data' && ai === null} />
         </Row>
       ) : (
         <>
@@ -173,7 +176,8 @@ export default function WelcomeScreen() {
           <Button title={t('welcome_skip_story')} variant="secondary" onPress={() => finish('/')} />
         </>
       )}
-      {page === 'meet' && <Button title={t('welcome_skip')} variant="secondary" onPress={() => finish('/')} />}
+      {/* Skipping the introduction still asks the one question that needs an answer: the AI. */}
+      {page === 'meet' && <Button title={t('welcome_skip')} variant="secondary" onPress={() => setPage('data')} />}
     </ScrollView>
   );
 }

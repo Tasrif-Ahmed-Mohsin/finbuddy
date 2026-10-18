@@ -48,7 +48,9 @@ export default function HomeScreen() {
     <Screen refreshing={loading} onRefresh={reload} wide>
       <View style={local.header}>
         <View style={{ flex: 1 }}>
-          <Kicker>{t(partOfDay())}</Kicker>
+          <Kicker>
+            {t(partOfDay())} · {t('sandboxChip')}
+          </Kicker>
           <H1>{t('appName')}</H1>
         </View>
         <RoundButton icon="alert" tone="danger" label={t('emergencyLink')} onPress={() => router.push('/emergency')} />

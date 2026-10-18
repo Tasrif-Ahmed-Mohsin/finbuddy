@@ -104,3 +104,28 @@ def test_switching_the_ai_off_means_nothing_goes_to_deepseek():
     r = client.post("/agent/chat", json={"message": "how much money is left?", "lang": "en"}, headers=H["parent"]).json()
     assert r["mode"] == "fallback" and len(llm.requests) == calls  # the rules answered; the model was not called
     assert client.get("/privacy", headers=H["parent"]).json()["switches"]["ai"] is False
+
+
+def test_the_ai_stays_off_until_the_person_says_yes_and_the_choice_survives_a_reset():
+    from app.config import load_settings
+
+    llm = FakeLLM([completion("hello from the model")] * 3)
+    settings = dataclasses.replace(load_settings(), ai_default=None)  # the real default: nobody has been asked
+    client = TestClient(create_app(audit_path=None, llm=llm.client(), settings=settings))
+    switches = client.get("/privacy", headers=H["parent"]).json()["switches"]
+    assert switches["ai"] is False and switches["ai_asked"] is False
+    r = client.post("/agent/chat", json={"message": "how much money is left?", "lang": "en"}, headers=H["parent"]).json()
+    assert r["mode"] == "fallback" and llm.requests == []  # not asked yet: nothing went to the model
+    svc = client.app.state.svc
+    assert svc.llm_for_family() is None  # the family's webhook does not use it either
+
+    assert client.post("/privacy/ai", json={"allowed": True}, headers=H["parent"]).json() == {"ai": True}
+    r = client.post("/agent/chat", json={"message": "how much money is left?", "lang": "en"}, headers=H["parent"]).json()
+    assert r["mode"] == "llm"
+    assert client.get("/privacy", headers=H["student"]).json()["switches"]["ai_asked"] is False  # each person chooses
+    assert svc.llm_for_family() is not None  # one yes and no no
+
+    client.post("/sandbox/reset", headers=H["parent"])
+    assert client.get("/privacy", headers=H["parent"]).json()["switches"]["ai"] is True  # kept across a demo reset
+    client.post("/privacy/ai", json={"allowed": False}, headers=H["student"])
+    assert client.app.state.svc.llm_for_family() is None  # one no is enough

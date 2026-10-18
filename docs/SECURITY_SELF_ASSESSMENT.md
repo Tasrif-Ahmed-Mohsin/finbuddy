@@ -302,10 +302,11 @@ The same model as family mandates, with the **student** as the one who signs (it
 | A balance changed behind the books; an unbalanced entry | detected (reconciliation); refused | ✅ | `test_a_balance_changed_behind_the_books_is_caught`, `test_an_unbalanced_entry_is_refused` |
 | Agent reads a bank without consent, connects one itself; reading after revoke or expiry | 403 every time; reads logged | ✅ | `tests/test_open_banking_privacy.py`, judge T9 |
 | AI switched off by the person | nothing sent to DeepSeek; the rules answer | ✅ | `test_switching_the_ai_off_means_nothing_goes_to_deepseek` |
+| Nobody asked yet (fresh server or install) | AI off until the person answers; the family webhook needs a yes and no no; the answer survives a demo reset | ✅ | `test_the_ai_stays_off_until_the_person_says_yes_and_the_choice_survives_a_reset` |
 | An SMS-planted amount drafted by the agent | blocked by taint tracking, however phrased | ✅ | `test_end_to_end_inbox_injection_blocked_in_service`, fuzzer `INV_TAINTED_AMOUNT_BLOCKED` |
 | 50,000 random honest and hostile steps, every rule checked after each step | 0 violations, 492 payments still went through; 3 of 3 deliberate bugs caught | ✅ | `tests/test_fuzzer.py`, `docs/evidence/safety_fuzzing_evidence.md` |
 
-Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (408 cases).
+Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (409 cases).
 
 ## 10. Known-risk list
 
@@ -320,7 +321,7 @@ Likelihood and impact are rated for a **production** deployment (L = low, M = me
 | R5 | Rate limiting covers writes and the one heavy read only | M | M | Public site: per-address limits on writes (AI 20 / 10 min, others 120 / 10 min) and on the CPU-heavy stress test (30 / 10 min, at most 200 runs); a daily AI budget; short-lived tokens; 24-character passport codes. Other reads are not limited | Partial | Gateway rate limits on all routes, lockouts, anomaly alerts |
 | R6 | **Signing secrets** (approvals, passports) are random per process or come from env | M | H | Never logged; per-process randomness | Partial | KMS/HSM keys, rotation, key ids in signatures |
 | R7 | State in memory; audit file is local JSONL | M | M | Hash chain detects edits | Accepted for demo | Append-only (WORM) storage, periodic external anchoring of the chain head |
-| R8 | **Data sent to a third-party AI** (DeepSeek, China-based) | M | H | Privacy page names DeepSeek in China, what is sent and why (PIPL Art. 17, 39); a per-person AI switch (off = rules answer, nothing sent); only redacted text; copy and delete (Art. 44–47) | Partial | Data-processing agreement, region choice, consent recorded at onboarding |
+| R8 | **Data sent to a third-party AI** (DeepSeek, China-based) | M | H | Privacy page names DeepSeek in China, what is sent and why (PIPL Art. 17, 39); a per-person AI choice asked on first launch with nothing pre-selected (not asked = off; off = rules answer, nothing sent); only redacted text; copy and delete (Art. 44–47) | Partial | Data-processing agreement, region choice |
 | R9 | **Injection detection is pattern-based** and can be paraphrased around | M | M | Architecture limits impact: no execute tool, permission engine, payee allow-list | Accepted | Add an ML classifier as a second signal; keep architectural containment |
 | R10 | Agent-initiated freeze could be triggered by a misleading chat (denial of service) | L | L | Only from the user's own chat; reversible by the user; logged | Accepted | Ask for one-tap confirmation unless strong fraud signals |
 | R11 | Message parsers tuned on **synthetic** samples | H | M | Grounding check; AI fallback; low-confidence flags | Open | Collect consented, anonymised real alerts; per-bank parsers; accuracy tests |
@@ -362,6 +363,6 @@ For the **sandbox demo**, the residual risk is low: no real money or data. Every
 
 ```bash
 cd backend
-.venv/Scripts/python -m pytest -q                # 408 cases incl. all red-team tests above
+.venv/Scripts/python -m pytest -q                # 409 cases incl. all red-team tests above
 .venv/Scripts/python scripts/demo_scenario.py    # end-to-end run → docs/evidence/ (hash-chained log)
 ```
