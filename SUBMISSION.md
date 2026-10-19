@@ -21,8 +21,6 @@ Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy · **Live demo: http
 - Any browser works. With a fingerprint, face or PIN set up (Windows Hello, Touch ID, an Android screen lock), the
   browser makes a real passkey. Without one, for example on a phone without Google services, it uses a sandbox demo
   key, labelled as such on every approval. The Android app makes its own key on the phone and needs no Google services.
-- GitHub can be slow from mainland China: the same source code is attached to the submission email as
-  `Bluefin_Source_Code.zip`.
 
 ## The six deliverables
 
