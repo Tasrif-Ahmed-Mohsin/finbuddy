@@ -199,6 +199,9 @@ function HeroTile({ feed }: { feed: Feed }) {
 /** Value delivered, in three numbers: days without money avoided, money saved this year, unsafe moves stopped. */
 function ValueTile({ v }: { v: ValueSummary }) {
   const { t, lang } = useSession();
+  // Later in the year, covering every day can cost a little more in fees than today's habits: say so, never "−৳ saved".
+  const saved = Math.round(Number(v.saved_bdt));
+  const amount = `${saved < 0 ? '+' : ''}৳${localDigits(Math.abs(saved).toLocaleString('en-IN'), lang)}`;
   return (
     <Tile span={2} label={t('valueKicker')} onPress={() => router.push('/judge')}>
       <Kicker>{t('valueKicker')}</Kicker>
@@ -215,9 +218,9 @@ function ValueTile({ v }: { v: ValueSummary }) {
         </View>
         <View style={local.valueCell}>
           <ThemedText display style={local.valueBig}>
-            ৳{localDigits(Math.round(Number(v.saved_bdt)).toLocaleString('en-IN'), lang)}
+            {amount}
           </ThemedText>
-          <Muted>{t('valueSaved')}</Muted>
+          <Muted>{saved < 0 ? t('valueExtra') : t('valueSaved')}</Muted>
         </View>
         <View style={local.valueCell}>
           <ThemedText display style={local.valueBig}>

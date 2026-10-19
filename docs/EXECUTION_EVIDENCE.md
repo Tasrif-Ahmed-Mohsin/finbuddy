@@ -186,7 +186,7 @@ proof. It opens with a Bangladeshi student in China describing the problems in h
 
 ```bash
 cd backend
-.venv/Scripts/python -m pytest -q                       # 417 tests, incl. every red-team case
+.venv/Scripts/python -m pytest -q                       # 418 tests, incl. every red-team case
 .venv/Scripts/python scripts/demo_scenario.py           # the four-month run → evidence/sandbox_operation_log.jsonl + scenario_summary.md
 .venv/Scripts/python scripts/judge_tasks.py             # 20 scripted tasks → evidence/judge_tasks.md
 .venv/Scripts/python scripts/fuzz_safety_invariants.py  # 50,000 steps + 3 mutants → evidence/safety_fuzzing_evidence.md

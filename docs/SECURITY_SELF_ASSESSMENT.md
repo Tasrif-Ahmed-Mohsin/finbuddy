@@ -312,7 +312,7 @@ The same model as family mandates, with the **student** as the one who signs (it
 | An SMS-planted amount drafted by the agent | blocked by taint tracking, however phrased | ✅ | `test_end_to_end_inbox_injection_blocked_in_service`, fuzzer `INV_TAINTED_AMOUNT_BLOCKED` |
 | 50,000 random honest and hostile steps, every rule checked after each step | 0 violations, 492 payments still went through; 3 of 3 deliberate bugs caught | ✅ | `tests/test_fuzzer.py`, `docs/evidence/safety_fuzzing_evidence.md` |
 
-Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (417 cases).
+Run them all: `cd backend && .venv/Scripts/python -m pytest -q` (418 cases).
 
 ## 10. Known-risk list
 
@@ -371,7 +371,7 @@ For the **sandbox demo**, the residual risk is low: no real money or data. Every
 
 ```bash
 cd backend
-.venv/Scripts/python -m pytest -q                # 417 cases incl. all red-team tests above
+.venv/Scripts/python -m pytest -q                # 418 cases incl. all red-team tests above
 .venv/Scripts/python scripts/demo_scenario.py    # end-to-end run → docs/evidence/ (hash-chained log)
 python scripts/verify_audit_log.py ../docs/evidence/sandbox_operation_log.jsonl   # check the chain, standard library only
 ```

@@ -1,0 +1,120 @@
+{
+ "home": {},
+ "home_value": {},
+ "st_start_show": {
+  "tap": {
+   "x": 16,
+   "y": 450.390625,
+   "w": 358,
+   "h": 52
+  }
+ },
+ "st_start_result": {},
+ "st_messages_show": {
+  "tap": {
+   "x": 16,
+   "y": 378.390625,
+   "w": 358,
+   "h": 52
+  }
+ },
+ "st_messages_result": {},
+ "st_money_show": {
+  "tap": {
+   "x": 16,
+   "y": 330.390625,
+   "w": 358,
+   "h": 52
+  }
+ },
+ "st_money_result": {},
+ "st_plan_show": {
+  "tap": {
+   "x": 16,
+   "y": 354.390625,
+   "w": 358,
+   "h": 52
+  }
+ },
+ "st_plan_result": {},
+ "st_mandate_show": {
+  "tap": {
+   "x": 16,
+   "y": 590.390625,
+   "w": 358,
+   "h": 52
+  }
+ },
+ "st_mandate_result": {},
+ "st_sign_show": {
+  "tap": {
+   "x": 16,
+   "y": 402.390625,
+   "w": 358,
+   "h": 52
+  }
+ },
+ "st_sign_result": {},
+ "st_safety_show": {
+  "tap": {
+   "x": 16,
+   "y": 354.390625,
+   "w": 358,
+   "h": 52
+  }
+ },
+ "st_safety_result": {},
+ "st_shield_show": {
+  "tap": {
+   "x": 16,
+   "y": 450.390625,
+   "w": 358,
+   "h": 72
+  }
+ },
+ "st_shield_result": {},
+ "st_time_show": {
+  "tap": {
+   "x": 16,
+   "y": 378.390625,
+   "w": 358,
+   "h": 52
+  }
+ },
+ "st_time_result": {},
+ "st_receipts_show": {
+  "tap": {
+   "x": 16,
+   "y": 378.390625,
+   "w": 358,
+   "h": 52
+  }
+ },
+ "st_receipts_result": {},
+ "st_proof_show": {
+  "tap": {
+   "x": 16,
+   "y": 330.390625,
+   "w": 358,
+   "h": 52
+  }
+ },
+ "st_proof_result": {},
+ "proof_top": {},
+ "proof_receipts": {},
+ "proof_safety": {},
+ "proof_log": {},
+ "proof_fisco": {},
+ "plan_tab": {},
+ "plan_tab2": {},
+ "judge_top": {
+  "tap": {
+   "x": 20,
+   "y": 450,
+   "w": 350,
+   "h": 52
+  }
+ },
+ "judge_result": {},
+ "judge_list": {}
+}

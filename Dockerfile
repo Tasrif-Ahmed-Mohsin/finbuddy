@@ -23,6 +23,7 @@ COPY docs/evidence/fuzzing_report.json docs/evidence/sandbox_operation_log.jsonl
 ENV SATHI_WEB_DIR=/srv/web \
     SATHI_FX_MODE=live \
     WHATSAPP_MODE=off \
+    SATHI_PASSKEY_REPLACE_OLDEST=1 \
     SATHI_LLM_DAILY_CALLS=600 \
     PYTHONUNBUFFERED=1
 RUN useradd --create-home bluefin && mkdir -p var/audit && chown -R bluefin var

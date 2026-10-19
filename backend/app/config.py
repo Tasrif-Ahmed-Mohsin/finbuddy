@@ -45,6 +45,9 @@ class Settings:
     # about other rules switch it off (SATHI_PASSKEY_REQUIRED=0) and approve with a plain call.
     passkey_required: bool = True
     passkey_origins: tuple[str, ...] = ()  # extra web origins allowed to sign (the public site), besides localhost
+    # The public demo shares two demo people among every visitor, so a new device replaces that person's oldest key
+    # (logged) instead of being refused at the limit. Off elsewhere: a sixth key is refused until one is removed.
+    passkey_replace_oldest: bool = False
     # Consent to the AI before anyone has been asked: None = not asked, so the rules answer until the person chooses
     # (the app asks on first launch, with nothing pre-selected). Tests written before the switch set it to 1.
     ai_default: bool | None = None
@@ -77,5 +80,6 @@ def load_settings() -> Settings:
         whatsapp_demo_to=os.environ.get("WHATSAPP_DEMO_TO") or None,
         passkey_required=os.environ.get("SATHI_PASSKEY_REQUIRED", "1") != "0",
         passkey_origins=tuple(o.strip().rstrip("/") for o in os.environ.get("SATHI_PASSKEY_ORIGINS", "").split(",") if o.strip()),
+        passkey_replace_oldest=os.environ.get("SATHI_PASSKEY_REPLACE_OLDEST", "0") == "1",
         ai_default={"1": True, "0": False}.get(os.environ.get("SATHI_AI_DEFAULT", "").strip()),
     )

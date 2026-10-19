@@ -159,3 +159,20 @@ def test_passkeys_survive_a_sandbox_reset(client: TestClient):
     client.post("/sandbox/reset", headers=H["parent"])
     creds = client.get("/auth/passkey/credentials", headers=H["parent"]).json()["credentials"]
     assert [c["credential_id"] for c in creds] == [dev.credential_id]
+
+
+def test_sixth_key_is_refused_unless_the_shared_demo_replaces_the_oldest(client: TestClient):
+    devs = [enrol(client, "parent") for _ in range(5)]
+    r = client.post("/auth/passkey/register", json=SimulatedAuthenticator("parent").registration(), headers=H["parent"])
+    assert r.status_code == 400 and "remove one first" in r.json()["detail"]
+    s = client.app.state.svc
+    s.settings = dataclasses.replace(s.settings, passkey_replace_oldest=True)  # the public demo (SATHI_PASSKEY_REPLACE_OLDEST=1)
+    new = enrol(client, "parent")
+    creds = [c["credential_id"] for c in client.get("/auth/passkey/credentials", headers=H["parent"]).json()["credentials"]]
+    assert creds == [d.credential_id for d in devs[1:]] + [new.credential_id]  # the oldest went, the newest signs
+    assert "passkey_replaced" in [e["event"] for e in client.get("/audit?limit=5", headers=H["parent"]).json()["entries"]]
+    d = living_draft(client, "1500")
+    r = client.post(f"/drafts/{d['id']}/passkey-approve", json=new.sign(d["draft_hash"]), headers=H["parent"])
+    assert r.status_code == 200, r.text
+    r = client.post(f"/drafts/{d['id']}/passkey-approve", json=devs[0].sign(d["draft_hash"]), headers=H["parent"])
+    assert r.status_code in (400, 403)  # a replaced key no longer signs

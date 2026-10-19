@@ -18,11 +18,12 @@ Hero corridor: **Bangladesh → China**.
 ## Evaluate it in 5 minutes
 
 - **Live demo:** **https://20-193-145-135.sslip.io** (a phone or desktop browser; the app and its API on one server, sandbox only). Settings → "Start the demo again" gives a clean sandbox.
+- **Android app:** [https://20-193-145-135.sslip.io/download/bluefin.apk](https://20-193-145-135.sslip.io/download/bluefin.apk) (the same app, connected to the live server; allow installing from the browser).
 - **Story mode:** open the app → **See the whole story**: eleven steps on the live sandbox, Sense → Plan → Act → Prove
   (bank messages, the year plan, a mandate spoken in Bangla, two passkey signatures, an attack refused, the student's own Shield, four months
   passing, receipts and balanced books, the proof). The demo video follows the same steps.
 - **Judge mode:** Settings → Judge mode, or `python backend/scripts/judge_tasks.py`: 20/20 scripted tasks.
-- **Tests:** `cd backend && .venv/Scripts/python -m pytest -q`: 417 pass.
+- **Tests:** `cd backend && .venv/Scripts/python -m pytest -q`: 418 pass.
 - **Everything for the submission, item by item:** [SUBMISSION.md](SUBMISSION.md).
 
 ## The problem in one paragraph
@@ -73,7 +74,7 @@ so Bluefin turns part of it into a **Shield** for the days the legal channel fro
 - **AI-specific defences:** taint tracking (amounts from messages cannot become payments the AI drafts), an output firewall on every reply, Confirmation of Payee.
 - **Safety fuzzing:** 50,000 random honest and hostile steps with 9 rules checked after each: 0 broken, 492 payments still went through, 3 of 3 deliberate bugs caught ([evidence](docs/evidence/safety_fuzzing_evidence.md)).
 - **Your data (PIPL):** what is kept and where it goes (DeepSeek is in China), copy, delete, and a per-person AI choice (asked on first launch with nothing pre-selected; not asked = off); read-only bank connections with a 90-day consent and revoke; Bangla voice input in the chat.
-- Two-person rule from ৳1 lakh; hash-chained audit log; 417 tests, including the red-team cases and Judge mode.
+- Two-person rule from ৳1 lakh; hash-chained audit log; 418 tests, including the red-team cases and Judge mode.
 
 ## Run it
 
@@ -101,7 +102,7 @@ In Expo Go everything works except Bangla voice input, which needs a native buil
 
 ## Test it
 ```bash
-cd backend && .venv/Scripts/python -m pytest -q        # 417 tests: bank prices, year plan, mandates + autopilot, Earn & Save, security, engines, agent, inbox, FX, cards, renewals, passport, documents
+cd backend && .venv/Scripts/python -m pytest -q        # 418 tests: bank prices, year plan, mandates + autopilot, Earn & Save, security, engines, agent, inbox, FX, cards, renewals, passport, documents
 cd backend && .venv/Scripts/python scripts/judge_tasks.py   # Judge mode: 20 scripted tasks → docs/evidence/judge_tasks.md
 cd backend && .venv/Scripts/python scripts/fuzz_safety_invariants.py   # 50,000 random honest and hostile steps, 9 safety rules
 python backend/scripts/verify_audit_log.py docs/evidence/sandbox_operation_log.jsonl   # check the evidence log, standard library only
@@ -137,7 +138,7 @@ backend/app/judge.py         Judge mode: the scripted tasks end to end in fresh 
 backend/app/privacy.py       your data (PIPL): what is kept, where it goes, copy, delete, the AI choice
 backend/app/data/            bank holidays (BD + CN), bank rate sheets and fee schedules, real payment, FX history, demo messages
 backend/scripts/             demo scenario, judge tasks, fuzzing, log verifier, rate and FX data pipelines
-backend/tests/               417 tests in 30 files
+backend/tests/               418 tests in 30 files
 mobile/src/app/              Expo Router screens: five tabs (Home, Plan, Bluefin, Save, Family with Proof), Story mode, first launch,
                              payment approval, emergency, renewal, passport, connected banks, your data, judge mode, settings
 mobile/src/lib/              API client, passkeys, session, translations (Bengali, English, Chinese)

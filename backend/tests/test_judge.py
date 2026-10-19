@@ -47,3 +47,20 @@ def test_a_judge_run_never_messages_a_real_family(monkeypatch):
     monkeypatch.setattr(judge.Sandbox, "__init__", spy)
     run_all(fx=FxProvider(mode="fixture"))
     assert made and all(not s.whatsapp.enabled and s.profile["parent_whatsapp"] is None for s in made)
+
+
+def test_judge_mode_passes_on_a_server_with_private_tokens():
+    """A public server sets its own agent token; the scripted tasks must use the tokens the API accepts."""
+    import json
+    import os
+    import subprocess
+    import sys
+
+    code = ("import json; from app import judge; r = judge.run_all(); "
+            "print(json.dumps({'passed': sum(t['passed'] for t in r['tasks']), 'total': len(r['tasks'])}))")
+    env = {**os.environ, "SATHI_AGENT_TOKEN": "private-agent-token-for-test", "SATHI_FX_MODE": "fixture"}
+    out = subprocess.run([sys.executable, "-c", code], cwd=os.path.dirname(os.path.dirname(__file__)), env=env,
+                         capture_output=True, text=True, timeout=300)
+    assert out.returncode == 0, out.stderr[-800:]
+    result = json.loads(out.stdout.strip().splitlines()[-1])
+    assert result["passed"] == result["total"] == 20

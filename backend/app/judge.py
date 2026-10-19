@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import os
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Callable
@@ -23,7 +24,8 @@ import httpx
 
 from app.agent.llm import DeepSeekClient
 
-H = {r: {"Authorization": f"Bearer demo-{r}"} for r in ("student", "parent", "agent")}
+# The same tokens the API accepts (app/main.py DEMO_TOKENS): a public server sets its own, e.g. a private agent token.
+H = {r: {"Authorization": f"Bearer {os.environ.get(f'SATHI_{r.upper()}_TOKEN', f'demo-{r}')}"} for r in ("student", "parent", "agent")}
 BN_MANDATE = "প্রতি মাসে ১ লাখ ২০ হাজার টাকা পর্যন্ত ছেলের চীনের অ্যাকাউন্টে পাঠাবে"
 
 

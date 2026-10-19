@@ -64,7 +64,7 @@ from app.security.permissions import (
     required_approvers,
 )
 from app.security.scam import has_high_risk, scan_text
-from app.security.passkey import DEFAULT_ORIGINS, PasskeyService
+from app.security.passkey import DEFAULT_ORIGINS, MAX_KEYS_PER_PERSON, PasskeyService
 from app.integrations.open_banking import CONNECTORS, PERMISSIONS, OpenBanking
 from app import privacy
 from app.security.taint import TaintLedger, TaintSource
@@ -686,6 +686,11 @@ class AppState:
         if actor not in (Actor.PARENT, Actor.STUDENT):
             raise PermissionError("only the student or the parent can register a passkey")
         before = {c["credential_id"] for c in self.passkeys.list_credentials(actor.value)}
+        if self.settings.passkey_replace_oldest and credential_id not in before and len(before) >= MAX_KEYS_PER_PERSON:
+            oldest = self.passkeys.list_credentials(actor.value)[0]["credential_id"]
+            self.passkeys.remove(actor.value, oldest)
+            self._log("passkey_replaced", actor, "register_passkey", {
+                "credential_id": oldest[:40], "reason": "shared demo: a new device replaced the oldest key"})
         cred = self.passkeys.register(actor.value, credential_id, public_key, label, kind, self.now)
         if cred.credential_id not in before:
             self._log("passkey_registered", actor, "register_passkey", {

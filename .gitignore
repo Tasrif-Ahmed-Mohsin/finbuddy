@@ -39,3 +39,13 @@ registration/
 *.key
 id_rsa*
 id_ed25519*
+
+# Video inputs and renders (personal recordings; large files)
+video/inputs/
+video/Audio of speech/
+video/*.mp4
+video/*.m4a
+video/*.wav
+# Regenerated from the recordings (holds their transcripts and loudness); the deck has the interviewee's photos
+video/source/remotion/src/timeline.json
+submission/Bluefin_Presentation.pptx

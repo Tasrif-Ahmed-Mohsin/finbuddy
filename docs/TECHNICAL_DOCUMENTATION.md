@@ -143,7 +143,7 @@ sequenceDiagram
 | `backend/app/corridors/bd_cn.yaml` | Rule pack: every number with value, confidence (official / secondary / field / assumption) and source |
 | `backend/app/data/` | `bank_holidays.yaml` (BD + CN closures), `bank_quotes.yaml` (estimates + real payment), `fx_history.csv`, `demo_messages.yaml` |
 | `backend/scripts/` | `fetch_fx_history.py`, `fetch_bank_rates.py` (data pipelines), `demo_scenario.py` (four-month run + evidence export), `judge_tasks.py`, `fuzz_safety_invariants.py`, `verify_audit_log.py` (checks an exported log with the standard library only) |
-| `backend/tests/` | 417 automated test cases (30 files) |
+| `backend/tests/` | 418 automated test cases (30 files) |
 | `mobile/src/` | Expo Router screens (`app/`: five tabs, Story mode, first launch, approvals, emergency, privacy, banks), components, API client, passkeys (`lib/passkey.ts`), i18n (bn/en/zh, 860+ strings each), formatting (lakh, Bengali digits) |
 | `docs/` | Research, plans, this document, security self-assessment, `evidence/` (sandbox operation logs) |
 
@@ -625,7 +625,7 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
 
 ## 10. Testing and execution evidence
 
-- `cd backend && .venv/Scripts/python -m pytest -q` runs **417 test cases**, all passing:
+- `cd backend && .venv/Scripts/python -m pytest -q` runs **418 test cases**, all passing:
 
   | Area | File | Test cases |
   |---|---|---|
@@ -656,10 +656,10 @@ On Render: New → Blueprint → this repository (`render.yaml`), then set `DEEP
   | Safety fuzzer and its mutants | `test_fuzzer.py` | 5 |
   | Documents | `test_documents.py` | 5 |
   | Confirmation of Payee | `test_cop.py` | 5 |
-  | Judge mode: 20 scripted tasks, compromised-AI drill, no real messages | `test_judge.py` | 4 |
+  | Judge mode: 20 scripted tasks, compromised-AI drill, no real messages, private server tokens | `test_judge.py` | 5 |
   | Cost engine | `test_cost.py` | 4 |
   | On-chain anchor: live checks, an edited log, a failed or foreign transaction, an unreachable chain | `test_chain_anchor.py` | 8 |
-  | **Total** | **30 files** | **417** |
+  | **Total** | **30 files** | **418** |
 
   Tests never call the real AI (a fake DeepSeek server is used) or the network.
 
