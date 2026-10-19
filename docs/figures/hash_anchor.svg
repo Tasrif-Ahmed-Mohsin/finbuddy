@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" width="960" height="400" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .h { font-size: 17px; font-weight: 800; fill: #6B3FC0; }
+    .t { font-size: 15px; font-weight: 700; fill: #0E1324; }
+    .b { font-size: 14.5px; fill: #3A4256; }
+    .m { font-size: 13px; fill: #5A6378; font-family: Consolas, 'Cascadia Mono', monospace; }
+    .k { font-size: 13.5px; font-weight: 700; letter-spacing: 1.5px; fill: #6B3FC0; }
+    .ph { font-size: 18px; font-weight: 800; fill: #0E1324; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8E5BD8"/></marker>
+  </defs>
+  <rect width="960" height="400" fill="#FFFFFF"/>
+  <!-- FISCO box -->
+  <rect x="520" y="16" width="420" height="132" rx="14" fill="#F3EEFF" stroke="#B9A3E6" stroke-width="1.5"/>
+  <text x="540" y="44" class="k">FISCO BCOS 3.17.1 · BLOCK 2</text>
+  <text x="540" y="72" class="ph">EvidenceAnchor.anchor(head, 255)</text>
+  <text x="540" y="98" class="m">tx 0x07311c7acf80f778…b596f689d</text>
+  <text x="540" y="120" class="m">contract 0x1Cbb6Cb6…0221bDCD</text>
+  <text x="540" y="140" class="b" style="font-size:13.5px">committed by all 4 nodes · no coin, no fees</text>
+  <!-- chain -->
+  <g>
+    <rect x="20" y="210" width="140" height="120" rx="12" fill="#FFFFFF" stroke="#B9A3E6" stroke-width="1.5"/>
+    <text x="34" y="236" class="h">#250</text><text x="34" y="260" class="t">clock advanced</text><text x="34" y="284" class="b">19 Feb 2027</text><text x="34" y="314" class="m">3e3f…b2c4</text>
+    <rect x="175" y="210" width="140" height="120" rx="12" fill="#FFFFFF" stroke="#B9A3E6" stroke-width="1.5"/>
+    <text x="189" y="236" class="h">#251</text><text x="189" y="260" class="t">clock advanced</text><text x="189" y="284" class="b">20 Feb 2027</text><text x="189" y="314" class="m">4a9f…d0cf</text>
+    <rect x="330" y="210" width="140" height="120" rx="12" fill="#FFFFFF" stroke="#B9A3E6" stroke-width="1.5"/>
+    <text x="344" y="236" class="h">#252</text><text x="344" y="260" class="t">spending logged</text><text x="344" y="284" class="b">¥175, a want</text><text x="344" y="314" class="m">9b72…eec5</text>
+    <rect x="485" y="210" width="140" height="120" rx="12" fill="#FFFFFF" stroke="#B9A3E6" stroke-width="1.5"/>
+    <text x="499" y="236" class="h">#253</text><text x="499" y="260" class="t">clock advanced</text><text x="499" y="284" class="b">21 Feb 2027</text><text x="499" y="314" class="m">3473…0561</text>
+    <rect x="640" y="210" width="140" height="120" rx="12" fill="#FFFFFF" stroke="#B9A3E6" stroke-width="1.5"/>
+    <text x="654" y="236" class="h">#254</text><text x="654" y="260" class="t">crisis tested</text><text x="654" y="284" class="b">4-week test</text><text x="654" y="314" class="m">f230…9aa6</text>
+    <rect x="795" y="210" width="145" height="120" rx="12" fill="#16244A"/>
+    <text x="809" y="236" class="h" style="fill:#C792EA">#255 head</text><text x="809" y="260" class="t" style="fill:#FFFFFF">passport issued</text><text x="809" y="284" class="b" style="fill:#C9D6F5">the latest entry</text><text x="809" y="314" class="m" style="fill:#9CC8FF">ea98…bc2d</text>
+  </g>
+  <g stroke="#8E5BD8" stroke-width="2.2">
+    <line x1="160" y1="270" x2="173" y2="270" marker-end="url(#a)"/>
+    <line x1="315" y1="270" x2="328" y2="270" marker-end="url(#a)"/>
+    <line x1="470" y1="270" x2="483" y2="270" marker-end="url(#a)"/>
+    <line x1="625" y1="270" x2="638" y2="270" marker-end="url(#a)"/>
+    <line x1="780" y1="270" x2="793" y2="270" marker-end="url(#a)"/>
+    <path d="M867 210 V160 H760 V150" fill="none" stroke-dasharray="6 5" marker-end="url(#a)"/>
+  </g>
+  <text x="20" y="40" class="k">THE AUDIT LOG · 255 ENTRIES · FOUR SANDBOX MONTHS</text>
+  <text x="20" y="70" class="b">Each entry stores the SHA-256 of the entry before it, and its</text>
+  <text x="20" y="92" class="b">own SHA-256 over its canonical JSON. Edit, delete, insert or</text>
+  <text x="20" y="114" class="b">reorder one entry and the chain breaks at that exact place.</text>
+  <text x="20" y="146" class="b">The head hash is written on chain, so the whole log cannot be</text>
+  <text x="20" y="168" class="b">rewritten either: the new head would no longer match.</text>
+  <text x="20" y="362" class="b">Check without our server: verify_audit_log.py (standard library only) · the app re-checks the anchor live: 6 of 6</text>
+  <text x="20" y="386" class="m">prev_hash(#n) = hash(#n−1) · hash(#n) = SHA-256(canonical JSON of #n) · first prev_hash = 64 zeros</text>
+</svg>

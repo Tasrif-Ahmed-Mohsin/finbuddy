@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 470" width="960" height="470" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .h { font-size: 18.5px; font-weight: 700; fill: #0E1324; }
+    .b { font-size: 15px; fill: #3A4256; }
+    .m { font-size: 14px; fill: #3A4256; font-family: Consolas, 'Cascadia Mono', monospace; }
+    .lab { font-size: 13.5px; fill: #5A6378; font-style: italic; }
+    .k { font-size: 13.5px; font-weight: 700; letter-spacing: 1.5px; fill: #1F7BEA; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1F7BEA"/></marker>
+  </defs>
+  <rect width="960" height="470" fill="#FFFFFF"/>
+  <!-- visitors -->
+  <rect x="20" y="40" width="170" height="150" rx="14" fill="#EEF4FF" stroke="#9CC0EE" stroke-width="1.5"/>
+  <text x="38" y="72" class="h">Visitors</text>
+  <text x="38" y="100" class="b">browser, or the</text>
+  <text x="38" y="122" class="b">Android app</text>
+  <text x="38" y="150" class="b">judges' phones</text>
+  <text x="38" y="172" class="b">and laptops</text>
+  <line x1="190" y1="115" x2="246" y2="115" stroke="#1F7BEA" stroke-width="2.2" marker-end="url(#a)"/>
+  <text x="194" y="138" class="lab">HTTPS</text>
+
+  <!-- VM -->
+  <rect x="250" y="16" width="690" height="440" rx="16" fill="#F7F9FC" stroke="#9AA6C2" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="270" y="44" class="k">AZURE VM · UBUNTU 24.04 · 4 vCPU · 8 GiB · CENTRAL INDIA</text>
+
+  <rect x="270" y="62" width="230" height="110" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+  <text x="288" y="92" class="h">Caddy</text>
+  <text x="288" y="118" class="b">automatic HTTPS (TLS)</text>
+  <text x="288" y="140" class="b">serves the APK download</text>
+  <text x="288" y="162" class="m">/download/bluefin.apk</text>
+  <line x1="500" y1="117" x2="532" y2="117" stroke="#1F7BEA" stroke-width="2.2" marker-end="url(#a)"/>
+
+  <rect x="536" y="62" width="384" height="184" rx="12" fill="#16244A"/>
+  <text x="554" y="92" class="h" fill="#FFFFFF" style="fill:#FFFFFF">Docker container “bluefin”</text>
+  <text x="554" y="120" class="b" style="fill:#C9D6F5">uvicorn on 127.0.0.1:8000 (localhost only)</text>
+  <text x="554" y="144" class="b" style="fill:#C9D6F5">the web app + the API under /api</text>
+  <text x="554" y="168" class="b" style="fill:#C9D6F5">per-address rate limits · daily AI budget</text>
+  <text x="554" y="192" class="b" style="fill:#C9D6F5">new device replaces the oldest demo passkey</text>
+  <text x="554" y="216" class="b" style="fill:#C9D6F5">WhatsApp off · secrets only from the env file</text>
+  <text x="554" y="238" class="m" style="fill:#9CC8FF">restart: unless-stopped</text>
+
+  <rect x="270" y="196" width="230" height="110" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+  <text x="288" y="226" class="h">Root-only env file</text>
+  <text x="288" y="252" class="b">private agent / ingest</text>
+  <text x="288" y="274" class="b">tokens, signing secret,</text>
+  <text x="288" y="296" class="b">DeepSeek key (mode 600)</text>
+  <line x1="500" y1="230" x2="532" y2="200" stroke="#1F7BEA" stroke-width="2" marker-end="url(#a)"/>
+
+  <rect x="270" y="330" width="230" height="110" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+  <text x="288" y="360" class="h">Volume bluefin_var</text>
+  <text x="288" y="386" class="b">hash-chained audit log</text>
+  <text x="288" y="408" class="b">mounted in the container;</text>
+  <text x="288" y="430" class="b">survives rebuilds</text>
+
+  <rect x="536" y="270" width="384" height="170" rx="12" fill="#F3EEFF" stroke="#B9A3E6" stroke-width="1.5"/>
+  <text x="554" y="300" class="h">FISCO BCOS 3.17.1 · 4 nodes (PBFT)</text>
+  <text x="554" y="326" class="b">systemd service, every port on localhost</text>
+  <text x="554" y="348" class="b">web3 RPC 127.0.0.1:8545 · chain id 20200</text>
+  <text x="554" y="370" class="b">contract EvidenceAnchor · head anchored in</text>
+  <text x="554" y="392" class="b">block 2; the app re-checks it live (6 of 6)</text>
+  <text x="554" y="420" class="m">0x07311c7a…689d</text>
+  <line x1="728" y1="246" x2="728" y2="266" stroke="#8E5BD8" stroke-width="2.2" marker-end="url(#a)"/>
+
+  <!-- outside -->
+  <text x="20" y="236" class="k">OUTSIDE CALLS</text>
+  <text x="20" y="262" class="b">DeepSeek API: redacted</text>
+  <text x="20" y="282" class="b">text, only after consent</text>
+  <text x="20" y="312" class="b">Exchange rates (CC0)</text>
+  <text x="20" y="342" class="b">Eastern Bank's daily</text>
+  <text x="20" y="362" class="b">CNY rate sheets (PDF,</text>
+  <text x="20" y="382" class="b">parsed as untrusted)</text>
+</svg>

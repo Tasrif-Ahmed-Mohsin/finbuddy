@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 190" width="960" height="190" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .k { font-size: 17px; font-weight: 800; letter-spacing: 1.5px; }
+    .b { font-size: 15px; fill: #3A4256; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9AA6C2"/></marker>
+  </defs>
+  <rect width="960" height="190" fill="#FFFFFF"/>
+  <g>
+    <rect x="10" y="12" width="215" height="150" rx="14" fill="#EEF4FF" stroke="#9CC0EE" stroke-width="1.5"/>
+    <text x="28" y="44" class="k" fill="#1F7BEA">1 · SENSE</text>
+    <text x="28" y="74" class="b">bank messages (OTPs</text><text x="28" y="96" class="b">removed), money in</text><text x="28" y="118" class="b">China, both countries'</text><text x="28" y="140" class="b">bank days, real rates</text>
+    <rect x="252" y="12" width="215" height="150" rx="14" fill="#FFF8E6" stroke="#F0D28A" stroke-width="1.5"/>
+    <text x="270" y="44" class="k" fill="#A06A00">2 · PLAN</text>
+    <text x="270" y="74" class="b">the whole year, day by</text><text x="270" y="96" class="b">day: when to send so</text><text x="270" y="118" class="b">money never runs out,</text><text x="270" y="140" class="b">at the lowest true cost</text>
+    <rect x="494" y="12" width="215" height="150" rx="14" fill="#E8F7EF" stroke="#7FD1A8" stroke-width="1.5"/>
+    <text x="512" y="44" class="k" fill="#0F7A4B">3 · ACT</text>
+    <text x="512" y="74" class="b">only inside a limit the</text><text x="512" y="96" class="b">family signed with their</text><text x="512" y="118" class="b">passkeys; asks people</text><text x="512" y="140" class="b">for anything else</text>
+    <rect x="736" y="12" width="215" height="150" rx="14" fill="#F3EEFF" stroke="#B9A3E6" stroke-width="1.5"/>
+    <text x="754" y="44" class="k" fill="#6B3FC0">4 · PROVE</text>
+    <text x="754" y="74" class="b">a receipt for every</text><text x="754" y="96" class="b">payment, balanced books,</text><text x="754" y="118" class="b">a hash-chained log</text><text x="754" y="140" class="b">anchored on FISCO BCOS</text>
+  </g>
+  <g stroke="#9AA6C2" stroke-width="2.2">
+    <line x1="227" y1="87" x2="249" y2="87" marker-end="url(#a)"/>
+    <line x1="469" y1="87" x2="491" y2="87" marker-end="url(#a)"/>
+    <line x1="711" y1="87" x2="733" y2="87" marker-end="url(#a)"/>
+    <path d="M843 162 V180 H118 V166" fill="none" marker-end="url(#a)"/>
+  </g>
+</svg>

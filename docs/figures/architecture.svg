@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 700" width="960" height="700" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .h { font-size: 19px; font-weight: 700; fill: #0E1324; }
+    .b { font-size: 15.5px; fill: #3A4256; }
+    .w { font-size: 15.5px; fill: #E8EEFF; }
+    .wh { font-size: 19px; font-weight: 700; fill: #FFFFFF; }
+    .lab { font-size: 13.5px; fill: #5A6378; font-style: italic; }
+    .chip { font-size: 15px; font-weight: 600; fill: #0E1324; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1F7BEA"/></marker>
+  </defs>
+  <rect width="960" height="700" fill="#FFFFFF"/>
+
+  <!-- people + app -->
+  <rect x="20" y="16" width="920" height="84" rx="14" fill="#EEF4FF" stroke="#9CC0EE" stroke-width="1.5"/>
+  <text x="40" y="48" class="h">Bluefin app · Android and web (Expo SDK 57, React Native)</text>
+  <text x="40" y="76" class="b">Father in Dhaka and student in Beijing · Bangla, English, Chinese · voice input · read-back · passkey after fingerprint / PIN</text>
+  <line x1="480" y1="100" x2="480" y2="132" stroke="#1F7BEA" stroke-width="2.2" marker-end="url(#a)"/>
+  <text x="492" y="122" class="lab">HTTPS · requests signed with passkeys</text>
+
+  <!-- requesters -->
+  <rect x="20" y="138" width="286" height="86" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+  <text x="38" y="168" class="h">People</text>
+  <text x="38" y="194" class="b">parent and student; only they</text>
+  <text x="38" y="214" class="b">approve, sign and unfreeze</text>
+  <rect x="337" y="138" width="286" height="86" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+  <text x="355" y="168" class="h">Chat agent</text>
+  <text x="355" y="194" class="b">DeepSeek tool calling; rules</text>
+  <text x="355" y="214" class="b">fallback; read, plan, draft only</text>
+  <rect x="654" y="138" width="286" height="86" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+  <text x="672" y="168" class="h">Autopilot</text>
+  <text x="672" y="194" class="b">acts only inside a mandate</text>
+  <text x="672" y="214" class="b">people signed (caps, payee, expiry)</text>
+
+  <line x1="480" y1="224" x2="480" y2="252" stroke="#1F7BEA" stroke-width="2.2" marker-end="url(#a)"/>
+
+  <!-- service layer -->
+  <rect x="20" y="256" width="920" height="64" rx="12" fill="#16244A"/>
+  <text x="40" y="285" class="wh">Service layer (AppState)</text>
+  <text x="40" y="308" class="w">the only path to drafts, approvals, mandates and payments · every action written to the hash-chained log</text>
+
+  <line x1="480" y1="320" x2="480" y2="348" stroke="#1F7BEA" stroke-width="2.2" marker-end="url(#a)"/>
+
+  <!-- security gate -->
+  <rect x="20" y="352" width="920" height="122" rx="12" fill="#F3EEFF" stroke="#B9A3E6" stroke-width="1.5"/>
+  <text x="40" y="381" class="h">Security gate: runs on the server for every request, in this order</text>
+  <g>
+    <rect x="40" y="398" width="138" height="56" rx="10" fill="#FFFFFF" stroke="#B9A3E6"/><text x="109" y="421" class="chip" text-anchor="middle">1 · Permission</text><text x="109" y="442" class="chip" text-anchor="middle">engine L0–L3</text>
+    <rect x="190" y="398" width="138" height="56" rx="10" fill="#FFFFFF" stroke="#B9A3E6"/><text x="259" y="421" class="chip" text-anchor="middle">2 · Compliance</text><text x="259" y="442" class="chip" text-anchor="middle">+ name check</text>
+    <rect x="340" y="398" width="138" height="56" rx="10" fill="#FFFFFF" stroke="#B9A3E6"/><text x="409" y="421" class="chip" text-anchor="middle">3 · Taint</text><text x="409" y="442" class="chip" text-anchor="middle">tracking</text>
+    <rect x="490" y="398" width="138" height="56" rx="10" fill="#FFFFFF" stroke="#B9A3E6"/><text x="559" y="421" class="chip" text-anchor="middle">4 · Passkey</text><text x="559" y="442" class="chip" text-anchor="middle">signatures</text>
+    <rect x="640" y="398" width="138" height="56" rx="10" fill="#FFFFFF" stroke="#B9A3E6"/><text x="709" y="421" class="chip" text-anchor="middle">5 · Execute</text><text x="709" y="442" class="chip" text-anchor="middle">exactly once</text>
+    <rect x="790" y="398" width="130" height="56" rx="10" fill="#FFFFFF" stroke="#B9A3E6"/><text x="855" y="421" class="chip" text-anchor="middle">6 · Books</text><text x="855" y="442" class="chip" text-anchor="middle">and log</text>
+  </g>
+
+  <line x1="480" y1="474" x2="480" y2="502" stroke="#1F7BEA" stroke-width="2.2" marker-end="url(#a)"/>
+
+  <!-- bottom row -->
+  <rect x="20" y="506" width="220" height="176" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+  <text x="36" y="535" class="h">Engines</text>
+  <text x="36" y="561" class="b">year plan (both bank</text><text x="36" y="581" class="b">calendars) · mandate</text><text x="36" y="601" class="b">compiler · cost and living</text><text x="36" y="621" class="b">optimiser · FX ranges</text><text x="36" y="641" class="b">Earn &amp; Save · inbox</text><text x="36" y="661" class="b">(redact, extract, insights)</text>
+
+  <rect x="253" y="506" width="220" height="176" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+  <text x="269" y="535" class="h">Sandbox bank</text>
+  <text x="269" y="561" class="b">double-entry ledger</text><text x="269" y="581" class="b">exactly-once booking</text><text x="269" y="601" class="b">ISO 20022 pain.001</text><text x="269" y="621" class="b">with UETR</text><text x="269" y="641" class="b">open banking</text><text x="269" y="661" class="b">(read-only consents)</text>
+
+  <rect x="486" y="506" width="220" height="176" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+  <text x="502" y="535" class="h">Audit log</text>
+  <text x="502" y="561" class="b">SHA-256 hash chain</text><text x="502" y="581" class="b">of every action and</text><text x="502" y="601" class="b">refusal · head hash</text><text x="502" y="621" class="b">anchored on</text><text x="502" y="641" class="b">FISCO BCOS 3.17.1</text><text x="502" y="661" class="b">(4 nodes)</text>
+
+  <rect x="719" y="506" width="221" height="176" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+  <text x="735" y="535" class="h">Data with sources</text>
+  <text x="735" y="561" class="b">rule pack (34 values,</text><text x="735" y="581" class="b">each with a source)</text><text x="735" y="601" class="b">BD + CN bank holidays</text><text x="735" y="621" class="b">953 days of FX rates</text><text x="735" y="641" class="b">banks' rate sheets</text><text x="735" y="661" class="b">and fee schedules</text>
+</svg>

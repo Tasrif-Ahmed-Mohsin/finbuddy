@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 470" width="960" height="470" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .h { font-size: 19px; font-weight: 800; fill: #FFFFFF; }
+    .t { font-size: 18px; font-weight: 700; fill: #0E1324; }
+    .b { font-size: 15px; fill: #3A4256; }
+    .ok { font-size: 15px; font-weight: 700; fill: #0F7A4B; }
+    .no { font-size: 15px; font-weight: 700; fill: #B4232A; }
+    .hd { font-size: 13.5px; font-weight: 700; letter-spacing: 1.5px; fill: #5A6378; }
+  </style>
+  <rect width="960" height="470" fill="#FFFFFF"/>
+  <text x="200" y="26" class="hd">WHAT IT ALLOWS</text>
+  <text x="640" y="26" class="hd">THE AI AGENT</text>
+  <text x="800" y="26" class="hd">PEOPLE</text>
+
+  <g>
+    <rect x="20" y="40" width="160" height="72" rx="12" fill="#4DA3FF"/><text x="100" y="72" class="h" text-anchor="middle">L0 READ</text><text x="100" y="96" class="h" text-anchor="middle" style="font-size:14px;font-weight:600">rates, plans</text>
+    <rect x="190" y="40" width="430" height="72" rx="12" fill="#F4F8FF" stroke="#C9D8F0"/>
+    <text x="206" y="70" class="t">Read and explain</text><text x="206" y="94" class="b">rates, plans, comparisons, message checks, own data</text>
+    <text x="640" y="82" class="ok">✓ allowed</text><text x="800" y="82" class="ok">✓ allowed</text>
+  </g>
+  <g>
+    <rect x="20" y="124" width="160" height="72" rx="12" fill="#1F7BEA"/><text x="100" y="156" class="h" text-anchor="middle">L1 DRAFT</text><text x="100" y="180" class="h" text-anchor="middle" style="font-size:14px;font-weight:600">prepare</text>
+    <rect x="190" y="124" width="430" height="72" rx="12" fill="#F4F8FF" stroke="#C9D8F0"/>
+    <text x="206" y="154" class="t">Prepare, never pay</text><text x="206" y="178" class="b">payment drafts, mandate proposals, freeze a card</text>
+    <text x="640" y="166" class="ok">✓ allowed</text><text x="800" y="166" class="ok">✓ allowed</text>
+  </g>
+  <g>
+    <rect x="20" y="208" width="160" height="72" rx="12" fill="#17A36B"/><text x="100" y="240" class="h" text-anchor="middle">L2 EXECUTE</text><text x="100" y="264" class="h" text-anchor="middle" style="font-size:14px;font-weight:600">one payment</text>
+    <rect x="190" y="208" width="430" height="72" rx="12" fill="#F1FAF5" stroke="#B6E3CB"/>
+    <text x="206" y="238" class="t">Pay one exact draft</text><text x="206" y="262" class="b">passkey signature over its hash; both from ৳1 lakh</text>
+    <text x="640" y="250" class="no">✗ never</text><text x="800" y="250" class="ok">✓ with passkey</text>
+  </g>
+  <g>
+    <rect x="20" y="292" width="160" height="72" rx="12" fill="#0F7A4B"/><text x="100" y="324" class="h" text-anchor="middle">L3 MANDATE</text><text x="100" y="348" class="h" text-anchor="middle" style="font-size:14px;font-weight:600">standing rule</text>
+    <rect x="190" y="292" width="430" height="72" rx="12" fill="#F1FAF5" stroke="#B6E3CB"/>
+    <text x="206" y="322" class="t">Autopilot inside a signed rule</text><text x="206" y="346" class="b">own account only, living money only, caps, expiry</text>
+    <text x="640" y="322" class="ok">✓ acts inside</text><text x="640" y="344" class="no">✗ never signs</text><text x="800" y="334" class="ok">✓ sign, cancel</text>
+  </g>
+  <g>
+    <rect x="20" y="376" width="160" height="72" rx="12" fill="#E5484D"/><text x="100" y="408" class="h" text-anchor="middle">HARD BLOCKS</text><text x="100" y="432" class="h" text-anchor="middle" style="font-size:14px;font-weight:600">no override</text>
+    <rect x="190" y="376" width="430" height="72" rx="12" fill="#FFF1F1" stroke="#F0B9BB"/>
+    <text x="206" y="406" class="t">Unverified payee, scam signal, stale quote,</text><text x="206" y="430" class="b">tampered draft, replayed token, frozen card, rule breach</text>
+    <text x="640" y="418" class="no">✗ nobody</text><text x="800" y="418" class="no">✗ nobody</text>
+  </g>
+  <line x1="630" y1="34" x2="630" y2="452" stroke="#E3E7EF" stroke-width="1.5"/>
+  <line x1="790" y1="34" x2="790" y2="452" stroke="#E3E7EF" stroke-width="1.5"/>
+</svg>

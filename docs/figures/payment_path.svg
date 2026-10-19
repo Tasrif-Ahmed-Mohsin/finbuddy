@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .h { font-size: 19px; font-weight: 700; fill: #0E1324; }
+    .b { font-size: 15.5px; fill: #3A4256; }
+    .n { font-size: 18px; font-weight: 800; fill: #FFFFFF; }
+    .r { font-size: 15.5px; fill: #B4232A; font-weight: 600; }
+    .g { font-size: 17px; fill: #0F7A4B; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1F7BEA"/></marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#E5484D"/></marker>
+  </defs>
+  <rect width="960" height="640" fill="#FFFFFF"/>
+  <rect x="20" y="12" width="660" height="50" rx="12" fill="#EEF4FF" stroke="#9CC0EE" stroke-width="1.5"/>
+  <text x="40" y="44" class="h">A request: from a person, the chat agent or the autopilot</text>
+
+  <g id="steps">
+    <!-- step boxes: x 20..680 -->
+    <rect x="20" y="82" width="660" height="72" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+    <circle cx="52" cy="118" r="18" fill="#8E5BD8"/><text x="52" y="124" class="n" text-anchor="middle">1</text>
+    <text x="84" y="111" class="h">Permission engine</text><text x="84" y="136" class="b">is this actor allowed this level? L0 read · L1 draft · L2 execute · L3 mandate</text>
+
+    <rect x="20" y="168" width="660" height="72" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+    <circle cx="52" cy="204" r="18" fill="#8E5BD8"/><text x="52" y="210" class="n" text-anchor="middle">2</text>
+    <text x="84" y="197" class="h">Compliance checks</text><text x="84" y="222" class="b">verified payee + name check · fee notice · living cap · fresh quote · scam signals</text>
+
+    <rect x="20" y="254" width="660" height="72" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+    <circle cx="52" cy="290" r="18" fill="#8E5BD8"/><text x="52" y="296" class="n" text-anchor="middle">3</text>
+    <text x="84" y="283" class="h">Taint tracking (payments the AI drafts)</text><text x="84" y="308" class="b">did the amount come only from outside text (an SMS, a document)?</text>
+
+    <rect x="20" y="340" width="660" height="72" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+    <circle cx="52" cy="376" r="18" fill="#8E5BD8"/><text x="52" y="382" class="n" text-anchor="middle">4</text>
+    <text x="84" y="369" class="h">Authority</text><text x="84" y="394" class="b">passkeys sign the exact draft (both people from ৳1 lakh), or a mandate</text>
+
+    <rect x="20" y="426" width="660" height="72" rx="12" fill="#FFFFFF" stroke="#C9D3E3" stroke-width="1.5"/>
+    <circle cx="52" cy="462" r="18" fill="#8E5BD8"/><text x="52" y="468" class="n" text-anchor="middle">5</text>
+    <text x="84" y="455" class="h">Execute exactly once</text><text x="84" y="480" class="b">Idempotency-Key · every check runs again at execution</text>
+
+    <rect x="20" y="512" width="660" height="72" rx="12" fill="#E8F7EF" stroke="#7FD1A8" stroke-width="1.5"/>
+    <circle cx="52" cy="548" r="18" fill="#17A36B"/><text x="52" y="554" class="n" text-anchor="middle">6</text>
+    <text x="84" y="541" class="h">Book and record</text><text x="84" y="566" class="b">double-entry ledger · ISO 20022 + UETR · hash-chained log · receipt</text>
+  </g>
+  <g stroke="#1F7BEA" stroke-width="2">
+    <line x1="350" y1="62" x2="350" y2="80" marker-end="url(#a)"/>
+    <line x1="350" y1="154" x2="350" y2="166" marker-end="url(#a)"/>
+    <line x1="350" y1="240" x2="350" y2="252" marker-end="url(#a)"/>
+    <line x1="350" y1="326" x2="350" y2="338" marker-end="url(#a)"/>
+    <line x1="350" y1="412" x2="350" y2="424" marker-end="url(#a)"/>
+    <line x1="350" y1="498" x2="350" y2="510" marker-end="url(#a)"/>
+  </g>
+  <text x="350" y="612" class="g" text-anchor="middle">Money moves only here, and only once</text>
+
+  <!-- stopped -->
+  <g stroke="#E5484D" stroke-width="2" stroke-dasharray="6 5" fill="none">
+    <path d="M680 118 H760" marker-end="url(#r)"/>
+    <path d="M680 204 H760" marker-end="url(#r)"/>
+    <path d="M680 290 H760" marker-end="url(#r)"/>
+    <path d="M680 376 H760" marker-end="url(#r)"/>
+  </g>
+  <rect x="764" y="96" width="176" height="302" rx="14" fill="#FFF1F1" stroke="#F0A3A6" stroke-width="1.5"/>
+  <text x="852" y="134" class="h" text-anchor="middle">Stopped</text>
+  <text x="852" y="170" class="r" text-anchor="middle">403 or blocked,</text>
+  <text x="852" y="192" class="r" text-anchor="middle">with the reason</text>
+  <text x="852" y="236" class="b" text-anchor="middle">written to the</text>
+  <text x="852" y="258" class="b" text-anchor="middle">hash-chained log</text>
+  <text x="852" y="302" class="b" text-anchor="middle">the AI has no</text>
+  <text x="852" y="324" class="b" text-anchor="middle">tool to approve,</text>
+  <text x="852" y="346" class="b" text-anchor="middle">sign or execute</text>
+</svg>

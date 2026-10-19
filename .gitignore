@@ -49,3 +49,7 @@ video/*.wav
 # Regenerated from the recordings (holds their transcripts and loudness); the deck has the interviewee's photos
 video/source/remotion/src/timeline.json
 submission/Bluefin_Presentation.pptx
+submission/Bluefin_Presentation.pdf
+# The email bundle: a zip of the pushed source, and the email text (it holds the private video link)
+submission/Bluefin_Source_Code.zip
+submission/SUBMISSION_EMAIL.txt

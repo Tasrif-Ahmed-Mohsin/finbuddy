@@ -6,22 +6,32 @@ Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy · **Live demo: http
 ## Evaluate it in 5 minutes
 
 0. **Open it**: https://20-193-145-135.sslip.io in any browser, or install the Android app from https://20-193-145-135.sslip.io/download/bluefin.apk. Four short cards, then **See the whole story**.
-1. **Watch the story**: the demo video (≤ 5 min, link below) follows the app's Story mode: Sense → Plan → Act → Prove.
+1. **Watch the story**: the demo video (≤ 5 min, link in the submission email) follows the app's Story mode: Sense → Plan → Act → Prove.
 2. **Run it yourself**: start the backend and the app ([README → Run it](README.md#run-it)). On first launch, four
    short cards; then tap **See the whole story**: eleven steps, each doing the real thing on the sandbox (bank messages,
    the year plan, a Bangla mandate, two passkey signatures, an attack refused, the student's own Shield, four months passing, receipts, proof).
 3. **Run the judges' tasks**: Settings → Judge mode (or `python scripts/judge_tasks.py`): **20/20** scripted tasks pass
    in fresh sandboxes, each with steps, checks, value and the log entry that proves it.
-4. **Run the tests**: `cd backend && .venv/Scripts/python -m pytest -q`: **418 tests** pass, including the red-team cases.
+4. **Run the tests**: `cd backend && .venv/Scripts/python -m pytest -q`: **419 tests** pass, including the red-team cases.
+
+## Reviewing from mainland China
+
+- The live demo, the Android app and the video come from our own server (Azure, Central India). Nothing loads from
+  Google, YouTube or any other site blocked in mainland China, and the AI is DeepSeek, which runs in China.
+- Any browser works. With a fingerprint, face or PIN set up (Windows Hello, Touch ID, an Android screen lock), the
+  browser makes a real passkey. Without one, for example on a phone without Google services, it uses a sandbox demo
+  key, labelled as such on every approval. The Android app makes its own key on the phone and needs no Google services.
+- GitHub can be slow from mainland China: the same source code is attached to the submission email as
+  `Bluefin_Source_Code.zip`.
 
 ## The six deliverables
 
 | # | Deliverable | Where |
 |---|---|---|
 | 1 | **Technical documentation** (architecture, core algorithms, security design) | PDF: [submission/Bluefin_Technical_Documentation.pdf](submission/Bluefin_Technical_Documentation.pdf) · source: [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md); bank standards in [docs/FINTECH_STANDARDS_ISO20022.md](docs/FINTECH_STANDARDS_ISO20022.md) |
-| 2 | **Presentation deck** (≤ 10 min) | *to be added* |
-| 3 | **Demo video** (≤ 5 min) | *to be added* |
-| 4 | **Source code** with README, deployment and tests | this repository: [README.md](README.md) (run it, deploy it), `backend/tests/` (418 tests), `Dockerfile` + `render.yaml` |
+| 2 | **Presentation deck** (≤ 10 min) | `Bluefin_Presentation.pptx` (13 slides, speaker notes timed to 9:20; also as PDF), sent with the submission email. Kept out of this public repository because it shows the interviewee's photo |
+| 3 | **Demo video** (≤ 5 min) | `Bluefin_Demo.mp4` (4:52, 1080p): download link in the submission email, on the demo server so it opens from mainland China. Kept out of this public repository because it shows the interviewee; the code that builds it is in [video/source/](video/source/README.md) |
+| 4 | **Source code** with README, deployment and tests | this repository: [README.md](README.md) (run it, deploy it), `backend/tests/` (419 tests), `Dockerfile` + `render.yaml` |
 | 5 | **Security self-assessment** (permission tiers, known-risk list) | PDF: [submission/Bluefin_Security_Self_Assessment.pdf](submission/Bluefin_Security_Self_Assessment.pdf) · source: [docs/SECURITY_SELF_ASSESSMENT.md](docs/SECURITY_SELF_ASSESSMENT.md): levels L0–L3 with the action map, red-team results, 40 known risks |
 | 6 | **Execution evidence** (sandbox operation logs + demo video) | PDF: [submission/Bluefin_Execution_Evidence.pdf](submission/Bluefin_Execution_Evidence.pdf) · source: [docs/EXECUTION_EVIDENCE.md](docs/EXECUTION_EVIDENCE.md) (the report) and [docs/evidence/](docs/evidence/): see below |
 
@@ -42,5 +52,7 @@ Repository: https://github.com/Tasrif-Ahmed-Mohsin/finbuddy · **Live demo: http
 | **Task completion (40%)** | Story mode; Judge tasks T1–T9; the year plan (20 → 0 days without money); the four-month sandbox log |
 | **Security & compliance (30%)** | Judge tasks S1–S7; passkey-signed approvals; two-person rule; taint tracking; output firewall; Confirmation of Payee; double-entry books and exactly-once payments; safety fuzzing; the security self-assessment |
 | **Innovation & interaction (30%)** | A family mandate spoken in Bangla; read-backs in three languages; one question instead of a guess; corrections; offline fallback; the animated companion; the trust center; privacy and AI consent (PIPL) |
+
+Third-party libraries, services, data and media, with their licences: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 All money is simulated (sandbox). The mid-market exchange rate and the banks' published rate sheets and fees are real.

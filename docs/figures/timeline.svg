@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 384" width="960" height="384" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .m { font-size: 15px; font-weight: 700; fill: #5A6378; }
+    .b { font-size: 14px; fill: #3A4256; }
+    .v { font-size: 14.5px; font-weight: 800; fill: #0E1324; }
+    .r { font-size: 14px; font-weight: 700; fill: #B4232A; }
+    .a { font-size: 14px; font-weight: 700; fill: #A06A00; }
+    .g { font-size: 16px; font-weight: 800; fill: #0F7A4B; }
+    .k { font-size: 13.5px; font-weight: 700; letter-spacing: 1.5px; fill: #5A6378; }
+  </style>
+  <rect width="960" height="384" fill="#FFFFFF"/>
+  <!-- scale: 12 Oct 2026 (day 0) at x=40 → 28 Feb 2027 (day 139) at x=920 ; px/day = 6.33 -->
+  <text x="40" y="24" class="k">THE FOUR-MONTH SANDBOX RUN · ONE DAY AT A TIME · 12 OCT 2026 → 21 FEB 2027</text>
+  <!-- limit line: bars scaled ৳1,20,000 = 150 px; base y = 270 -->
+  <line x1="40" y1="120" x2="920" y2="120" stroke="#17A36B" stroke-width="2" stroke-dasharray="9 7"/>
+  <text x="44" y="112" class="g" style="font-size:14px">Signed limit ৳1,20,000 a month</text>
+  <!-- Spring Festival 5–13 Feb: days 116..124 -->
+  <rect x="774" y="110" width="57" height="160" fill="#E5484D" opacity="0.14"/>
+  <text x="803" y="292" class="r" text-anchor="middle">Spring</text><text x="803" y="308" class="r" text-anchor="middle">Festival</text>
+  <!-- card stop 31 Dec: day 80 -->
+  <line x1="546" y1="104" x2="546" y2="276" stroke="#E0A100" stroke-width="2.5" stroke-dasharray="6 5"/>
+  <text x="546" y="96" class="a" text-anchor="middle">card stops abroad 31 Dec</text>
+  <!-- transfers (land dates): 19 Oct d7, 19 Nov d38, 22 Dec d71, 21 Jan d101, 24 Feb d135 -->
+  <g fill="#17A36B">
+    <rect x="70" y="124" width="26" height="146" rx="5"/>
+    <rect x="267" y="138" width="26" height="132" rx="5"/>
+    <rect x="476" y="131" width="26" height="139" rx="5"/>
+    <rect x="666" y="143" width="26" height="127" rx="5"/>
+    <rect x="881" y="127" width="26" height="143" rx="5" opacity="0.55"/>
+  </g>
+  <g class="v" style="fill:#FFFFFF">
+    <text transform="translate(88 200) rotate(-90)" text-anchor="middle" style="fill:#FFFFFF">¥6,100</text>
+    <text transform="translate(285 206) rotate(-90)" text-anchor="middle" style="fill:#FFFFFF">¥5,500</text>
+    <text transform="translate(494 204) rotate(-90)" text-anchor="middle" style="fill:#FFFFFF">¥5,800</text>
+    <text transform="translate(684 208) rotate(-90)" text-anchor="middle" style="fill:#FFFFFF">¥5,300</text>
+    <text transform="translate(899 202) rotate(-90)" text-anchor="middle" style="fill:#FFFFFF">¥6,000</text>
+  </g>
+  <!-- hospital bill 22 Jan day 102: marked on the axis, explained below -->
+  <path d="M686 262 L694 270 L686 278 L678 270 Z" fill="#8E5BD8"/>
+  <text x="560" y="318" class="b" style="font-weight:700;fill:#6B3FC0">◆ 22 Jan: ¥2,500 hospital bill; the Shield covers ¥800</text>
+  <!-- axis -->
+  <line x1="40" y1="270" x2="920" y2="270" stroke="#0E1324" stroke-width="2"/>
+  <g class="m">
+    <text x="40" y="292">Oct</text><text x="168" y="292">Nov</text><text x="358" y="292">Dec</text><text x="554" y="292">Jan</text><text x="750" y="292" style="fill:#5A6378">Feb</text>
+  </g>
+  <g stroke="#9AA6C2" stroke-width="1.5">
+    <line x1="168" y1="270" x2="168" y2="276"/><line x1="358" y1="270" x2="358" y2="276"/><line x1="554" y1="270" x2="554" y2="276"/><line x1="750" y1="270" x2="750" y2="276"/>
+  </g>
+  <line x1="871" y1="104" x2="871" y2="276" stroke="#0E1324" stroke-width="2"/>
+  <text x="866" y="96" class="v" text-anchor="end">now: 21 Feb</text>
+  <text x="40" y="350" class="b">Bars: each transfer the autopilot sent, at the day it landed in China, height = taka sent against the signed monthly limit.</text>
+  <text x="40" y="372" class="g">Result: 0 days without money (today's habits, same months: 5 already)</text>
+</svg>

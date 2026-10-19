@@ -97,13 +97,18 @@ const webAuthn = () =>
 async function createWebAuthn(role: Role): Promise<Stored | null> {
   const creds = webAuthn();
   if (!creds) return null;
+  // No fingerprint, face or PIN on this device (a PC without Windows Hello, a phone without Google services, as is
+  // common in China): the browser could only offer another phone or a security key, so the labelled demo key is used.
+  const pkc = globalThis.PublicKeyCredential as unknown as { isUserVerifyingPlatformAuthenticatorAvailable?: () => Promise<boolean> };
+  const platform = await pkc.isUserVerifyingPlatformAuthenticatorAvailable?.().catch(() => false);
+  if (!platform) return null;
   const cred = await creds.create({
     publicKey: {
       challenge: getRandomBytes(32),
       rp: { name: 'Bluefin', id: globalThis.location.hostname },
       user: { id: enc.encode(`sathi-${role}`), name: `${role}@bluefin`, displayName: role === 'parent' ? 'Bluefin · parent' : 'Bluefin · student' },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
-      authenticatorSelection: { userVerification: 'required', residentKey: 'preferred' },
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
       attestation: 'none',
       timeout: 60000,
     },
